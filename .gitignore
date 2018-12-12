@@ -1,0 +1,26 @@
+# Binaries for programs and plugins
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+debug
+rapina
+*.db-journal
+
+# Temporary and data files
+*.zip
+**/.data
+*.csv
+*.xls*
+*.db
+*.old
+.vscode/*
+*.sql
+*_string.go
+
+# Test binary, build with `go test -c`
+*.test
+
+# Output of the go coverage tool, specifically when used with LiteIDE
+*.out

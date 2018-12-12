@@ -1,0 +1,112 @@
+-----------------------
+Campo: CNPJ_CIA
+-----------------------
+   Descrição: CNPJ da companhia
+   Domínio: Alfanumérico
+   Tipo dados: varchar
+   Precisão: 20
+   Scale: 0
+-----------------------
+Campo: DT_REFER
+-----------------------
+   Descrição: Data de referência do documento
+   Domínio: AAAA-MM-DD
+   Tipo dados: date
+   Precisão: 10
+   Scale: 0
+-----------------------
+Campo: VERSAO
+-----------------------
+   Descrição: Versão do documento
+   Domínio: Numérico
+   Tipo dados: smallint
+   Precisão: 5
+   Scale: 0
+-----------------------
+Campo: DENOM_CIA
+-----------------------
+   Descrição: Nome empresarial da companhia
+   Domínio: Alfanumérico
+   Tipo dados: varchar
+   Precisão: 100
+   Scale: 0
+-----------------------
+Campo: CD_CVM
+-----------------------
+   Descrição: Código CVM
+   Domínio: Numérico
+   Tipo dados: numeric
+   Precisão: 7
+   Scale: 0
+-----------------------
+Campo: GRUPO_DFP
+-----------------------
+   Descrição: Nome e nível de agregação da demonstração
+   Domínio: Alfanumérico
+   Tipo dados: varchar
+   Precisão: 206
+   Scale: 0
+-----------------------
+Campo: MOEDA
+-----------------------
+   Descrição: Moeda
+   Domínio: Alfanumérico
+   Tipo dados: varchar
+   Precisão: 4
+   Scale: 0
+-----------------------
+Campo: ESCALA_MOEDA
+-----------------------
+   Descrição: Escala monetária
+   Domínio: Alfanumérico
+   Tipo dados: varchar
+   Precisão: 7
+   Scale: 0
+-----------------------
+Campo: ORDEM_EXERC
+-----------------------
+   Descrição: Ordem do exercício social
+   Domínio: Alfanumérico
+   Tipo dados: varchar
+   Precisão: 9
+   Scale: 0
+-----------------------
+Campo: DT_INI_EXERC
+-----------------------
+   Descrição: Data início do exercício social
+   Domínio: AAAA-MM-DD
+   Tipo dados: date
+   Precisão: 10
+   Scale: 0
+-----------------------
+Campo: DT_FIM_EXERC
+-----------------------
+   Descrição: Data fim do exercício social
+   Domínio: AAAA-MM-DD
+   Tipo dados: date
+   Precisão: 10
+   Scale: 0
+-----------------------
+Campo: CD_CONTA
+-----------------------
+   Descrição: Código da conta
+   Domínio: Numérico
+   Tipo dados: varchar
+   Precisão: 18
+   Scale: 0
+-----------------------
+Campo: DS_CONTA
+-----------------------
+   Descrição: Descrição da conta
+   Domínio: Alfanumérico
+   Tipo dados: varchar
+   Precisão: 100
+   Scale: 0
+-----------------------
+Campo: VL_CONTA
+-----------------------
+   Descrição: Valor da conta
+   Domínio: Numérico
+   Tipo dados: numeric
+   Precisão: 29
+   Scale: 2
