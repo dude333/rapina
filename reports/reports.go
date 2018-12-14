@@ -38,6 +38,10 @@ func Report(db *sql.DB, company string, begin, end int, path string) (err error)
 	e := newExcel()
 	sheet, _ := e.newSheet(company)
 
+	// Company name
+	sheet.mergeCell("A1", "B1")
+	sheet.printRows("A1", &[]string{company}, LEFT, true)
+
 	// ACCOUNT NUMBERING AND DESCRIPTION (COLS A AND B) ===============\/
 
 	// Print accounts codes and descriptions in columns A and B

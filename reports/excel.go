@@ -143,6 +143,13 @@ func (s *Sheet) printValue(cell string, value float32, format int, bold bool) (e
 }
 
 //
+// mergeCell
+//
+func (s *Sheet) mergeCell(a, b string) {
+	s.e.xlsx.MergeCell(s.name, a, b)
+}
+
+//
 // autoWidth best effort to automatically adjust the cols width
 //
 func (s *Sheet) autoWidth() {
