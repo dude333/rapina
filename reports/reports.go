@@ -135,17 +135,17 @@ func metricsList(v map[int]float32) (metrics []metric) {
 		{"Lucro Líquido", v[p.LucLiq], NUMBER},
 		{"", 0, EMPTY},
 
-		{"Marg. EBITDA", zeroIfNeg(EBITDA / v[p.Vendas]), PERCENT},
-		{"Marg. EBIT", zeroIfNeg(v[p.EBIT] / v[p.Vendas]), PERCENT},
-		{"Marg. Líq.", zeroIfNeg(v[p.LucLiq] / v[p.Vendas]), PERCENT},
-		{"ROE", zeroIfNeg(v[p.LucLiq] / v[p.Equity]), PERCENT},
+		{"Marg. EBITDA", zeroIfNeg(safeDiv(v[p.EBIT], v[p.Vendas])), PERCENT},
+		{"Marg. EBIT", zeroIfNeg(safeDiv(v[p.EBIT], v[p.Vendas])), PERCENT},
+		{"Marg. Líq.", zeroIfNeg(safeDiv(v[p.LucLiq], v[p.Vendas])), PERCENT},
+		{"ROE", zeroIfNeg(safeDiv(v[p.LucLiq], v[p.Equity])), PERCENT},
 		{"", 0, EMPTY},
 
 		{"Caixa", caixa, NUMBER},
 		{"Dívida Bruta", dividaBruta, NUMBER},
 		{"Dívida Líq.", dividaLiquida, NUMBER},
-		{"Dív. Bru./PL", zeroIfNeg(dividaBruta / v[p.Equity]), PERCENT},
-		{"Dív.Líq./EBITDA", zeroIfNeg(dividaLiquida / EBITDA), INDEX},
+		{"Dív. Bru./PL", zeroIfNeg(safeDiv(dividaBruta, v[p.Equity])), PERCENT},
+		{"Dív.Líq./EBITDA", zeroIfNeg(safeDiv(dividaLiquida, EBITDA)), INDEX},
 		{"", 0, EMPTY},
 
 		{"FCO", v[p.FCO], NUMBER},
@@ -155,7 +155,7 @@ func metricsList(v map[int]float32) (metrics []metric) {
 		{"", 0, EMPTY},
 
 		{"Proventos", proventos, NUMBER},
-		{"Payout", zeroIfNeg(proventos / v[p.LucLiq]), PERCENT},
+		{"Payout", zeroIfNeg(safeDiv(proventos, v[p.LucLiq])), PERCENT},
 	}
 }
 
@@ -164,6 +164,13 @@ func zeroIfNeg(n float32) float32 {
 		return 0
 	}
 	return n
+}
+
+func safeDiv(n, d float32) float32 {
+	if d == 0 {
+		return 0
+	}
+	return n / d
 }
 
 //

@@ -65,18 +65,14 @@ func accountsValues(db *sql.DB, company string, year int) (values map[int]float3
 	selectReport := fmt.Sprintf(`
 	SELECT
 		CODE,
-		strftime('%%Y-%%m-%%d', DT_REFER, 'unixepoch') AS DT,
-		DENOM_CIA,
+		strftime('%%Y', DT_REFER, 'unixepoch') AS DT,
 		VL_CONTA
 	FROM
 		dfp
 	WHERE
 		DENOM_CIA LIKE "%s%%"
 		AND ORDEM_EXERC LIKE "_LTIMO"
-		AND DT = "%d-12-31"
-
-	ORDER BY
-		DT
+		AND DT = "%d"
 	;`, company, year)
 
 	values = make(map[int]float32)
@@ -88,7 +84,6 @@ func accountsValues(db *sql.DB, company string, year int) (values map[int]float3
 		rows.Scan(
 			&st.code,
 			&st.date,
-			&st.denomCia,
 			&st.vlConta,
 		)
 
