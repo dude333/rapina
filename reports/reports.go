@@ -29,7 +29,7 @@ type metric struct {
 //
 // Report company from DB to Excel
 //
-func Report(db *sql.DB, company string, begin, end int, path string) (err error) {
+func Report(db *sql.DB, company string, path string) (err error) {
 	f, err := filename(path, company)
 	if err != nil {
 		return err
@@ -68,20 +68,26 @@ func Report(db *sql.DB, company string, begin, end int, path string) (err error)
 		row++
 	}
 
+	begin, end, err := timeRange(db)
+	if err != nil {
+		return
+	}
+
 	// 	VALUES (COLS C, D, E...) / PER YEAR ===========================\/
 
 	// Print accounts values ONE YEAR PER COLUMN, starting from C, row 2
 	var values map[int]float32
 	cols := "CDEFGHIJKLMONPQRSTUVWXYZ"
-	for y := begin; y <= end; y++ {
-		if y-begin >= len(cols) {
+	start := begin - 1
+	for y := start; y <= end; y++ {
+		if y-start >= len(cols) {
 			break
 		}
-		col := string(cols[y-begin])
+		col := string(cols[y-start])
 		cell := col + "1"
 		sheet.printTitle(cell, "["+strconv.Itoa(y)+"]") // Print year as title in row 1
 
-		values, _ = accountsValues(db, company, y)
+		values, _ = accountsValues(db, company, y, y == start)
 		row = 2
 		for _, acct := range accounts {
 			cell := col + strconv.Itoa(row)

@@ -35,7 +35,7 @@ var getCmd = &cobra.Command{
 	Long:  `Baixa os arquivos do site da CVM, processa e os armazena no bando de dados.`,
 	Run: func(cmd *cobra.Command, args []string) {
 		fmt.Println("[✓] Coletando dados ===========")
-		err := rapina.FetchCVM(2013, 2017)
+		err := rapina.FetchCVM()
 		if err != nil {
 			fmt.Println("[x]", err)
 			os.Exit(1)

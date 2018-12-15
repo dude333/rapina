@@ -28,6 +28,7 @@ import (
 	"os"
 	"path"
 	"strings"
+	"time"
 
 	"github.com/dude333/rapina/parsers"
 	_ "github.com/mattn/go-sqlite3"
@@ -40,17 +41,7 @@ const dataDir = ".data"
 // FetchCVM fetches all statements from a range
 // of years
 //
-func FetchCVM(begin, end int) (err error) {
-	// Check year
-	if begin < 1900 || begin > 2100 || end < 1900 || end > 2100 {
-		return errors.Wrap(err, "ano inválido")
-	}
-	if begin > end {
-		aux := end
-		end = begin
-		begin = aux
-	}
-
+func FetchCVM() (err error) {
 	// fetchB3()
 
 	db, err := openDatabase()
@@ -58,16 +49,24 @@ func FetchCVM(begin, end int) (err error) {
 		return err
 	}
 
-	for year := begin; year <= end; year++ {
-		fmt.Printf("[✓] %d ---------------------\n", year)
+	tries := 2
+OUTER:
+	for year := time.Now().Year() - 1; tries > 0 && year >= 2013; year-- {
+		fmt.Printf("[ ] %d ---------------------\n", year)
 		for _, report := range []string{"BPA", "BPP", "DRE", "DFC_MD", "DFC_MI", "DVA"} {
-			if err = processReport(db, report, year); err != nil {
+			notFound, err := processReport(db, report, year)
+			if notFound {
+				fmt.Println("[x] ---- Sem dados para", year)
+				tries--
+				continue OUTER
+			} else if err != nil {
 				fmt.Printf("[x] Erro ao processar %s de %d: %v\n", report, year, err)
+				tries--
 			}
 		}
 	}
 
-	fmt.Print("[ ] Inserindo código das contas")
+	fmt.Print("\n[ ] Inserindo código das contas")
 	err = parsers.CodeAccounts(db)
 	if err == nil {
 		fmt.Print("\r[✓")
@@ -81,14 +80,15 @@ func FetchCVM(begin, end int) (err error) {
 
 // processReport will get data from .zip files downloaded
 // directly from CVM and insert its data into the DB
-func processReport(db *sql.DB, dataType string, year int) (err error) {
+func processReport(db *sql.DB, dataType string, year int) (fileNotFound bool, err error) {
 	var file string
 
-	if file, err = fetchFile(dataType, year); err != nil {
-		return err
+	if file, fileNotFound, err = fetchFile(dataType, year); err != nil {
+		return
 	}
+
 	if err = parsers.Exec(db, dataType, file); err != nil {
-		return err
+		return
 	}
 
 	return
@@ -101,7 +101,8 @@ func downloadFile(filepath string, url string) (err error) {
 	// Create dir if necessary
 	basepath := path.Dir(filepath)
 	os.MkdirAll(basepath, os.ModePerm)
-
+	//
+	err = nil
 	// Create the file
 	out, err := os.Create(filepath)
 	if err != nil {
@@ -118,7 +119,7 @@ func downloadFile(filepath string, url string) (err error) {
 
 	// Check server response
 	if resp.StatusCode != http.StatusOK {
-		return errors.Wrapf(err, "bad status: %s", resp.Status)
+		return fmt.Errorf("bad status: %s", resp.Status)
 	}
 
 	// Write the body to file
@@ -133,32 +134,32 @@ func downloadFile(filepath string, url string) (err error) {
 //
 // fetchFile on CVM server
 //
-func fetchFile(dataType string, year int) (reqFile string, err error) {
+func fetchFile(dataType string, year int) (reqFile string, fileNotFound bool, err error) {
 	dt := strings.ToLower(dataType)
 	url := fmt.Sprintf("http://dados.cvm.gov.br/dados/CIA_ABERTA/DOC/DFP/%s/DADOS/%s_cia_aberta_%d.zip", dataType, dt, year)
 	zipfile := fmt.Sprintf("%s/%s_%d.zip", dataDir, dt, year)
 	reqFile = fmt.Sprintf("%s/%s_cia_aberta_con_%d.csv", dataDir, dt, year)
 
 	// Check if files already exists
-	if _, err := os.Stat(reqFile); !os.IsNotExist(err) {
-		return reqFile, nil
+	if _, err = os.Stat(reqFile); !os.IsNotExist(err) {
+		return
 	}
 
 	// Download file from CVM server
-	fmt.Printf("[ ] Baixando %s %d\r", dataType, year)
 	err = downloadFile(zipfile, url)
 	if err != nil {
-		fmt.Println("[x")
-		return "", errors.Wrap(err, "could not download file")
+		fileNotFound = true
+		return
 	}
-	fmt.Println("[✓")
+	fmt.Println("[✓] Download do arquivo ", dataType)
 
 	// Unzip and list files
 	var files []string
 	files, err = Unzip(zipfile, dataDir)
 	if err != nil {
 		os.Remove(zipfile)
-		return "", errors.Wrap(err, "could not unzip file")
+		err = errors.Wrap(err, "could not unzip file")
+		return
 	}
 	files = append(files, zipfile)
 
@@ -167,7 +168,8 @@ func fetchFile(dataType string, year int) (reqFile string, err error) {
 	idx := find(files, reqFile)
 	if idx == -1 {
 		filesCleanup(files)
-		return "", errors.Errorf("file %s not found", reqFile)
+		err = errors.Errorf("file %s not found", reqFile)
+		return
 	}
 
 	files[idx] = files[len(files)-1] // Replace it with the last one.

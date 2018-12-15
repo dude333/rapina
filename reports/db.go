@@ -50,7 +50,7 @@ func accountsItems(db *sql.DB, company string) (items []accItems, err error) {
 
 type account struct {
 	code     int
-	date     string
+	year     string
 	denomCia string
 	escala   string
 	vlConta  float32
@@ -60,7 +60,13 @@ type account struct {
 // accountsValues stores the values for each account into a map using a hash
 // of the account code and description as its key
 //
-func accountsValues(db *sql.DB, company string, year int) (values map[int]float32, err error) {
+func accountsValues(db *sql.DB, company string, year int, penult bool) (values map[int]float32, err error) {
+
+	period := "_LTIMO"
+	if penult {
+		period = "PEN_LTIMO"
+		year++
+	}
 
 	selectReport := fmt.Sprintf(`
 	SELECT
@@ -71,9 +77,9 @@ func accountsValues(db *sql.DB, company string, year int) (values map[int]float3
 		dfp
 	WHERE
 		DENOM_CIA LIKE "%s%%"
-		AND ORDEM_EXERC LIKE "_LTIMO"
+		AND ORDEM_EXERC LIKE "%s"
 		AND DT = "%d"
-	;`, company, year)
+	;`, company, period, year)
 
 	values = make(map[int]float32)
 	st := account{}
@@ -83,7 +89,7 @@ func accountsValues(db *sql.DB, company string, year int) (values map[int]float3
 	for rows.Next() {
 		rows.Scan(
 			&st.code,
-			&st.date,
+			&st.year,
 			&st.vlConta,
 		)
 
@@ -154,20 +160,55 @@ func companies(db *sql.DB) (list []string, err error) {
 		FROM
 			dfp
 		ORDER BY
-			DENOM_CIA
-		;`
+			DENOM_CIA;`
 
 	rows, err := db.Query(selectCompanies)
 	if err != nil {
-		return nil, errors.Wrap(err, "falha ao ler banco de dados")
+		err = errors.Wrap(err, "falha ao ler banco de dados")
+		return
 	}
 	defer rows.Close()
 
-	list = make([]string, 0, 10)
 	var companyName string
 	for rows.Next() {
 		rows.Scan(&companyName)
 		list = append(list, companyName)
+	}
+
+	return
+}
+
+//
+// timeRange returns the begin=min(year) and end=max(year)
+//
+func timeRange(db *sql.DB) (begin, end int, err error) {
+
+	selectYears := `
+	SELECT
+		MIN(CAST(strftime('%Y', DT_REFER, 'unixepoch') AS INTEGER)),
+		MAX(CAST(strftime('%Y', DT_REFER, 'unixepoch') AS INTEGER))
+	FROM dfp;`
+
+	rows, err := db.Query(selectYears)
+	if err != nil {
+		err = errors.Wrap(err, "falha ao ler banco de dados")
+		return
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		rows.Scan(&begin, &end)
+	}
+
+	// Check year
+	if begin < 1900 || begin > 2100 || end < 1900 || end > 2100 {
+		err = errors.Wrap(err, "ano inválido")
+		return
+	}
+	if begin > end {
+		aux := end
+		end = begin
+		begin = aux
 	}
 
 	return

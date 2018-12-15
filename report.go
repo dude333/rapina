@@ -18,16 +18,7 @@ const outputDir = "reports"
 //
 // Report a company from DB to Excel
 //
-func Report(company string, begin, end int, path string) (err error) {
-	// Check year
-	if begin < 1900 || begin > 2100 || end < 1900 || end > 2100 {
-		return errors.Wrap(err, "ano inválido")
-	}
-	if begin > end {
-		aux := end
-		end = begin
-		begin = aux
-	}
+func Report(company string, path string) (err error) {
 
 	db, err := openDatabase()
 	if err != nil {
@@ -38,7 +29,7 @@ func Report(company string, begin, end int, path string) (err error) {
 		path = outputDir
 	}
 
-	return reports.Report(db, company, begin, end, path)
+	return reports.Report(db, company, path)
 }
 
 //
