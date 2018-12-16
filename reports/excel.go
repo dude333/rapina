@@ -115,20 +115,54 @@ func (s *Sheet) printValue(cell string, value float32, format int, bold bool) (e
 
 	s.e.xlsx.SetSheetRow(s.name, cell, &[]float32{value})
 
-	// Set styles (format numbers > and <= 10 as percentage)
+	// Set styles
 	var style int
 	if bold {
 		if format == PERCENT {
-			style, err = s.e.xlsx.NewStyle(`{"font":{"bold":true},"number_format": 9"}`)
+			style, err = s.e.xlsx.NewStyle(`{"font":{"bold":true},"custom_number_format": "0%;-0%;-"}`)
 		} else if format == INDEX {
-			style, err = s.e.xlsx.NewStyle(`{"font":{"bold":true},"number_format": 2"}`)
+			style, err = s.e.xlsx.NewStyle(`{"font":{"bold":true},"number_format": 2}`)
 		} else {
 			style, err = s.e.xlsx.NewStyle(`{"font":{"bold":true},"custom_number_format": "_-* #,##0,_-;_-* (#,##0,);_-* \"-\"_-;_-@_-"}`)
 
 		}
 	} else {
 		if format == PERCENT {
-			style, err = s.e.xlsx.NewStyle(`{"number_format": 9}`)
+			style, err = s.e.xlsx.NewStyle(`{"custom_number_format": "0%;-0%;-"}`)
+		} else if format == INDEX {
+			style, err = s.e.xlsx.NewStyle(`{"number_format": 2}`)
+		} else {
+			style, err = s.e.xlsx.NewStyle(`{"custom_number_format": "_-* #,##0,_-;_-* (#,##0,);_-* \"-\"_-;_-@_-"}`)
+		}
+	}
+	if err == nil {
+		s.e.xlsx.SetCellStyle(s.name, cell, cell, style)
+	}
+
+	return nil
+}
+
+//
+// printFormula
+//
+func (s *Sheet) printFormula(cell string, formula string, format int, bold bool) (err error) {
+
+	s.e.xlsx.SetCellFormula(s.name, cell, formula)
+
+	// Set styles
+	var style int
+	if bold {
+		if format == PERCENT {
+			style, err = s.e.xlsx.NewStyle(`{"font":{"bold":true,"size":9},"custom_number_format": "0%;-0%;- "}`)
+		} else if format == INDEX {
+			style, err = s.e.xlsx.NewStyle(`{"font":{"bold":true,"size":9},"number_format": 2}`)
+		} else {
+			style, err = s.e.xlsx.NewStyle(`{"font":{"bold":true,"size":9},"custom_number_format": "_-* #,##0,_-;_-* (#,##0,);_-* \"-\"_-;_-@_-"}`)
+
+		}
+	} else {
+		if format == PERCENT {
+			style, err = s.e.xlsx.NewStyle(`{"font":{"size":9},"custom_number_format": "0%;-0%;- "}`)
 		} else if format == INDEX {
 			style, err = s.e.xlsx.NewStyle(`{"number_format": 2}`)
 		} else {

@@ -38,6 +38,8 @@ func Report(db *sql.DB, company string, path string) (err error) {
 	e := newExcel()
 	sheet, _ := e.newSheet(company)
 
+	var lastStatementsRow, lastMetricsRow int
+
 	// Company name
 	sheet.mergeCell("A1", "B1")
 	sheet.printRows("A1", &[]string{company}, LEFT, true)
@@ -58,6 +60,7 @@ func Report(db *sql.DB, company string, path string) (err error) {
 		sheet.printRows(cell, &[]string{sp + it.cdConta, sp + it.dsConta}, LEFT, baseItems[row])
 		row++
 	}
+	lastStatementsRow = row - 1
 	row += 2
 	// Metrics descriptions
 	for _, metric := range metricsList(nil) {
@@ -67,6 +70,7 @@ func Report(db *sql.DB, company string, path string) (err error) {
 		}
 		row++
 	}
+	lastMetricsRow = row - 1
 
 	begin, end, err := timeRange(db)
 	if err != nil {
@@ -113,6 +117,37 @@ func Report(db *sql.DB, company string, path string) (err error) {
 		}
 
 	} // next year
+
+	_ = lastMetricsRow
+
+	//
+	// VERTICAL ANALYSIS
+	//
+	// CODES | DESCRIPTION | Y1 | Y2 | Yn | sp | v1 | v2 | v3
+	//
+	wide := (end - begin) + 1
+	year := begin
+	top := 2
+	for col := 2; col <= 2+wide; col++ {
+		formulaCol := col + wide + 2
+		sheet.printTitle(axis(formulaCol, 1), "'"+strconv.Itoa(year)) // Print year
+		year++
+		var ref string
+		for row := top; row <= lastStatementsRow; row++ {
+			n, _ := strconv.Atoi(accounts[row-top].cdConta[:1])
+			if n > 3 {
+				break
+			}
+			switch accounts[row-top].cdConta {
+			case "1", "2", "3.01":
+				ref = axis(col, row)
+			}
+			val := axis(col, row)
+			formula := fmt.Sprintf(`=IfError(%s/%s, "-")`, val, ref)
+
+			sheet.printFormula(axis(formulaCol, row), formula, PERCENT, baseItems[row])
+		}
+	}
 
 	sheet.autoWidth()
 
