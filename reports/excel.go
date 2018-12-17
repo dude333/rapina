@@ -184,34 +184,26 @@ func (s *Sheet) mergeCell(a, b string) {
 }
 
 //
-// autoWidth best effort to automatically adjust the cols width
+// autoWidth adjust the cols width
 //
 func (s *Sheet) autoWidth() {
-	cols := "ABCDEFGHIJKLMONPQRSTUVWXYZ"
-	var colMaxWidth [26]int
-	for _, row := range s.e.xlsx.GetRows(s.name) {
-		for c, colCell := range row {
-			if c >= len(colMaxWidth) {
-				break
-			}
-			if len(colCell) > colMaxWidth[c] {
-				colMaxWidth[c] = len(colCell)
-			}
+	const cols string = "ABCDEFGHIJKLMONPQRSTUVWXYZ"
+	setColWidth := s.e.xlsx.SetColWidth
+	setColWidth(s.name, "A", "A", 16)
+	setColWidth(s.name, "B", "B", 48)
+
+	// Get the space that separates the account numbers from the
+	// vertical analysis numbers
+	var spaced int
+	for col := 2; col < len(cols); col++ {
+		if len(s.e.xlsx.GetCellValue(s.name, axis(col, 1))) == 0 {
+			spaced = col
+			break
 		}
 	}
-	for c, width := range colMaxWidth {
-		col := string(cols[c])
-		if width > 0 {
-			w := float64(width)
-			if w > 10 {
-				w -= 4
-			}
-			if w > 40 {
-				w -= 8
-			}
-			s.e.xlsx.SetColWidth(s.name, col, col, w)
-		}
-	}
+
+	setColWidth(s.name, "C", string(cols[spaced-1]), 9.5)                            // Account values
+	setColWidth(s.name, string(cols[spaced]), string(cols[(spaced-3)+spaced]), 4.64) // Vertical Analysis values
 }
 
 //
