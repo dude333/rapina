@@ -1,10 +1,22 @@
 package reports
 
 import (
+	"encoding/json"
 	"strconv"
 
 	"github.com/360EntSecGroup-Skylar/excelize"
 	"github.com/pkg/errors"
+)
+
+// Used by style
+const (
+	NUMBER = iota + 1
+	INDEX
+	PERCENT
+	EMPTY
+	LEFT
+	RIGHT
+	DEFAULT
 )
 
 // Excel instance reachable data
@@ -85,16 +97,11 @@ func (s *Sheet) printRows(startingCel string, slice *[]string, format int, bold 
 	var style int
 
 	// Set styles
-	if bold {
-		if format == RIGHT {
-			style, err = s.e.xlsx.NewStyle(`{"font":{"bold":true},"alignment":{"horizontal":"right"}}`)
-		} else {
-			style, err = s.e.xlsx.NewStyle(`{"font":{"bold":true}}`)
-		}
-	} else if format == RIGHT {
-		style, err = s.e.xlsx.NewStyle(`{"alignment":{"horizontal":"right"}}`)
+	json, err := jsonStyle(10, format, bold)
+	if err != nil {
+		return err
 	}
-
+	style, err = s.e.xlsx.NewStyle(string(json))
 	if style > 0 && err == nil {
 		col, row := cell2axis(startingCel)
 		col += len(*slice)
@@ -116,27 +123,12 @@ func (s *Sheet) printValue(cell string, value float32, format int, bold bool) (e
 	s.e.xlsx.SetSheetRow(s.name, cell, &[]float32{value})
 
 	// Set styles
-	var style int
-	if bold {
-		if format == PERCENT {
-			style, err = s.e.xlsx.NewStyle(`{"font":{"bold":true},"custom_number_format": "0%;-0%;-"}`)
-		} else if format == INDEX {
-			style, err = s.e.xlsx.NewStyle(`{"font":{"bold":true},"number_format": 2}`)
-		} else {
-			style, err = s.e.xlsx.NewStyle(`{"font":{"bold":true},"custom_number_format": "_-* #,##0,_-;_-* (#,##0,);_-* \"-\"_-;_-@_-"}`)
-
-		}
-	} else {
-		if format == PERCENT {
-			style, err = s.e.xlsx.NewStyle(`{"custom_number_format": "0%;-0%;-"}`)
-		} else if format == INDEX {
-			style, err = s.e.xlsx.NewStyle(`{"number_format": 2}`)
-		} else {
-			style, err = s.e.xlsx.NewStyle(`{"custom_number_format": "_-* #,##0,_-;_-* (#,##0,);_-* \"-\"_-;_-@_-"}`)
-		}
-	}
+	json, err := jsonStyle(10, format, bold)
 	if err == nil {
-		s.e.xlsx.SetCellStyle(s.name, cell, cell, style)
+		style, err := s.e.xlsx.NewStyle(string(json))
+		if err == nil {
+			s.e.xlsx.SetCellStyle(s.name, cell, cell, style)
+		}
 	}
 
 	return nil
@@ -150,30 +142,38 @@ func (s *Sheet) printFormula(cell string, formula string, format int, bold bool)
 	s.e.xlsx.SetCellFormula(s.name, cell, formula)
 
 	// Set styles
-	var style int
-	if bold {
-		if format == PERCENT {
-			style, err = s.e.xlsx.NewStyle(`{"font":{"bold":true,"size":9},"custom_number_format": "0%;-0%;- "}`)
-		} else if format == INDEX {
-			style, err = s.e.xlsx.NewStyle(`{"font":{"bold":true,"size":9},"number_format": 2}`)
-		} else {
-			style, err = s.e.xlsx.NewStyle(`{"font":{"bold":true,"size":9},"custom_number_format": "_-* #,##0,_-;_-* (#,##0,);_-* \"-\"_-;_-@_-"}`)
-
-		}
-	} else {
-		if format == PERCENT {
-			style, err = s.e.xlsx.NewStyle(`{"font":{"size":9},"custom_number_format": "0%;-0%;- "}`)
-		} else if format == INDEX {
-			style, err = s.e.xlsx.NewStyle(`{"number_format": 2}`)
-		} else {
-			style, err = s.e.xlsx.NewStyle(`{"custom_number_format": "_-* #,##0,_-;_-* (#,##0,);_-* \"-\"_-;_-@_-"}`)
-		}
-	}
+	json, err := jsonStyle(9, format, bold)
 	if err == nil {
-		s.e.xlsx.SetCellStyle(s.name, cell, cell, style)
+		style, err := s.e.xlsx.NewStyle(string(json))
+		if err == nil {
+			s.e.xlsx.SetCellStyle(s.name, cell, cell, style)
+		}
 	}
 
-	return nil
+	return
+}
+
+//
+// jsonStyle
+//
+func jsonStyle(size, format int, bold bool) ([]byte, error) {
+	m := map[string]interface{}{
+		"font": map[string]interface{}{"size": size, "bold": bold},
+	}
+
+	switch format {
+	case PERCENT:
+		m["custom_number_format"] = "0%;-0%;- "
+	case INDEX:
+		m["number_format"] = 2
+	case NUMBER:
+		m["custom_number_format"] = "_-* #,##0,_-;_-* (#,##0,);_-* \"-\"_-;_-@_-"
+	case RIGHT:
+		m["alignment"] = map[string]interface{}{"horizontal": "right"}
+	}
+
+	j, err := json.Marshal(m)
+	return j, err
 }
 
 //

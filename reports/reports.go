@@ -9,16 +9,6 @@ import (
 	p "github.com/dude333/rapina/parsers"
 )
 
-// Used by metric.format
-const (
-	NUMBER = iota + 1
-	INDEX
-	PERCENT
-	EMPTY
-	LEFT
-	RIGHT
-)
-
 // metric parameters
 type metric struct {
 	descr  string
