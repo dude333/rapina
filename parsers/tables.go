@@ -69,3 +69,58 @@ func createTable(db *sql.DB, dataType string) (err error) {
 
 	return nil
 }
+
+//
+// CreateIndexes to optimize queries
+// group 1: used for parsers.CodeAccounts
+// group 2: used for reports
+// group 3: all
+//
+func CreateIndexes(db *sql.DB, group int) (err error) {
+	indexes := []string{
+		"CREATE INDEX IF NOT EXISTS dfp_code_accounts ON dfp (CD_CONTA, DS_CONTA);",
+		"CREATE INDEX IF NOT EXISTS dfp_code_accounts_ds ON dfp (DS_CONTA);",
+		"CREATE INDEX IF NOT EXISTS dfp_dt_refer ON dfp (DT_REFER);",
+	}
+
+	groups := [3][2]int{
+		{0, 1},
+		{2, 2},
+		{0, 2},
+	}
+
+	if group < 1 || group > len(groups) {
+		group = 2
+	} else {
+		group--
+	}
+
+	for i := groups[group][0]; i <= groups[group][1]; i++ {
+		_, err = db.Exec(indexes[i])
+		if err != nil {
+			return errors.Wrap(err, "erro ao criar índice")
+		}
+	}
+
+	return nil
+}
+
+//
+// DropIndexes created by createIndexes
+//
+func DropIndexes(db *sql.DB) (err error) {
+	indexes := []string{
+		"DROP INDEX IF EXISTS dfp_code_accounts;",
+		"DROP INDEX IF EXISTS dfp_code_accounts_ds;",
+		"DROP INDEX IF EXISTS dfp_dt_refer;",
+	}
+
+	for _, idx := range indexes {
+		_, err = db.Exec(idx)
+		if err != nil {
+			return errors.Wrap(err, "erro ao apagar índice")
+		}
+	}
+
+	return nil
+}

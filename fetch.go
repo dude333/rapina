@@ -49,10 +49,13 @@ func FetchCVM() (err error) {
 		return err
 	}
 
+	// Remove indexes to speed up insertion
+	parsers.DropIndexes(db)
+
 	tries := 2
 OUTER:
 	for year := time.Now().Year() - 1; tries > 0 && year >= 2013; year-- {
-		fmt.Printf("[ ] %d ---------------------\n", year)
+		fmt.Printf("[>] %d ---------------------\n", year)
 		for _, report := range []string{"BPA", "BPP", "DRE", "DFC_MD", "DFC_MI", "DVA"} {
 			notFound, err := processReport(db, report, year)
 			if notFound {
@@ -66,6 +69,8 @@ OUTER:
 		}
 	}
 
+	parsers.CreateIndexes(db, 1)
+
 	fmt.Print("\n[ ] Inserindo código das contas")
 	err = parsers.CodeAccounts(db)
 	if err == nil {
@@ -74,6 +79,9 @@ OUTER:
 		fmt.Print("\r[x")
 	}
 	fmt.Println()
+
+	parsers.DropIndexes(db)
+	parsers.CreateIndexes(db, 2)
 
 	return
 }
