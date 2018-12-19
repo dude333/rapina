@@ -90,7 +90,7 @@ func populateTable(db *sql.DB, dataType, file string) (err error) {
 		return errors.Wrapf(err, "erro ao ler arquivo %s", file)
 	}
 
-	return err
+	return
 }
 
 //
@@ -166,10 +166,19 @@ func Exec(db *sql.DB, dataType string, file string) (err error) {
 		return err
 	}
 
+	createTable(db, "MD5")
+
+	isNew, err := isNewFile(db, file)
+	if !isNew && err == nil { // if error then process file
+		fmt.Printf("[ ] %s já processado anteriormente\n", dataType)
+		return
+	}
+
 	fmt.Print("[ ] Processando arquivo ", dataType)
 	err = populateTable(db, dataType, file)
 	if err == nil {
 		fmt.Print("\r[✓")
+		storeFile(db, file)
 	} else {
 		fmt.Print("\r[x")
 	}
