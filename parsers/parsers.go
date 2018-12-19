@@ -27,6 +27,37 @@ func GetHash(s string) uint32 {
 }
 
 //
+// Exec start the data import process, including the database creation
+// if necessary
+//
+func Exec(db *sql.DB, dataType string, file string) (err error) {
+	err = createTable(db, dataType)
+	if err != nil {
+		return err
+	}
+
+	createTable(db, "MD5")
+
+	isNew, err := isNewFile(db, file)
+	if !isNew && err == nil { // if error then process file
+		fmt.Printf("[ ] %s já processado anteriormente\n", dataType)
+		return
+	}
+
+	fmt.Print("[ ] Processando arquivo ", dataType)
+	err = populateTable(db, dataType, file)
+	if err == nil {
+		fmt.Print("\r[✓")
+		storeFile(db, file)
+	} else {
+		fmt.Print("\r[x")
+	}
+	fmt.Println()
+
+	return err
+}
+
+//
 // populateTable loop thru file and insert its lines into DB
 //
 func populateTable(db *sql.DB, dataType, file string) (err error) {
@@ -154,37 +185,6 @@ func insertLine(db *sql.Tx, dataType string, header *map[string]int, fields []st
 	}
 
 	return nil
-}
-
-//
-// Exec start the data import process, including the database creation
-// if necessary
-//
-func Exec(db *sql.DB, dataType string, file string) (err error) {
-	err = createTable(db, dataType)
-	if err != nil {
-		return err
-	}
-
-	createTable(db, "MD5")
-
-	isNew, err := isNewFile(db, file)
-	if !isNew && err == nil { // if error then process file
-		fmt.Printf("[ ] %s já processado anteriormente\n", dataType)
-		return
-	}
-
-	fmt.Print("[ ] Processando arquivo ", dataType)
-	err = populateTable(db, dataType, file)
-	if err == nil {
-		fmt.Print("\r[✓")
-		storeFile(db, file)
-	} else {
-		fmt.Print("\r[x")
-	}
-	fmt.Println()
-
-	return err
 }
 
 //
