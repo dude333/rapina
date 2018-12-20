@@ -2,9 +2,12 @@ package parsers
 
 import (
 	"database/sql"
+	"fmt"
 
 	"github.com/pkg/errors"
 )
+
+const currentDbVersion = 3
 
 var createTableMap = map[string]string{
 	"dfp": `CREATE TABLE IF NOT EXISTS dfp
@@ -31,13 +34,19 @@ var createTableMap = map[string]string{
 
 	"codes": `CREATE TABLE IF NOT EXISTS codes
 	(
-		"CODE" PRIMARY KEY,
+		"CODE" INTEGER NOT NULL PRIMARY KEY,
 		"NAME" varchar(100)
 	);`,
 
 	"md5": `CREATE TABLE IF NOT EXISTS md5
 	(
-		"md5" PRIMARY KEY
+		md5 NOT NULL PRIMARY KEY
+	);`,
+
+	"status": `CREATE TABLE IF NOT EXISTS status
+	(
+		table_name TEXT NOT NULL PRIMARY KEY,
+		version integer
 	);`,
 }
 
@@ -52,6 +61,8 @@ func whatTable(dataType string) (table string, err error) {
 		table = "codes"
 	case "MD5":
 		table = "md5"
+	case "STATUS":
+		table = "status"
 	default:
 		return "", errors.Wrapf(err, "tipo de informação inexistente: %s", dataType)
 	}
@@ -71,10 +82,52 @@ func createTable(db *sql.DB, dataType string) (err error) {
 
 	_, err = db.Exec(createTableMap[table])
 	if err != nil {
-		return errors.Wrap(err, "erro ao criar tabela")
+		return errors.Wrap(err, "erro ao criar tabela "+table)
+	}
+
+	if dataType != "STATUS" {
+		_, err = db.Exec(fmt.Sprintf(`INSERT OR REPLACE INTO status (table_name, version) VALUES ("%s",%d)`, table, currentDbVersion))
+		if err != nil {
+			return errors.Wrap(err, "erro ao atualizar tabela "+table)
+		}
 	}
 
 	return nil
+}
+
+//
+// dbVersion returns the version stored in DB
+//
+func dbVersion(db *sql.DB, dataType string) (v int, table string) {
+	table, err := whatTable(dataType)
+	if err != nil {
+		return
+	}
+
+	sqlStmt := `SELECT version FROM status WHERE table_name = ?`
+	err = db.QueryRow(sqlStmt, table).Scan(&v)
+	if err != nil {
+		return
+	}
+
+	return
+}
+
+//
+// wipeDB drops the table! Use with care
+//
+func wipeDB(db *sql.DB, dataType string) (err error) {
+	table, err := whatTable(dataType)
+	if err != nil {
+		return
+	}
+
+	_, err = db.Exec("DROP TABLE IF EXISTS " + table)
+	if err != nil {
+		return errors.Wrap(err, "erro ao apagar tabela")
+	}
+
+	return
 }
 
 //

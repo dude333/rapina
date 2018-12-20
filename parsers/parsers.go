@@ -32,15 +32,29 @@ func GetHash(s string) uint32 {
 // if necessary
 //
 func Exec(db *sql.DB, dataType string, file string) (err error) {
-	err = createTable(db, dataType)
-	if err != nil {
+
+	// Create status table
+	if err = createTable(db, "STATUS"); err != nil {
 		return err
 	}
 
-	createTable(db, "MD5")
+	// Check table version, wipe it if version differs from current version, and
+	// (re)create the table
+	for _, t := range []string{dataType, "MD5"} {
+		if v, table := dbVersion(db, t); v != currentDbVersion {
+			if v > 0 {
+				fmt.Printf("[i] Apagando table %s versão %d (versão atual: %d)\n", table, v, currentDbVersion)
+			}
+			wipeDB(db, t)
+		}
+		if err = createTable(db, t); err != nil {
+			return err
+		}
+
+	}
 
 	isNew, err := isNewFile(db, file)
-	if !isNew && err == nil { // if error then process file
+	if !isNew && err == nil { // if error, process file
 		fmt.Printf("[ ] %s já processado anteriormente\n", dataType)
 		return
 	}
