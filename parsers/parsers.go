@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"fmt"
 	"hash/fnv"
+	"log"
 	"os"
 	"strings"
 	"time"
@@ -64,6 +65,11 @@ func populateTable(db *sql.DB, dataType, file string) (err error) {
 	progress := []string{"/", "-", "\\", "|", "-", "\\"}
 	p := 0
 
+	table, err := whatTable(dataType)
+	if err != nil {
+		return err
+	}
+
 	fh, err := os.Open(file)
 	if err != nil {
 		return errors.Wrapf(err, "erro ao abrir arquivo %s", file)
@@ -85,22 +91,43 @@ func populateTable(db *sql.DB, dataType, file string) (err error) {
 	header := make(map[string]int) // stores the header item position (e.g., DT_FIM_EXERC:9)
 	scanner := bufio.NewScanner(dec)
 	count := 0
+	insert := ""
+	var stmt *sql.Stmt
 
 	// Loop thru file, line by line
 	for scanner.Scan() {
 		line := scanner.Text()
 		fields := strings.FieldsFunc(line, sep)
 
-		if len(header) == 0 {
+		if len(header) == 0 { // HEADER
 			// Get header positioning
 			for i, h := range fields {
 				header[h] = i
 			}
-		} else {
+			// Prepare insert statement
+			insert = fmt.Sprintf(`INSERT OR IGNORE INTO %s (ID,CODE,%s) VALUES (?,?%s);`,
+				table, strings.Join(fields, ","), strings.Repeat(",?", len(fields)))
+			stmt, err = tx.Prepare(insert)
+			if err != nil {
+				err = errors.Wrap(err, "Erro ao preparar insert")
+				return
+			}
+			defer stmt.Close()
+
+		} else { // VALUES
+
 			if len(header) != len(fields) {
 				fmt.Fprintf(os.Stderr, "[x] Linha com %d campos ao invés de %d\n", len(fields), len(header))
-			} else if err = insertLine(tx, dataType, &header, fields, GetHash(line)); err != nil {
-				fmt.Printf("[x] %s: %v\n", dataType, err)
+			} else {
+				hash := GetHash(line)
+				code := GetHash(fields[header["CD_CONTA"]] + fields[header["DS_CONTA"]])
+				f, err := prepareFields(header, hash, code, fields)
+				_, err = stmt.Exec(f...)
+				if err != nil {
+					log.Fatal(err)
+				}
+				// if err = insertLine(tx, dataType, &header, fields); err != nil {
+				// fmt.Printf("[x] %s: %v\n", dataType, err)
 			}
 		}
 
@@ -125,66 +152,33 @@ func populateTable(db *sql.DB, dataType, file string) (err error) {
 }
 
 //
-// insertLine into DB
+// prepareFields changes date from 'YYYY-MM-DD' to Unix epoch
+// To convert back on sqlite: strftime('%Y-%m-%d', DT_REFER, 'unixepoch')
 //
-func insertLine(db *sql.Tx, dataType string, header *map[string]int, fields []string, hash uint32) (err error) {
-	var names, values []string
-	var cdConta, dsConta string
+func prepareFields(header map[string]int, hash, code uint32, fields []string) (f []interface{}, err error) {
+	list := []string{"DT_REFER", "DT_INI_EXERC", "DT_FIM_EXERC"}
+	layout := "2006-01-02"
 
-	for h, i := range *header {
-		names = append(names, "`"+h+"`")
-		f := "" // field value
-
-		switch h {
-		case "DT_REFER", "DT_INI_EXERC", "DT_FIM_EXERC":
-			// Change date from 'YYYY-MM-DD' to Unix epoch
-			// To convert back from sqlite: strftime('%Y-%m-%d', DT_REFER, 'unixepoch')
-			layout := "2006-01-02"
-			t, err := time.Parse(layout, fields[i])
+	for _, dt := range list {
+		if i, ok := header[dt]; ok {
+			var t time.Time
+			t, err = time.Parse(layout, fields[i])
 			if err != nil {
-				return errors.Wrap(err, "data invalida "+fields[i])
+				err = errors.Wrap(err, "data invalida "+fields[i])
+				return
 			}
-			f = fmt.Sprintf("%v", t.Unix())
-
-		case "CD_CONTA":
-			cdConta = fields[i]
-			f = "'" + fields[i] + "'"
-
-		case "DS_CONTA":
-			dsConta = fields[i]
-			f = "'" + fields[i] + "'"
-
-		default:
-			f = "'" + fields[i] + "'"
+			fields[i] = fmt.Sprintf("%v", t.Unix())
 		}
-
-		values = append(values, f)
 	}
 
-	table, err := whatTable(dataType)
-	if err != nil {
-		return err
+	f = make([]interface{}, len(fields)+2)
+	f[0] = hash
+	f[1] = code
+	for i, v := range fields {
+		f[i+2] = v
 	}
 
-	code := GetHash(cdConta + dsConta)
-	insert := fmt.Sprint("INSERT OR IGNORE INTO ", table,
-		" (`ID`,`CODE`,", strings.Join(names, ","),
-		") VALUES (",
-		hash, ",", code, ",", strings.Join(values, ","),
-		");")
-
-	statement, err := db.Prepare(insert)
-	if err != nil {
-		return errors.Wrapf(err, "erro ao preparar insert em '%s'", table)
-	}
-	defer statement.Close()
-
-	_, err = statement.Exec()
-	if err != nil {
-		return errors.Wrapf(err, "erro ao inserir dados em '%s'", table)
-	}
-
-	return nil
+	return
 }
 
 //
