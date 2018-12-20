@@ -159,7 +159,7 @@ func fetchFile(dataType string, year int) (reqFile string, fileNotFound bool, er
 		fileNotFound = true
 		return
 	}
-	fmt.Println("[✓] Download do arquivo ", dataType)
+	fmt.Println("[✓] Download do arquivo", dataType)
 
 	// Unzip and list files
 	var files []string

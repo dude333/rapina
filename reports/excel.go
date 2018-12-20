@@ -49,7 +49,7 @@ func (e *Excel) saveAndCloseExcel(filename string) (err error) {
 
 // Sheet struct
 type Sheet struct {
-	e       *Excel
+	xlsx    *excelize.File
 	name    string
 	currRow int
 }
@@ -57,7 +57,7 @@ type Sheet struct {
 func (e *Excel) newSheet(name string) (s *Sheet, err error) {
 	s = &Sheet{}
 	s.name = name
-	s.e = e
+	s.xlsx = e.xlsx
 	s.currRow = 1
 
 	// Create a new sheet.
@@ -75,15 +75,13 @@ func (e *Excel) newSheet(name string) (s *Sheet, err error) {
 // printTitle prints the cols titles in Excel
 //
 func (s *Sheet) printTitle(cell string, title string) (err error) {
-	xlsx := s.e.xlsx
-
 	// Print header
-	xlsx.SetSheetRow(s.name, cell, &[]string{title})
+	s.xlsx.SetSheetRow(s.name, cell, &[]string{title})
 
 	// Set styles
-	style, err := s.e.xlsx.NewStyle(`{"number_format": 0,"font":{"bold":true},"alignment":{"horizontal":"center"},"border":[{"type":"bottom","color":"333333","style":3}]}`)
+	style, err := s.xlsx.NewStyle(`{"number_format": 0,"font":{"bold":true},"alignment":{"horizontal":"center"},"border":[{"type":"bottom","color":"333333","style":3}]}`)
 	if err == nil {
-		s.e.xlsx.SetCellStyle(s.name, cell, cell, style)
+		s.xlsx.SetCellStyle(s.name, cell, cell, style)
 	}
 
 	return
@@ -101,15 +99,15 @@ func (s *Sheet) printRows(startingCel string, slice *[]string, format int, bold 
 	if err != nil {
 		return err
 	}
-	style, err = s.e.xlsx.NewStyle(string(json))
+	style, err = s.xlsx.NewStyle(string(json))
 	if style > 0 && err == nil {
 		col, row := cell2axis(startingCel)
 		col += len(*slice)
-		s.e.xlsx.SetCellStyle(s.name, startingCel, axis(col, row), style)
+		s.xlsx.SetCellStyle(s.name, startingCel, axis(col, row), style)
 	}
 
 	// Print row
-	s.e.xlsx.SetSheetRow(s.name, startingCel, slice)
+	s.xlsx.SetSheetRow(s.name, startingCel, slice)
 
 	return nil
 }
@@ -120,14 +118,14 @@ func (s *Sheet) printRows(startingCel string, slice *[]string, format int, bold 
 //
 func (s *Sheet) printValue(cell string, value float32, format int, bold bool) (err error) {
 
-	s.e.xlsx.SetSheetRow(s.name, cell, &[]float32{value})
+	s.xlsx.SetSheetRow(s.name, cell, &[]float32{value})
 
 	// Set styles
 	json, err := jsonStyle(10, format, bold)
 	if err == nil {
-		style, err := s.e.xlsx.NewStyle(string(json))
+		style, err := s.xlsx.NewStyle(string(json))
 		if err == nil {
-			s.e.xlsx.SetCellStyle(s.name, cell, cell, style)
+			s.xlsx.SetCellStyle(s.name, cell, cell, style)
 		}
 	}
 
@@ -139,14 +137,14 @@ func (s *Sheet) printValue(cell string, value float32, format int, bold bool) (e
 //
 func (s *Sheet) printFormula(cell string, formula string, format int, bold bool) (err error) {
 
-	s.e.xlsx.SetCellFormula(s.name, cell, formula)
+	s.xlsx.SetCellFormula(s.name, cell, formula)
 
 	// Set styles
 	json, err := jsonStyle(9, format, bold)
 	if err == nil {
-		style, err := s.e.xlsx.NewStyle(string(json))
+		style, err := s.xlsx.NewStyle(string(json))
 		if err == nil {
-			s.e.xlsx.SetCellStyle(s.name, cell, cell, style)
+			s.xlsx.SetCellStyle(s.name, cell, cell, style)
 		}
 	}
 
@@ -165,7 +163,7 @@ func jsonStyle(size, format int, bold bool) ([]byte, error) {
 	case PERCENT:
 		m["custom_number_format"] = "0%;-0%;- "
 	case INDEX:
-		m["number_format"] = 2
+		m["custom_number_format"] = "0.0;-0.0;-"
 	case NUMBER:
 		m["custom_number_format"] = "_-* #,##0,_-;_-* (#,##0,);_-* \"-\"_-;_-@_-"
 	case RIGHT:
@@ -180,7 +178,7 @@ func jsonStyle(size, format int, bold bool) ([]byte, error) {
 // mergeCell
 //
 func (s *Sheet) mergeCell(a, b string) {
-	s.e.xlsx.MergeCell(s.name, a, b)
+	s.xlsx.MergeCell(s.name, a, b)
 }
 
 //
@@ -188,7 +186,7 @@ func (s *Sheet) mergeCell(a, b string) {
 //
 func (s *Sheet) autoWidth() {
 	const cols string = "ABCDEFGHIJKLMONPQRSTUVWXYZ"
-	setColWidth := s.e.xlsx.SetColWidth
+	setColWidth := s.xlsx.SetColWidth
 	setColWidth(s.name, "A", "A", 16)
 	setColWidth(s.name, "B", "B", 48)
 
@@ -196,7 +194,7 @@ func (s *Sheet) autoWidth() {
 	// vertical analysis numbers
 	var spaced int
 	for col := 2; col < len(cols); col++ {
-		if len(s.e.xlsx.GetCellValue(s.name, axis(col, 1))) == 0 {
+		if len(s.xlsx.GetCellValue(s.name, axis(col, 1))) == 0 {
 			spaced = col
 			break
 		}

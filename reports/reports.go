@@ -159,6 +159,11 @@ func metricsList(v map[int]float32) (metrics []metric) {
 	EBITDA := v[p.EBIT] - v[p.Deprec]
 	proventos := v[p.Dividendos] + v[p.JurosCapProp]
 
+	var roe float32
+	if v[p.LucLiq] > 0 && v[p.Equity] > 0 {
+		roe = zeroIfNeg(safeDiv(v[p.LucLiq], v[p.Equity]))
+	}
+
 	return []metric{
 		{"Patrimônio Líquido", v[p.Equity], NUMBER},
 		{"", 0, EMPTY},
@@ -173,7 +178,7 @@ func metricsList(v map[int]float32) (metrics []metric) {
 		{"Marg. EBITDA", zeroIfNeg(safeDiv(v[p.EBIT], v[p.Vendas])), PERCENT},
 		{"Marg. EBIT", zeroIfNeg(safeDiv(v[p.EBIT], v[p.Vendas])), PERCENT},
 		{"Marg. Líq.", zeroIfNeg(safeDiv(v[p.LucLiq], v[p.Vendas])), PERCENT},
-		{"ROE", zeroIfNeg(safeDiv(v[p.LucLiq], v[p.Equity])), PERCENT},
+		{"ROE", roe, PERCENT},
 		{"", 0, EMPTY},
 
 		{"Caixa", caixa, NUMBER},

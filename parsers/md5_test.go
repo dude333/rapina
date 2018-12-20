@@ -2,6 +2,7 @@ package parsers
 
 import (
 	"database/sql"
+	"os"
 	"testing"
 
 	_ "github.com/mattn/go-sqlite3"
@@ -17,14 +18,21 @@ func TestIsNewFile(t *testing.T) {
 
 	createTable(db, "MD5")
 
-	isNew, err := isNewFile(db, "/home/adr/go/src/github.com/dude333/rapina/cli/.data/bpa_cia_aberta_con_2013.csv")
+	file := "../cli/.data/bpa_cia_aberta_con_2017.csv"
+	isNew, err := isNewFile(db, file)
+	expected := false
+	if _, err := os.Stat(file); !os.IsNotExist(err) {
+		expected = true
+	}
 
-	t.Errorf("[t] %v %v", isNew, err)
+	if isNew == expected {
+		t.Errorf("isNewFile returned %v. If 'rapina get' has run before it should've returned false.\nError: [%v]", expected, err)
+	}
 }
 
 func openDatabase() (db *sql.DB, err error) {
 
-	db, err = sql.Open("sqlite3", "/home/adr/go/src/github.com/dude333/rapina/cli/.data/rapina.db")
+	db, err = sql.Open("sqlite3", "../cli/.data/rapina.db")
 	if err != nil {
 		return db, errors.Wrap(err, "database open failed")
 	}
