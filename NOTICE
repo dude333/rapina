@@ -1,60 +1,45 @@
 ================================================================================
+| Open Database License (ODbL) |
 
 Contains information from "Portal Dados Abertos CVM", which is made available
 here under the Open Database License (ODbL).
 
   https://www.opendatacommons.org/licenses/odbl/1.0/
 
+
 ================================================================================
+| BSD-2-Clause |
 
-github.com/360EntSecGroup-Skylar/excelize
-BSD 3-Clause License
+==> github.com/pkg/errors: Copyright (c) 2015, Dave Cheney <dave@cheney.net>.
+All rights reserved.
 
-Copyright (c) 2016 - 2018 360 Enterprise Security Group, Endpoint Security,
-inc. All rights reserved.
-
-Redistribution and use in source and binary forms, with or without
-modification, are permitted provided that the following conditions are met:
-
-* Redistributions of source code must retain the above copyright notice, this
-  list of conditions and the following disclaimer.
-
-* Redistributions in binary form must reproduce the above copyright notice,
-  this list of conditions and the following disclaimer in the documentation
-  and/or other materials provided with the distribution.
-
-* Neither the name of Excelize nor the names of its
-  contributors may be used to endorse or promote products derived from
-  this software without specific prior written permission.
-
-THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
-AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
-IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
-FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
-DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
-SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
-OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+  https://opensource.org/licenses/BSD-2-Clause
 
 
 ================================================================================
+| BSD 3-Clause License |
 
-github.com/spf13/cobra
-Copyright © 2013 Steve Francia <spf@spf13.com>.
+==> github.com/360EntSecGroup-Skylar/excelize:
+Copyright (c) 2016 - 2018 360 Enterprise Security Group, Endpoint Security, inc.
+All rights reserved.
 
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-http://www.apache.org/licenses/LICENSE-2.0
+==> github.com/manifoldco/promptui: Copyright (c) 2017, Arigato Machine Inc.
+All rights reserved.
 
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
-Package cobra is a commander providing a simple interface to create powerful modern CLI interfaces.
-In addition to providing an interface, Cobra simultaneously provides a controller to organize your application code.
+  https://opensource.org/licenses/BSD-3-Clause
+
 
 ================================================================================
+| Apache License, Version 2.0 |
+
+==> github.com/spf13/cobra: Copyright © 2013 Steve Francia <spf@spf13.com>.
+
+  http://www.apache.org/licenses/LICENSE-2.0
+
+
+================================================================================
+| The MIT License (MIT) |
+
+==> github.com/mattn/go-sqlite3: Copyright (c) 2014 Yasuhiro Matsumoto.
+
+  https://opensource.org/licenses/MIT
