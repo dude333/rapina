@@ -1,0 +1,18 @@
+language: go
+
+matrix:
+  include:
+    - go: 1.8.x
+    - go: 1.9.x
+    - go: 1.10.x
+    - go: tip
+  allow_failures:
+    - go: tip
+
+before_script:
+  - go vet ./...
+  - diff -u <(echo -n) <(gofmt -d -s ..)
+  - cd cli
+script:
+  - go test -v ../...
+  - make
