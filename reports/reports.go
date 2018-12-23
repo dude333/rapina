@@ -70,7 +70,7 @@ func Report(db *sql.DB, company string, path string) (err error) {
 	// 	VALUES (COLS C, D, E...) / PER YEAR ===========================\/
 
 	// Print accounts values ONE YEAR PER COLUMN, starting from C, row 2
-	var values map[int]float32
+	var values map[uint32]float32
 	cols := "CDEFGHIJKLMONPQRSTUVWXYZ"
 	start := begin - 1
 	for y := start; y <= end; y++ {
@@ -124,11 +124,18 @@ func Report(db *sql.DB, company string, path string) (err error) {
 		year++
 		var ref string
 		for row := top; row <= lastStatementsRow; row++ {
-			n, _ := strconv.Atoi(accounts[row-top].cdConta[:1])
+			idx := row - top
+			if idx < 0 || idx >= len(accounts) {
+				break
+			}
+			if len(accounts[idx].cdConta) == 0 {
+				break
+			}
+			n, _ := strconv.Atoi(accounts[idx].cdConta[:1])
 			if n > 3 {
 				break
 			}
-			switch accounts[row-top].cdConta {
+			switch accounts[idx].cdConta {
 			case "1", "2", "3.01":
 				ref = axis(col, row)
 			}
@@ -152,7 +159,7 @@ func Report(db *sql.DB, company string, path string) (err error) {
 //
 // metricsList returns the sequence to be printed after the financial statements
 //
-func metricsList(v map[int]float32) (metrics []metric) {
+func metricsList(v map[uint32]float32) (metrics []metric) {
 	dividaBruta := v[p.DividaCirc] + v[p.DividaNCirc]
 	caixa := v[p.Caixa] + v[p.AplicFinanceiras]
 	dividaLiquida := dividaBruta - caixa

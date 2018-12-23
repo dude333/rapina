@@ -11,7 +11,7 @@ import (
 // If you add new const values, run 'go generate'
 // to update the generated code
 const (
-	UNDEF = iota
+	UNDEF uint32 = iota
 	SPACE
 
 	// Balance Sheet
@@ -44,7 +44,7 @@ const (
 type account struct {
 	cdAccount string
 	dsAccount string
-	code      int
+	code      uint32
 }
 
 // CodeAccounts code all the accounts with the bookkeeping accounts constants

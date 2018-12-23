@@ -8,7 +8,7 @@ import (
 )
 
 type accItems struct {
-	code    int
+	code    uint32
 	cdConta string
 	dsConta string
 }
@@ -39,7 +39,10 @@ func accountsItems(db *sql.DB, company string) (items []accItems, err error) {
 
 	var item accItems
 	for rows.Next() {
-		rows.Scan(&item.code, &item.cdConta, &item.dsConta)
+		err = rows.Scan(&item.code, &item.cdConta, &item.dsConta)
+		if err != nil {
+			return
+		}
 		items = append(items, item)
 	}
 
@@ -49,7 +52,7 @@ func accountsItems(db *sql.DB, company string) (items []accItems, err error) {
 }
 
 type account struct {
-	code     int
+	code     uint32
 	year     string
 	denomCia string
 	escala   string
@@ -60,7 +63,7 @@ type account struct {
 // accountsValues stores the values for each account into a map using a hash
 // of the account code and description as its key
 //
-func accountsValues(db *sql.DB, company string, year int, penult bool) (values map[int]float32, err error) {
+func accountsValues(db *sql.DB, company string, year int, penult bool) (values map[uint32]float32, err error) {
 
 	period := "_LTIMO"
 	if penult {
@@ -81,11 +84,15 @@ func accountsValues(db *sql.DB, company string, year int, penult bool) (values m
 		AND DT = "%d"
 	;`, company, period, year)
 
-	values = make(map[int]float32)
+	values = make(map[uint32]float32)
 	st := account{}
 
 	rows, err := db.Query(selectReport)
+	if err != nil {
+		return
+	}
 	defer rows.Close()
+
 	for rows.Next() {
 		rows.Scan(
 			&st.code,

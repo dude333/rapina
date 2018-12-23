@@ -62,9 +62,9 @@ func TestSafeDiv(t *testing.T) {
 }
 
 func TestMetricsList(t *testing.T) {
-	v := make(map[int]float32)
+	v := make(map[uint32]float32)
 
-	for x := p.Caixa; x <= p.Dividendos; x++ {
+	for x := uint32(p.Caixa); x <= uint32(p.Dividendos); x++ {
 		v[x] = float32(x) * 123456
 	}
 	l := metricsList(v)
