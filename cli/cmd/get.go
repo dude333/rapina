@@ -28,6 +28,8 @@ import (
 	"github.com/spf13/cobra"
 )
 
+var sectors bool
+
 // getCmd represents the get command
 var getCmd = &cobra.Command{
 	Use:   "get",
@@ -35,7 +37,12 @@ var getCmd = &cobra.Command{
 	Long:  `Baixa os arquivos do site da CVM, processa e os armazena no bando de dados.`,
 	Run: func(cmd *cobra.Command, args []string) {
 		fmt.Println("[✓] Coletando dados ===========")
-		err := rapina.FetchCVM()
+		var err error
+		if sectors {
+			err = rapina.FetchSectors()
+		} else {
+			err = rapina.FetchCVM()
+		}
 		if err != nil {
 			fmt.Println("[x]", err)
 			os.Exit(1)
@@ -46,13 +53,5 @@ var getCmd = &cobra.Command{
 func init() {
 	rootCmd.AddCommand(getCmd)
 
-	// Here you will define your flags and configuration settings.
-
-	// Cobra supports Persistent Flags which will work for this command
-	// and all subcommands, e.g.:
-	// getCmd.PersistentFlags().String("foo", "", "A help for foo")
-
-	// Cobra supports local flags which will only run when this command
-	// is called directly, e.g.:
-	// getCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
+	getCmd.Flags().BoolVarP(&sectors, "sectors", "s", false, "Baixa a classificação setorial das empresas e fundos negociados na B3")
 }

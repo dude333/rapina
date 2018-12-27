@@ -19,6 +19,7 @@ rapina
 .vscode/*
 *.sql
 *_string.go
+*.yaml
 
 # Test binary, build with `go test -c`
 *.test
