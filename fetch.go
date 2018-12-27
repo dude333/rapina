@@ -42,8 +42,6 @@ const dataDir = ".data"
 // of years
 //
 func FetchCVM() (err error) {
-	// fetchB3()
-
 	db, err := openDatabase()
 	if err != nil {
 		return err
@@ -188,12 +186,31 @@ func fetchFile(dataType string, year int) (reqFile string, fileNotFound bool, er
 }
 
 //
+// FetchSectors checks if the configuration file is already populated.
+// If 'force' is set or if the config is empty, it retrieves data from B3,
+// unzip and extract a spreadsheet containing a list of companies divided by
+// sector, subsector, and segment; then this info is set into the config file.
+//
+func FetchSectors() (err error) {
+	file, err := fetchB3()
+	if err != nil {
+		return
+	}
+
+	err = parsers.SectorsToYaml(file, "./setores.yaml")
+	filesCleanup([]string{file})
+	// saveConfig(s)
+
+	return
+}
+
+//
 // fetchB3 downloads the sectoral classification file from B3
 //
 func fetchB3() (xlsxfile string, err error) {
 	xlsxfile = dataDir + "/setorial.xlsx"
 	fmt.Print("[ ] Baixando arquivo de classificação setorial da B3\r")
-	zipfile := dataDir + "/sectorial.zip"
+	zipfile := dataDir + "/sector.zip"
 
 	// Check if files already exists
 	if _, err := os.Stat(zipfile); !os.IsNotExist(err) {
@@ -201,7 +218,7 @@ func fetchB3() (xlsxfile string, err error) {
 	}
 
 	// Download file from B3 server
-	// TODO: check file url as it can be updated
+	// TODO: check url as it can change
 	err = downloadFile(zipfile, "http://www.b3.com.br/lumis/portal/file/fileDownload.jsp?fileId=8AA8D0975A2D7918015A3C81693D4CA4")
 	if err != nil {
 		fmt.Println("[x")
@@ -220,7 +237,7 @@ func fetchB3() (xlsxfile string, err error) {
 	}
 	files = append(files, zipfile)
 
-	// Considering  there is only one file
+	// Considering there is only one file
 	os.Remove(xlsxfile)
 	os.Rename(files[0], xlsxfile)
 
