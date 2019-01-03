@@ -10,14 +10,70 @@ import (
 
 // Used by style
 const (
-	NUMBER = iota + 1
+	DEFAULT = iota + 1
+
+	// Number format
+	NUMBER
 	INDEX
 	PERCENT
+
 	EMPTY
+
+	// Text position
 	LEFT
 	RIGHT
-	DEFAULT
+	CENTER
 )
+
+// formatFont directly maps the styles settings of the fonts.
+type formatFont struct {
+	Bold      bool   `json:"bold"`
+	Italic    bool   `json:"italic"`
+	Underline string `json:"underline"`
+	Family    string `json:"family"`
+	Size      int    `json:"size"`
+	Color     string `json:"color"`
+}
+
+type formatAlignment struct {
+	Horizontal      string `json:"horizontal"`
+	Indent          int    `json:"indent"`
+	JustifyLastLine bool   `json:"justify_last_line"`
+	ReadingOrder    uint64 `json:"reading_order"`
+	RelativeIndent  int    `json:"relative_indent"`
+	ShrinkToFit     bool   `json:"shrink_to_fit"`
+	TextRotation    int    `json:"text_rotation"`
+	Vertical        string `json:"vertical"`
+	WrapText        bool   `json:"wrap_text"`
+}
+
+type formatBorder struct {
+	Type  string `json:"type"`
+	Color string `json:"color"`
+	Style int    `json:"style"`
+}
+
+// formatStyle directly maps the styles settings of the cells.
+type formatStyle struct {
+	Border []formatBorder `json:"border"`
+	Fill   struct {
+		Type    string   `json:"type"`
+		Pattern int      `json:"pattern"`
+		Color   []string `json:"color"`
+		Shading int      `json:"shading"`
+	} `json:"fill"`
+	Font       *formatFont      `json:"font"`
+	Alignment  *formatAlignment `json:"alignment"`
+	Protection *struct {
+		Hidden bool `json:"hidden"`
+		Locked bool `json:"locked"`
+	} `json:"protection"`
+	NumFmt        int     `json:"number_format"`
+	DecimalPlaces int     `json:"decimal_places"`
+	CustomNumFmt  *string `json:"custom_number_format"`
+	Lang          string  `json:"lang"`
+	NegRed        bool    `json:"negred"`
+}
 
 // Excel instance reachable data
 type Excel struct {
@@ -69,6 +125,23 @@ func (e *Excel) newSheet(name string) (s *Sheet, err error) {
 	e.xlsx.NewSheet(name)
 
 	return
+}
+
+func (s Sheet) printCell(row, col int, value interface{}, f formatStyle) {
+
+	// Print value
+	cell := axis(col, row)
+	s.xlsx.SetCellValue(s.name, cell, value)
+
+	// Format cell
+	var style int
+	json, err := json.Marshal(f)
+	if err == nil {
+		style, err = s.xlsx.NewStyle(string(json))
+	}
+	if err == nil {
+		s.xlsx.SetCellStyle(s.name, cell, cell, style)
+	}
 }
 
 //
@@ -209,68 +282,6 @@ func (s *Sheet) setColWidth(col int, width float64) {
 	s.xlsx.SetColWidth(s.name, c, c, width)
 }
 
-type b struct {
-	Borders []border `json:"border"`
-}
-
-type border struct {
-	Type  string `json:"type"`
-	Color string `json:"color"`
-	Style int    `json:"style"`
-}
-
-func (s *Sheet) drawBorder(r1, c1, r2, c2, style int) {
-	pos := []string{"top", "right", "bottom", "left"}
-	ax := []struct {
-		c int
-		r int
-	}{
-		{c1, r1}, {c2, r1}, // top
-		{c2, r1}, {c2, r2}, // right
-		{c1, r2}, {c2, r2}, // bottom
-		{c1, r1}, {c1, r2}, // left
-	}
-	for i, p := range pos {
-		border := b{[]border{
-			{p, "000000", style},
-		}}
-
-		json, err := json.Marshal(border)
-		if err == nil {
-			style, err := s.xlsx.NewStyle(string(json))
-			if err == nil {
-				j := i * 2
-				s.xlsx.SetCellStyle(s.name, axis(ax[j].c, ax[j].r), axis(ax[j+1].c, ax[j+1].r), style)
-			}
-		}
-	}
-
-	// Corners [(top,right), (right,bottom), (bottom,left), (left,top)]
-	for i := range []int{1, 2, 3, 0} {
-		ii := i - 1
-		if ii <= 0 {
-			ii = len(pos) - 1
-		}
-		border := b{[]border{
-			{pos[ii], "000000", style},
-			{pos[i], "000000", style},
-		}}
-
-		json, err := json.Marshal(border)
-		if err == nil {
-			style, err := s.xlsx.NewStyle(string(json))
-			if err == nil {
-				j := i
-				if i <= 2 {
-					j = i * 2
-				}
-				s.xlsx.SetCellStyle(s.name, axis(ax[j].c, ax[j].r), axis(ax[j].c, ax[j].r), style)
-			}
-		}
-	}
-
-}
-
 //
 // axis transforms (2, 3) into "B3"
 //
@@ -284,6 +295,41 @@ func axis(col, row int) string {
 func cell2axis(cell string) (col, row int) {
 	col = int(cell[0] - 'A')
 	row, _ = strconv.Atoi(cell[1:])
+
+	return
+}
+
+//
+// setFormat formats a cell/range using the formatStyle struct
+//
+func setFormat(format int, position int, bold bool, b formatBorder) (f formatStyle) {
+	var custom string
+
+	f = formatStyle{}
+
+	switch format {
+	case PERCENT:
+		custom = "0%;-0%;- "
+	case INDEX:
+		custom = "0.0;-0.0;-"
+	case NUMBER:
+		custom = "_-* #,##0,_-;_-* (#,##0,);_-* \"-\"_-;_-@_-"
+	}
+
+	if custom != "" {
+		f.CustomNumFmt = &custom
+	}
+
+	switch position {
+	case RIGHT:
+		f.Alignment = &formatAlignment{Horizontal: "right"}
+	case CENTER:
+		f.Alignment = &formatAlignment{Horizontal: "center"}
+	}
+
+	if bold {
+		f.Font = &formatFont{Bold: true}
+	}
 
 	return
 }
