@@ -181,9 +181,9 @@ func reportSector(db *sql.DB, sheet *Sheet, row, col *int, printDescr bool, comp
 		*col++
 	}
 	sheet.mergeCell(axis(*col, *row), axis(*col+end-begin+1, *row))
-	f := setFormat(DEFAULT, CENTER, true, formatBorder{})
+	f := newFormat(DEFAULT, CENTER, true, formatBorder{})
 	f.Font = &formatFont{Size: 16}
-	sheet.printCell(*row, *col, company, f)
+	sheet.printCell(*row, *col, company, *f)
 	if printDescr {
 		*col--
 	}
@@ -214,11 +214,11 @@ func reportSector(db *sql.DB, sheet *Sheet, row, col *int, printDescr bool, comp
 		for _, metric := range metricsList(values) {
 			if metric.format != EMPTY {
 				if printDescr {
-					f := setFormat(DEFAULT, RIGHT, false, formatBorder{})
-					sheet.printCell(*row, *col-1, metric.descr, f)
+					f := newFormat(DEFAULT, RIGHT, false, formatBorder{})
+					sheet.printCell(*row, *col-1, metric.descr, *f)
 				}
-				f := setFormat(metric.format, DEFAULT, false, formatBorder{})
-				sheet.printCell(*row, *col, metric.val, f)
+				f := newFormat(metric.format, DEFAULT, false, formatBorder{})
+				sheet.printCell(*row, *col, metric.val, *f)
 			}
 			*row++
 		}
