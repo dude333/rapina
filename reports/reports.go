@@ -176,14 +176,29 @@ func reportSector(db *sql.DB, sheet *Sheet, row, col *int, printDescr bool, comp
 		return
 	}
 
+	// Company name
+	if printDescr {
+		*col++
+	}
+	sheet.mergeCell(axis(*col, *row), axis(*col+end-begin+1, *row))
+	f := setFormat(DEFAULT, CENTER, true, formatBorder{})
+	f.Font = &formatFont{Size: 16}
+	sheet.printCell(*row, *col, company, f)
+	if printDescr {
+		*col--
+	}
+	*row++
+
+	// Save starting row
 	r := *row
-	// c := *col
+
+	// Set width for the description col
 	if printDescr {
 		sheet.setColWidth(*col, 16.4)
 		*col++
 	}
 
-	// Print values ONE YEAR PER COLUMN, starting from C, row 2
+	// Print values ONE YEAR PER COLUMN
 	var values map[uint32]float32
 	start := begin - 1
 	for y := start; y <= end; y++ {
@@ -199,9 +214,11 @@ func reportSector(db *sql.DB, sheet *Sheet, row, col *int, printDescr bool, comp
 		for _, metric := range metricsList(values) {
 			if metric.format != EMPTY {
 				if printDescr {
-					sheet.printRows(axis(*col-1, *row), &[]string{metric.descr}, RIGHT, false)
+					f := setFormat(DEFAULT, RIGHT, false, formatBorder{})
+					sheet.printCell(*row, *col-1, metric.descr, f)
 				}
-				sheet.printValue(axis(*col, *row), metric.val, metric.format, false)
+				f := setFormat(metric.format, DEFAULT, false, formatBorder{})
+				sheet.printCell(*row, *col, metric.val, f)
 			}
 			*row++
 		}
@@ -209,8 +226,6 @@ func reportSector(db *sql.DB, sheet *Sheet, row, col *int, printDescr bool, comp
 		printDescr = false
 		*col++
 	} // next year
-
-	// sheet.drawBorder(r, c, *row-1, *col-1, 2)
 
 	return
 }
