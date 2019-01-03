@@ -149,7 +149,7 @@ func Report(db *sql.DB, company string, path string) (err error) {
 	sheet.autoWidth()
 
 	sheet2, _ := e.newSheet("Setor")
-	row, col := 2, 0
+	row, col := 2, 1
 	reportSector(db, sheet2, &row, &col, true, company)
 	row = 2
 	col++
@@ -176,14 +176,32 @@ func reportSector(db *sql.DB, sheet *Sheet, row, col *int, printDescr bool, comp
 		return
 	}
 
+	// Formats used in this report
+	fCompanyName := newFormat(DEFAULT, CENTER, true)
+	fCompanyName.size(16)
+	sCompanyName := fCompanyName.newStyle(sheet.xlsx)
+	//
+	fDescr := newFormat(DEFAULT, RIGHT, false)
+	fDescr.Border = []formatBorder{{Type: "left", Color: "000000", Style: 1}}
+	sDescr := fDescr.newStyle(sheet.xlsx)
+	fDescr.Border = []formatBorder{
+		{Type: "top", Color: "000000", Style: 1},
+		{Type: "left", Color: "000000", Style: 1},
+	}
+	sDescrTop := fDescr.newStyle(sheet.xlsx)
+	//
+	sVal := make(map[int]int)
+	for _, fmt := range []int{NUMBER, INDEX, PERCENT} {
+		fVal := newFormat(fmt, DEFAULT, false)
+		sVal[fmt] = fVal.newStyle(sheet.xlsx)
+	}
+
 	// Company name
 	if printDescr {
 		*col++
 	}
 	sheet.mergeCell(axis(*col, *row), axis(*col+end-begin+1, *row))
-	f := setFormat(DEFAULT, CENTER, true, formatBorder{})
-	f.Font = &formatFont{Size: 16}
-	sheet.printCell(*row, *col, company, f)
+	sheet.printCell(*row, *col, company, sCompanyName)
 	if printDescr {
 		*col--
 	}
@@ -194,7 +212,7 @@ func reportSector(db *sql.DB, sheet *Sheet, row, col *int, printDescr bool, comp
 
 	// Set width for the description col
 	if printDescr {
-		sheet.setColWidth(*col, 16.4)
+		sheet.setColWidth(*col, 18)
 		*col++
 	}
 
@@ -211,16 +229,22 @@ func reportSector(db *sql.DB, sheet *Sheet, row, col *int, printDescr bool, comp
 		*row++
 
 		// Print financial metrics
-		for _, metric := range metricsList(values) {
-			if metric.format != EMPTY {
-				if printDescr {
-					f := setFormat(DEFAULT, RIGHT, false, formatBorder{})
-					sheet.printCell(*row, *col-1, metric.descr, f)
+		for i, metric := range metricsList(values) {
+			if printDescr {
+				stl := sDescr
+				if i == 0 {
+					stl = sDescrTop
 				}
-				f := setFormat(metric.format, DEFAULT, false, formatBorder{})
-				sheet.printCell(*row, *col, metric.val, f)
+				sheet.printCell(*row, *col-1, metric.descr, stl)
+			}
+			if metric.format != EMPTY {
+				sheet.printCell(*row, *col, metric.val, sVal[metric.format])
 			}
 			*row++
+		}
+
+		if printDescr {
+			sheet.printCell(*row, *col-1, "", sDescrTop)
 		}
 
 		printDescr = false
