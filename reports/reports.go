@@ -148,10 +148,69 @@ func Report(db *sql.DB, company string, path string) (err error) {
 
 	sheet.autoWidth()
 
+	sheet2, _ := e.newSheet("Setor")
+	row, col := 2, 0
+	reportSector(db, sheet2, &row, &col, true, company)
+	row = 2
+	col++
+	reportSector(db, sheet2, &row, &col, false, "ALPARGATAS")
+	row = 2
+	col++
+	reportSector(db, sheet2, &row, &col, false, "VULCABRAS")
+
 	err = e.saveAndCloseExcel(f)
 	if err == nil {
 		fmt.Printf("[✓] Dados salvos em %s\n", f)
 	}
+
+	return
+}
+
+//
+// reportSector reports all companies from the same segment into the
+// 'Setor' sheet.
+//
+func reportSector(db *sql.DB, sheet *Sheet, row, col *int, printDescr bool, company string) (err error) {
+	begin, end, err := timeRange(db)
+	if err != nil {
+		return
+	}
+
+	r := *row
+	// c := *col
+	if printDescr {
+		sheet.setColWidth(*col, 16.4)
+		*col++
+	}
+
+	// Print values ONE YEAR PER COLUMN, starting from C, row 2
+	var values map[uint32]float32
+	start := begin - 1
+	for y := start; y <= end; y++ {
+		values, _ = accountsValues(db, company, y, y == start)
+
+		*row = r
+
+		// Print year
+		sheet.printTitle(axis(*col, *row), "["+strconv.Itoa(y)+"]")
+		*row++
+
+		// Print financial metrics
+		for _, metric := range metricsList(values) {
+			if metric.format != EMPTY {
+				if printDescr {
+					sheet.printRows(axis(*col-1, *row), &[]string{metric.descr}, RIGHT, false)
+				}
+				sheet.printValue(axis(*col, *row), metric.val, metric.format, false)
+			}
+			*row++
+		}
+
+		printDescr = false
+		*col++
+	} // next year
+
+	// sheet.drawBorder(r, c, *row-1, *col-1, 2)
 
 	return
 }

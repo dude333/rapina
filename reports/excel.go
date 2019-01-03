@@ -204,6 +204,73 @@ func (s *Sheet) autoWidth() {
 	setColWidth(s.name, string(cols[spaced]), string(cols[(spaced-3)+spaced]), 4.64) // Vertical Analysis values
 }
 
+func (s *Sheet) setColWidth(col int, width float64) {
+	c := excelize.ToAlphaString(col)
+	s.xlsx.SetColWidth(s.name, c, c, width)
+}
+
+type b struct {
+	Borders []border `json:"border"`
+}
+
+type border struct {
+	Type  string `json:"type"`
+	Color string `json:"color"`
+	Style int    `json:"style"`
+}
+
+func (s *Sheet) drawBorder(r1, c1, r2, c2, style int) {
+	pos := []string{"top", "right", "bottom", "left"}
+	ax := []struct {
+		c int
+		r int
+	}{
+		{c1, r1}, {c2, r1}, // top
+		{c2, r1}, {c2, r2}, // right
+		{c1, r2}, {c2, r2}, // bottom
+		{c1, r1}, {c1, r2}, // left
+	}
+	for i, p := range pos {
+		border := b{[]border{
+			{p, "000000", style},
+		}}
+
+		json, err := json.Marshal(border)
+		if err == nil {
+			style, err := s.xlsx.NewStyle(string(json))
+			if err == nil {
+				j := i * 2
+				s.xlsx.SetCellStyle(s.name, axis(ax[j].c, ax[j].r), axis(ax[j+1].c, ax[j+1].r), style)
+			}
+		}
+	}
+
+	// Corners [(top,right), (right,bottom), (bottom,left), (left,top)]
+	for i := range []int{1, 2, 3, 0} {
+		ii := i - 1
+		if ii <= 0 {
+			ii = len(pos) - 1
+		}
+		border := b{[]border{
+			{pos[ii], "000000", style},
+			{pos[i], "000000", style},
+		}}
+
+		json, err := json.Marshal(border)
+		if err == nil {
+			style, err := s.xlsx.NewStyle(string(json))
+			if err == nil {
+				j := i
+				if i <= 2 {
+					j = i * 2
+				}
+				s.xlsx.SetCellStyle(s.name, axis(ax[j].c, ax[j].r), axis(ax[j].c, ax[j].r), style)
+			}
+		}
+	}
+
+}
+
 //
 // axis transforms (2, 3) into "B3"
 //
