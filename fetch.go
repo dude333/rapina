@@ -198,6 +198,7 @@ func FetchSectors() (err error) {
 	}
 
 	err = parsers.SectorsToYaml(file, "./setores.yaml")
+	filesCleanup([]string{file})
 	// saveConfig(s)
 
 	return
