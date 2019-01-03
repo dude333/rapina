@@ -1,67 +1,85 @@
 # 𝚛𝚊𝚙𝚒𝚗𝚊
 
-Download and process Brazilian companies' financial data directly from CVM web server:
-
-    http://dados.cvm.gov.br/dados/CIA_ABERTA/DOC/DFP/
+Download e processamento de dados financeiros de empresas brasileiras diretamente da [CVM](http://dados.cvm.gov.br/dados/CIA_ABERTA/DOC/DFP/). [[In English](./README_en.md)]
 
 [![GitHub release](https://img.shields.io/github/tag/dude333/rapina.svg?label=latest)](https://github.com/dude333/rapina/releases)
 [![Travis](https://img.shields.io/travis/dude333/rapina/master.svg)](https://travis-ci.org/dude333/rapina)
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](./LICENSE)
 
-# Commands
+# 1. Instalação
 
-## Download and store financial data into the local database
+Não é necessário instalar, basta baixar o executável da [página de release](https://github.com/dude333/rapina/releases).
+
+Abra o terminal ([CMD](https://superuser.com/a/340051/61616) no Windows) e rode os comandos listados abaixo.
+
+# 2. Comandos
+
+## 2.1. `get`| Download e armazenamento de dados financeiros no banco de dados local
 
     ./rapina get
 
-It downloads all files from CVM web server, parses their contents and stores on a sqlite database at `.data/rapina.db`.
+Baixa todos os arquivos disponíveis no servidor da CVM, processa o conteúdo e o armazena num banco de dados sqlite em `.data/rapina.db`.
 
-This command must be run **at least once** before you run the `report`.
+Este comando deve ser executado **pelo menos uma vez** antes dos outros comandos.
 
-## List all companies
+[![asciicast](https://asciinema.org/a/IhYr1LxBUZiIgI9eCEE9Mup0D.svg)](https://asciinema.org/a/IhYr1LxBUZiIgI9eCEE9Mup0D?speed=4&autoplay=1&loop=1)
+
+## 2.2. `list`| Lista todas as empresas disponíveis
 
     ./rapina list
 
-## Create a spreadsheet with a company financial data
+[![asciicast](https://asciinema.org/a/TbJyGaOodJUxEzjDySQu3MaEW.svg)](https://asciinema.org/a/TbJyGaOodJUxEzjDySQu3MaEW?autoplay=1&loop=1)
 
-    ./rapina report [flags] company_name
+## 2.3. `report`| Cria uma planilha com os dados financeiros de uma empresa
 
-### Options
+    ./rapina report [flags] empresa
+
+### 2.3.1. Opções
 
 ```
-  -d, --outputDir string   Output directory
-  -s, --scriptMode         Does not show companies list; uses the most similar
-                           company name [default: ./reports]
+  -d, --outputDir string   Diretório onde a planilha será salva
+                           [default: ./reports]
+  -s, --scriptMode         Não lista as empresas; usa a com nome mais próximo
 ```
 
-On **Linux** or **macOS**, use the arrow keys to navigate through the companies list. On **Windows**, use <kbd>j</kbd> and <kbd>k</kbd>.
+No **Linux** ou **macOS**, use as setas para navegar na lista das empresas. No **Windows**, use <kbd>j</kbd> e <kbd>k</kbd>.
 
-### Examples
+[![asciicast](https://asciinema.org/a/Vqav9vhHjjD9Rv9or2gxbP1rH.svg)](https://asciinema.org/a/Vqav9vhHjjD9Rv9or2gxbP1rH?autoplay=1&loop=1)
+
+### 2.3.2. Exemplos
 
     ./rapina report WEG
 
-The spreadsheet will be saved at `./reports`
+A planilha será salva em `./reports`
 
     ./rapina report "TEC TOY" -s -d /tmp/output
 
-The spreadsheet will be saved at `/tmp/output`
+A planilha será salva em `/tmp/output`
 
-# How to compile
+# 3. Como compilar
 
-1. Clone this repo to your PC (`git clone https://github.com/dude333/rapina`)
-2. Change to CLI directory (`cd rapina/cli`)
-3. Compile using the Makefile (`make`). To _cross compile_ for Windows on Linux, use `make win`.
+Se quiser compilar seu próprio executável, primeiro [baixe e instale](https://golang.org/dl/) o compilador Go. Depois execute estes passos:
 
-# Contributing
+1. `go get github.com/dude333/rapina`
+2. `cd $GOPATH/src/github.com/dude333/rapina`
+3. Change to the cli directory (`cd cli`)
+4. Compile using the Makefile (`make`). _To cross compile for Windows on Linux, use `make win`_.
 
-1. Fork it
-2. Download your fork to your PC (`git clone https://github.com/your_username/rapina && cd rapina`)
-3. Create your feature branch (`git checkout -b my-new-feature`)
-4. Make changes and add them (`git add .`)
-5. Commit your changes (`git commit -m 'Add some feature'`)
-6. Push to the branch (`git push origin my-new-feature`)
-7. Create new pull request
+# 4. Contribua
 
-# License
+1. Faça um fork deste projeto
+2. `cd $GOPATH/src/github.com/your_username`
+3. `git clone https://github.com/your_username/rapina && cd rapina`
+4. `git checkout -b my-new-feature`
+5. `git add .`
+6. `git commit -m 'Add some feature'`
+7. `git push origin my-new-feature`
+8. Crie um _pull request_
+
+# 5. Screenshot
+
+![WEG](https://i.imgur.com/czPhPkH.png)
+
+# 6. License
 
 MIT
