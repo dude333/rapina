@@ -1,5 +1,7 @@
 package reports
 
+import "encoding/json"
+
 // Used by style
 const (
 	DEFAULT = iota + 1
@@ -70,7 +72,7 @@ type formatStyle struct {
 //
 // newFormat provides a struct to create style for cells
 //
-func newFormat(format int, position int, bold bool, b formatBorder) (f *formatStyle) {
+func newFormat(format int, position int, bold bool) (f *formatStyle) {
 	f = &formatStyle{}
 
 	custom := ""
@@ -101,36 +103,18 @@ func newFormat(format int, position int, bold bool, b formatBorder) (f *formatSt
 	return
 }
 
-//
-// setFormat formats a cell/range using the formatStyle struct
-//
-func setFormat(format int, position int, bold bool, b formatBorder) (f formatStyle) {
-	var custom string
+func (f *formatStyle) bold(enabled bool) {
+	f.Font = &formatFont{Bold: enabled}
+}
 
-	f = formatStyle{}
+func (f *formatStyle) size(s int) {
+	f.Font = &formatFont{Size: s}
+}
 
-	switch format {
-	case PERCENT:
-		custom = "0%;-0%;- "
-	case INDEX:
-		custom = "0.0;-0.0;-"
-	case NUMBER:
-		custom = "_-* #,##0,_-;_-* (#,##0,);_-* \"-\"_-;_-@_-"
-	}
-
-	if custom != "" {
-		f.CustomNumFmt = &custom
-	}
-
-	switch position {
-	case RIGHT:
-		f.Alignment = &formatAlignment{Horizontal: "right"}
-	case CENTER:
-		f.Alignment = &formatAlignment{Horizontal: "center"}
-	}
-
-	if bold {
-		f.Font = &formatFont{Bold: true}
+func (f formatStyle) newStyle(e *Excel) (style int, err error) {
+	json, err := json.Marshal(f)
+	if err == nil {
+		style, err = e.xlsx.NewStyle(string(json))
 	}
 
 	return
