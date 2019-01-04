@@ -4,7 +4,11 @@ import (
 	"encoding/json"
 
 	"github.com/360EntSecGroup-Skylar/excelize"
+	"github.com/dude333/rapina/parsers"
 )
+
+// Global var to keep track of added styles
+var stylesMap = make(map[uint32]int)
 
 // Used by style
 const (
@@ -116,13 +120,28 @@ func (f *formatStyle) size(s int) {
 }
 
 func (f formatStyle) newStyle(e *excelize.File) (style int) {
-	json, err := json.Marshal(f)
+	j, err := json.Marshal(f)
+
 	if err == nil {
-		style, err = e.NewStyle(string(json))
+		s := string(j)
+		k := parsers.GetHash(s)
+
+		// Check if style already exists
+		id, ok := stylesMap[k]
+		if ok {
+			// fmt.Printf("[i] Reusing style %d [%d]\n", id, k)
+			return id
+		}
+
+		// Create new style
+		style, err = e.NewStyle(s)
+		stylesMap[k] = style
 		if err != nil {
-			style = 0
+			return 0
 		}
 	}
+
+	// fmt.Printf("[i] New style %d\n", style)
 
 	return
 }

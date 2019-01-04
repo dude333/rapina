@@ -189,12 +189,6 @@ func reportSector(db *sql.DB, sheet *Sheet, row, col *int, printDescr bool, comp
 		{Type: "left", Color: "000000", Style: 1},
 	}
 	sDescrTop := fDescr.newStyle(sheet.xlsx)
-	//
-	sVal := make(map[int]int)
-	for _, fmt := range []int{NUMBER, INDEX, PERCENT} {
-		fVal := newFormat(fmt, DEFAULT, false)
-		sVal[fmt] = fVal.newStyle(sheet.xlsx)
-	}
 
 	// Company name
 	if printDescr {
@@ -238,7 +232,9 @@ func reportSector(db *sql.DB, sheet *Sheet, row, col *int, printDescr bool, comp
 				sheet.printCell(*row, *col-1, metric.descr, stl)
 			}
 			if metric.format != EMPTY {
-				sheet.printCell(*row, *col, metric.val, sVal[metric.format])
+				fVal := newFormat(metric.format, DEFAULT, false)
+				fmt := fVal.newStyle(sheet.xlsx)
+				sheet.printCell(*row, *col, metric.val, fmt)
 			}
 			*row++
 		}
