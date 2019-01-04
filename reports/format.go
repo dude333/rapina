@@ -1,6 +1,10 @@
 package reports
 
-import "encoding/json"
+import (
+	"encoding/json"
+
+	"github.com/360EntSecGroup-Skylar/excelize"
+)
 
 // Used by style
 const (
@@ -111,10 +115,13 @@ func (f *formatStyle) size(s int) {
 	f.Font = &formatFont{Size: s}
 }
 
-func (f formatStyle) newStyle(e *Excel) (style int, err error) {
+func (f formatStyle) newStyle(e *excelize.File) (style int) {
 	json, err := json.Marshal(f)
 	if err == nil {
-		style, err = e.xlsx.NewStyle(string(json))
+		style, err = e.NewStyle(string(json))
+		if err != nil {
+			style = 0
+		}
 	}
 
 	return

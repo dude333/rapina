@@ -60,21 +60,13 @@ func (e *Excel) newSheet(name string) (s *Sheet, err error) {
 	return
 }
 
-func (s Sheet) printCell(row, col int, value interface{}, f formatStyle) {
-
+func (s Sheet) printCell(row, col int, value interface{}, styleID int) {
 	// Print value
 	cell := axis(col, row)
 	s.xlsx.SetCellValue(s.name, cell, value)
 
 	// Format cell
-	var style int
-	json, err := json.Marshal(f)
-	if err == nil {
-		style, err = s.xlsx.NewStyle(string(json))
-	}
-	if err == nil {
-		s.xlsx.SetCellStyle(s.name, cell, cell, style)
-	}
+	s.xlsx.SetCellStyle(s.name, cell, cell, styleID)
 }
 
 //
