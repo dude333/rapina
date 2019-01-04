@@ -6,6 +6,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/360EntSecGroup-Skylar/excelize"
 	p "github.com/dude333/rapina/parsers"
 )
 
@@ -149,6 +150,13 @@ func Report(db *sql.DB, company string, path string) (err error) {
 	sheet.autoWidth()
 
 	sheet2, _ := e.newSheet("Setor")
+	if err = sheet2.xlsx.SetSheetViewOptions(sheet2.name, 0,
+		excelize.ShowGridLines(false),
+		excelize.ZoomScale(80),
+	); err != nil {
+		return
+	}
+
 	row, col := 2, 1
 	reportSector(db, sheet2, &row, &col, true, company)
 	row = 2
@@ -157,6 +165,9 @@ func Report(db *sql.DB, company string, path string) (err error) {
 	row = 2
 	col++
 	reportSector(db, sheet2, &row, &col, false, "VULCABRAS")
+	row += 2
+	col = 1
+	reportSector(db, sheet2, &row, &col, true, "CAMBUCI")
 
 	err = e.saveAndCloseExcel(f)
 	if err == nil {
@@ -177,18 +188,23 @@ func reportSector(db *sql.DB, sheet *Sheet, row, col *int, printDescr bool, comp
 	}
 
 	// Formats used in this report
+	sTitle := newFormat(DEFAULT, RIGHT, true).newStyle(sheet.xlsx)
 	fCompanyName := newFormat(DEFAULT, CENTER, true)
 	fCompanyName.size(16)
 	sCompanyName := fCompanyName.newStyle(sheet.xlsx)
 	//
 	fDescr := newFormat(DEFAULT, RIGHT, false)
-	fDescr.Border = []formatBorder{{Type: "left", Color: "000000", Style: 1}}
+	fDescr.Border = []formatBorder{{Type: "left", Color: "333333", Style: 1}}
 	sDescr := fDescr.newStyle(sheet.xlsx)
 	fDescr.Border = []formatBorder{
-		{Type: "top", Color: "000000", Style: 1},
-		{Type: "left", Color: "000000", Style: 1},
+		{Type: "top", Color: "333333", Style: 1},
+		{Type: "left", Color: "333333", Style: 1},
 	}
 	sDescrTop := fDescr.newStyle(sheet.xlsx)
+	fDescr.Border = []formatBorder{
+		{Type: "top", Color: "333333", Style: 1},
+	}
+	sDescrBottom := fDescr.newStyle(sheet.xlsx)
 
 	// Company name
 	if printDescr {
@@ -219,11 +235,12 @@ func reportSector(db *sql.DB, sheet *Sheet, row, col *int, printDescr bool, comp
 		*row = r
 
 		// Print year
-		sheet.printTitle(axis(*col, *row), "["+strconv.Itoa(y)+"]")
+		sheet.printCell(*row, *col, "["+strconv.Itoa(y)+"]", sTitle)
 		*row++
 
 		// Print financial metrics
 		for i, metric := range metricsList(values) {
+			// Description
 			if printDescr {
 				stl := sDescr
 				if i == 0 {
@@ -231,16 +248,23 @@ func reportSector(db *sql.DB, sheet *Sheet, row, col *int, printDescr bool, comp
 				}
 				sheet.printCell(*row, *col-1, metric.descr, stl)
 			}
+			// Values
 			if metric.format != EMPTY {
 				fVal := newFormat(metric.format, DEFAULT, false)
-				fmt := fVal.newStyle(sheet.xlsx)
-				sheet.printCell(*row, *col, metric.val, fmt)
+				fVal.Border = []formatBorder{
+					{Type: "top", Color: "cccccc", Style: 1},
+					{Type: "right", Color: "cccccc", Style: 1},
+					{Type: "bottom", Color: "cccccc", Style: 1},
+					{Type: "left", Color: "cccccc", Style: 1},
+				}
+				stl := fVal.newStyle(sheet.xlsx)
+				sheet.printCell(*row, *col, metric.val, stl)
 			}
 			*row++
 		}
 
 		if printDescr {
-			sheet.printCell(*row, *col-1, "", sDescrTop)
+			sheet.printCell(*row, *col-1, "", sDescrBottom)
 		}
 
 		printDescr = false
