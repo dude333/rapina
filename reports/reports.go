@@ -190,25 +190,24 @@ func sectorReport(db *sql.DB, sheet *Sheet, company string) (err error) {
 		return
 	}
 
-	var top, row int
-	col := 1
 	fmt.Println("[i] Criando relatório setorial (Ctrl+C para interromper)")
-	block := 0
+	var top, row, col int = 2, 0, 1
+	var count int
 	for _, co := range companies {
-		if block%3 == 0 {
-			top = row + 2
-			col = 1
-		}
 		row = top
 		col++
-		fmt.Print("[ ] - ", co, " ", row, col)
-		empty, err := companySummary(db, sheet, &row, &col, block%3 == 0, co)
+		fmt.Print("[ ] - ", co)
+		empty, err := companySummary(db, sheet, &row, &col, count%3 == 0, co)
 		ok := "✓"
 		if err != nil || empty {
 			ok = "x"
 			col--
 		} else {
-			block++
+			count++
+			if count%3 == 0 {
+				top = row + 2
+				col = 1
+			}
 		}
 		if interrupt {
 			return nil
