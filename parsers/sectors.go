@@ -3,10 +3,11 @@ package parsers
 import (
 	"fmt"
 	"io/ioutil"
-	"log"
+	"regexp"
 	"strings"
 
 	"github.com/360EntSecGroup-Skylar/excelize"
+	"github.com/pkg/errors"
 	yaml "gopkg.in/yaml.v2"
 )
 
@@ -86,7 +87,38 @@ func SectorsToYaml(excelFile, yamlFile string) (err error) {
 	m, err := yaml.Marshal(&s)
 	err = ioutil.WriteFile(yamlFile, m, 0644)
 	if err != nil {
-		log.Fatalf("WriteFile: %v", err)
+		errors.Wrapf(err, "WriteFile: %v", err)
+	}
+
+	return
+}
+
+//
+// FromSector returns all companies from the same sector as the 'company'
+//
+func FromSector(company, yamlFile string) (companies []string, err error) {
+
+	y, err := ioutil.ReadFile(yamlFile)
+	if err != nil {
+		err = errors.Wrapf(err, "ReadFile: %v", err)
+		return
+	}
+
+	s := S{}
+	yaml.Unmarshal(y, &s)
+
+	for _, sector := range s.Sectors {
+		for _, subsector := range sector.Subsectors {
+			for _, segment := range subsector.Segments {
+				list := removeExtras(segment.Companies)
+				for _, co := range list {
+					match, _ := regexp.MatchString(co, company)
+					if match {
+						return list, nil
+					}
+				}
+			}
+		}
 	}
 
 	return
@@ -94,4 +126,20 @@ func SectorsToYaml(excelFile, yamlFile string) (err error) {
 
 func trim(s string) string {
 	return strings.Trim(s, " ")
+}
+
+//
+// removeExtras removes the extra info (stock name and segment) from
+// the list of companies
+//
+func removeExtras(companies []string) (list []string) {
+	list = make([]string, len(companies))
+	for i, co := range companies {
+		p := strings.Index(co, "[") - 1
+		if p > 0 {
+			list[i] = co[:p]
+		}
+	}
+
+	return
 }
