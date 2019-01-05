@@ -3,6 +3,8 @@ package reports
 import (
 	"database/sql"
 	"fmt"
+	"os"
+	"os/signal"
 	"strconv"
 	"strings"
 
@@ -172,12 +174,26 @@ func Report(db *sql.DB, company string, path string) (err error) {
 // their financial summary
 //
 func sectorReport(db *sql.DB, sheet *Sheet, company string) (err error) {
-	fmt.Println("[i] Criando relatório setorial")
+	var interrupt bool
+
+	// Handle Ctrl+C
+	c := make(chan os.Signal, 1)
+	signal.Notify(c, os.Interrupt)
+	go func() {
+		<-c
+		fmt.Println("\n[ ] Processamento interrompido")
+		interrupt = true
+	}()
+
 	companies, _ := parsers.FromSector(company, "../cli/setores.yaml")
-	companies = append([]string{company}, companies...)
+	if len(companies) <= 1 {
+		return
+	}
+
 	group := 0
 	var top, row int
 	col := 1
+	fmt.Println("[i] Criando relatório setorial (Ctrl+C para interromper)")
 	for i, co := range companies {
 		if i%3 == 0 {
 			group++
@@ -191,6 +207,9 @@ func sectorReport(db *sql.DB, sheet *Sheet, company string) (err error) {
 		ok := "✓"
 		if err != nil {
 			ok = "x"
+		}
+		if interrupt {
+			return
 		}
 		fmt.Printf("\r[%s\n", ok)
 	}
