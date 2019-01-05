@@ -18,7 +18,7 @@ const outputDir = "reports"
 //
 // Report a company from DB to Excel
 //
-func Report(company string, path string) (err error) {
+func Report(company string, path, yamlFile string) (err error) {
 
 	db, err := openDatabase()
 	if err != nil {
@@ -29,7 +29,7 @@ func Report(company string, path string) (err error) {
 		path = outputDir
 	}
 
-	return reports.Report(db, company, path)
+	return reports.Report(db, company, path, yamlFile)
 }
 
 //

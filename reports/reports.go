@@ -23,7 +23,7 @@ type metric struct {
 //
 // Report company from DB to Excel
 //
-func Report(db *sql.DB, company string, path string) (err error) {
+func Report(db *sql.DB, company string, path, yamlFile string) (err error) {
 	f, err := filename(path, company)
 	if err != nil {
 		return err
@@ -158,7 +158,7 @@ func Report(db *sql.DB, company string, path string) (err error) {
 			excelize.ShowGridLines(false),
 			excelize.ZoomScale(80),
 		)
-		sectorReport(db, sheet2, company)
+		sectorReport(db, sheet2, company, yamlFile)
 	}
 
 	err = e.saveAndCloseExcel(f)
@@ -173,7 +173,7 @@ func Report(db *sql.DB, company string, path string) (err error) {
 // sectorReport gets all the companies related to the 'company' and reports
 // their financial summary
 //
-func sectorReport(db *sql.DB, sheet *Sheet, company string) (err error) {
+func sectorReport(db *sql.DB, sheet *Sheet, company, yamlFile string) (err error) {
 	var interrupt bool
 
 	// Handle Ctrl+C
@@ -185,7 +185,7 @@ func sectorReport(db *sql.DB, sheet *Sheet, company string) (err error) {
 		interrupt = true
 	}()
 
-	companies, _ := parsers.FromSector(company, "../cli/setores.yaml")
+	companies, _ := parsers.FromSector(company, yamlFile)
 	if len(companies) <= 1 {
 		return
 	}
