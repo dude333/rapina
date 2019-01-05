@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/360EntSecGroup-Skylar/excelize"
+	"github.com/dude333/rapina/parsers"
 	p "github.com/dude333/rapina/parsers"
 )
 
@@ -149,25 +150,14 @@ func Report(db *sql.DB, company string, path string) (err error) {
 
 	sheet.autoWidth()
 
-	sheet2, _ := e.newSheet("Setor")
-	if err = sheet2.xlsx.SetSheetViewOptions(sheet2.name, 0,
-		excelize.ShowGridLines(false),
-		excelize.ZoomScale(80),
-	); err != nil {
-		return
+	sheet2, err := e.newSheet("SETOR")
+	if err == nil {
+		sheet2.xlsx.SetSheetViewOptions(sheet2.name, 0,
+			excelize.ShowGridLines(false),
+			excelize.ZoomScale(80),
+		)
+		sectorReport(db, sheet2, company)
 	}
-
-	row, col := 2, 1
-	reportSector(db, sheet2, &row, &col, true, company)
-	row = 2
-	col++
-	reportSector(db, sheet2, &row, &col, false, "ALPARGATAS")
-	row = 2
-	col++
-	reportSector(db, sheet2, &row, &col, false, "VULCABRAS")
-	row += 2
-	col = 1
-	reportSector(db, sheet2, &row, &col, true, "CAMBUCI")
 
 	err = e.saveAndCloseExcel(f)
 	if err == nil {
@@ -178,10 +168,41 @@ func Report(db *sql.DB, company string, path string) (err error) {
 }
 
 //
-// reportSector reports all companies from the same segment into the
+// sectorReport gets all the companies related to the 'company' and reports
+// their financial summary
+//
+func sectorReport(db *sql.DB, sheet *Sheet, company string) (err error) {
+	fmt.Println("[i] Criando relatório setorial")
+	companies, _ := parsers.FromSector(company, "../cli/setores.yaml")
+	companies = append([]string{company}, companies...)
+	group := 0
+	var top, row int
+	col := 1
+	for i, co := range companies {
+		if i%3 == 0 {
+			group++
+			top = row + 2
+			col = 1
+		}
+		row = top
+		col++
+		fmt.Print("[ ] - ", co)
+		companySummary(db, sheet, &row, &col, false, co)
+		ok := "✓"
+		if err != nil {
+			ok = "x"
+		}
+		fmt.Printf("\r[%s\n", ok)
+	}
+
+	return
+}
+
+//
+// companySummary reports all companies from the same segment into the
 // 'Setor' sheet.
 //
-func reportSector(db *sql.DB, sheet *Sheet, row, col *int, printDescr bool, company string) (err error) {
+func companySummary(db *sql.DB, sheet *Sheet, row, col *int, printDescr bool, company string) (err error) {
 	begin, end, err := timeRange(db)
 	if err != nil {
 		return
