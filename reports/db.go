@@ -186,6 +186,27 @@ func companies(db *sql.DB) (list []string, err error) {
 }
 
 //
+// isCompany returns true if company exists on DB
+//
+func isCompany(db *sql.DB, company string) bool {
+	selectCompany := fmt.Sprintf(`
+	SELECT DISTINCT
+		DENOM_CIA
+	FROM
+		dfp
+	WHERE
+		DENOM_CIA LIKE "%s%%";`, company)
+
+	var c string
+	err := db.QueryRow(selectCompany).Scan(&c)
+	if err != nil {
+		return false
+	}
+
+	return true
+}
+
+//
 // timeRange returns the begin=min(year) and end=max(year)
 //
 func timeRange(db *sql.DB) (begin, end int, err error) {

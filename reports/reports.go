@@ -190,26 +190,28 @@ func sectorReport(db *sql.DB, sheet *Sheet, company string) (err error) {
 		return
 	}
 
-	group := 0
 	var top, row int
 	col := 1
 	fmt.Println("[i] Criando relatório setorial (Ctrl+C para interromper)")
-	for i, co := range companies {
-		if i%3 == 0 {
-			group++
+	block := 0
+	for _, co := range companies {
+		if block%3 == 0 {
 			top = row + 2
 			col = 1
 		}
 		row = top
 		col++
-		fmt.Print("[ ] - ", co)
-		companySummary(db, sheet, &row, &col, false, co)
+		fmt.Print("[ ] - ", co, " ", row, col)
+		empty, err := companySummary(db, sheet, &row, &col, block%3 == 0, co)
 		ok := "✓"
-		if err != nil {
+		if err != nil || empty {
 			ok = "x"
+			col--
+		} else {
+			block++
 		}
 		if interrupt {
-			return
+			return nil
 		}
 		fmt.Printf("\r[%s\n", ok)
 	}
@@ -221,11 +223,16 @@ func sectorReport(db *sql.DB, sheet *Sheet, company string) (err error) {
 // companySummary reports all companies from the same segment into the
 // 'Setor' sheet.
 //
-func companySummary(db *sql.DB, sheet *Sheet, row, col *int, printDescr bool, company string) (err error) {
+func companySummary(db *sql.DB, sheet *Sheet, row, col *int, printDescr bool, company string) (empty bool, err error) {
+	if !isCompany(db, company) {
+		return true, nil
+	}
+
 	begin, end, err := timeRange(db)
 	if err != nil {
 		return
 	}
+	start := begin - 1
 
 	// Formats used in this report
 	sTitle := newFormat(DEFAULT, RIGHT, true).newStyle(sheet.xlsx)
@@ -268,7 +275,6 @@ func companySummary(db *sql.DB, sheet *Sheet, row, col *int, printDescr bool, co
 
 	// Print values ONE YEAR PER COLUMN
 	var values map[uint32]float32
-	start := begin - 1
 	for y := start; y <= end; y++ {
 		values, _ = accountsValues(db, company, y, y == start)
 
