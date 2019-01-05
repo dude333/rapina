@@ -191,13 +191,13 @@ func fetchFile(dataType string, year int) (reqFile string, fileNotFound bool, er
 // unzip and extract a spreadsheet containing a list of companies divided by
 // sector, subsector, and segment; then this info is set into the config file.
 //
-func FetchSectors() (err error) {
+func FetchSectors(yamlFile string) (err error) {
 	file, err := fetchB3()
 	if err != nil {
 		return
 	}
 
-	err = parsers.SectorsToYaml(file, "./setores.yaml")
+	err = parsers.SectorsToYaml(file, yamlFile)
 	filesCleanup([]string{file})
 	// saveConfig(s)
 

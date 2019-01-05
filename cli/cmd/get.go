@@ -39,7 +39,7 @@ var getCmd = &cobra.Command{
 		fmt.Println("[✓] Coletando dados ===========")
 		var err error
 		if sectors {
-			err = rapina.FetchSectors()
+			err = rapina.FetchSectors("./setores.yaml")
 		} else {
 			err = rapina.FetchCVM()
 		}
