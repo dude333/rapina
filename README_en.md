@@ -12,15 +12,32 @@ No installation required, just download the [latest released executable](https:/
 
 # 2. Commands
 
-## 2.1. `get`| Download and store financial data into the local database
+For the first time, run the following commands:
 
     ./rapina get
+    ./rapina get -s
+
+Then, to get a company report, together with a summary for the companies from the same sector:
+
+    ./rapina report <company>
+
+## 2.1. `get`| Download and store financial data into the local database
+
+    ./rapina get [-s]
 
 It downloads all files from CVM web server, parses their contents and stores on a sqlite database at `.data/rapina.db`.
 
 This command must be run **at least once** before you run the other commands.
 
-[![asciicast](https://asciinema.org/a/IhYr1LxBUZiIgI9eCEE9Mup0D.svg)](https://asciinema.org/a/IhYr1LxBUZiIgI9eCEE9Mup0D?speed=4&autoplay=1&loop=1)
+### 2.1.1 Option
+
+```
+  -s, --sectors   Download and sector classification for companies listed at B3
+```
+
+**Important:** to get a summary for the other companies from the same sector, run at least once with the `-s` option.
+
+[![asciicast](https://asciinema.org/a/656x2hrtCFFZLVLa9fGGcetw7.svg)](https://asciinema.org/a/656x2hrtCFFZLVLa9fGGcetw7?speed=4&autoplay=1&loop=1)
 
 ## 2.2. `list`| List all companies
 
@@ -42,7 +59,7 @@ This command must be run **at least once** before you run the other commands.
 
 On **Linux** or **macOS**, use the arrow keys to navigate through the companies list. On **Windows**, use <kbd>j</kbd> and <kbd>k</kbd>.
 
-[![asciicast](https://asciinema.org/a/Vqav9vhHjjD9Rv9or2gxbP1rH.svg)](https://asciinema.org/a/Vqav9vhHjjD9Rv9or2gxbP1rH?autoplay=1&loop=1)
+[![asciicast](https://asciinema.org/a/jhmHxzgROtc8EBh3tkSwYTaa9.svg)](https://asciinema.org/a/jhmHxzgROtc8EBh3tkSwYTaa9?autoplay=1&loop=1)
 
 ### 2.3.2. Examples
 

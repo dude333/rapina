@@ -14,15 +14,32 @@ Abra o terminal ([CMD](https://superuser.com/a/340051/61616) no Windows) e rode 
 
 # 2. Comandos
 
-## 2.1. `get`| Download e armazenamento de dados financeiros no banco de dados local
+Na primeira vez, rodar os seguintes comandos:
 
     ./rapina get
+    ./rapina get -s
+
+Depois, para obter o relatório de uma determinada empresa, com o resumo das empresas do mesmo setor:
+
+    ./rapina report <empresa>
+
+## 2.1. `get`| Download e armazenamento de dados financeiros no banco de dados local
+
+    ./rapina get [-s]
 
 Baixa todos os arquivos disponíveis no servidor da CVM, processa o conteúdo e o armazena num banco de dados sqlite em `.data/rapina.db`.
 
 Este comando deve ser executado **pelo menos uma vez** antes dos outros comandos.
 
-[![asciicast](https://asciinema.org/a/IhYr1LxBUZiIgI9eCEE9Mup0D.svg)](https://asciinema.org/a/IhYr1LxBUZiIgI9eCEE9Mup0D?speed=4&autoplay=1&loop=1)
+### 2.1.1 Opção
+
+```
+  -s, --sectors   Baixa a classificação setorial das empresas e fundos negociados na B3
+```
+
+**Importante:** para obter o resumo dos indicadores das empresas do mesmo setor, rodar pelo menos uma vez com a opção `-s`
+
+[![asciicast](https://asciinema.org/a/656x2hrtCFFZLVLa9fGGcetw7.svg)](https://asciinema.org/a/656x2hrtCFFZLVLa9fGGcetw7?speed=4&autoplay=1&loop=1)
 
 ## 2.2. `list`| Lista todas as empresas disponíveis
 
@@ -44,7 +61,7 @@ Este comando deve ser executado **pelo menos uma vez** antes dos outros comandos
 
 No **Linux** ou **macOS**, use as setas para navegar na lista das empresas. No **Windows**, use <kbd>j</kbd> e <kbd>k</kbd>.
 
-[![asciicast](https://asciinema.org/a/Vqav9vhHjjD9Rv9or2gxbP1rH.svg)](https://asciinema.org/a/Vqav9vhHjjD9Rv9or2gxbP1rH?autoplay=1&loop=1)
+[![asciicast](https://asciinema.org/a/jhmHxzgROtc8EBh3tkSwYTaa9.svg)](https://asciinema.org/a/jhmHxzgROtc8EBh3tkSwYTaa9?autoplay=1&loop=1)
 
 ### 2.3.2. Exemplos
 
