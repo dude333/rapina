@@ -3,6 +3,7 @@ package reports
 import (
 	"database/sql"
 	"fmt"
+	"time"
 
 	"github.com/pkg/errors"
 )
@@ -71,18 +72,30 @@ func accountsValues(db *sql.DB, company string, year int, penult bool) (values m
 		year++
 	}
 
+	layout := "2006-01-02"
+	var t [2]time.Time
+	for i, y := range [2]int{year, year + 1} {
+		t[i], err = time.Parse(layout, fmt.Sprintf("%d-01-01", y))
+		if err != nil {
+			err = errors.Wrapf(err, "data invalida %d", year)
+			return
+		}
+	}
+
 	selectReport := fmt.Sprintf(`
 	SELECT
 		CODE,
-		strftime('%%Y', DT_REFER, 'unixepoch') AS DT,
+		DENOM_CIA,
+		ORDEM_EXERC,
+		DT_REFER,
 		VL_CONTA
 	FROM
 		dfp
 	WHERE
 		DENOM_CIA LIKE "%s%%"
 		AND ORDEM_EXERC LIKE "%s"
-		AND DT = "%d"
-	;`, company, period, year)
+		AND DT_REFER >= "%v" AND DT_REFER < "%v"
+	;`, company, period, t[0].Unix(), t[1].Unix())
 
 	values = make(map[uint32]float32)
 	st := account{}
@@ -93,10 +106,13 @@ func accountsValues(db *sql.DB, company string, year int, penult bool) (values m
 	}
 	defer rows.Close()
 
+	// var y time.Time
 	for rows.Next() {
 		rows.Scan(
 			&st.code,
-			&st.year,
+			nil, // denom_cia
+			nil, // ordem_exerc
+			nil, // dt_refer
 			&st.vlConta,
 		)
 
