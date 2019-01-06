@@ -91,10 +91,13 @@ func SelectCompany(company string, scriptMode bool) string {
 	}
 
 	// Interactive menu
-	if len(matches) >= 1 {
+	if len(matches) > 1 {
 		result := promptUser(matches)
 		return result
-	}
+	} else if len(matches) == 1{
+    return matches[0]
+  }
+
 
 	return ""
 }
