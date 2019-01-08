@@ -2,7 +2,8 @@ SOURCEDIR=.
 SOURCES := $(shell find $(SOURCEDIR) -name '*.go')
 
 BINARY=rapina
-WINBINARY=~/windows/temp/rapina.exe
+WINBINARY=rapina.exe
+OSXBINARY=rapina-osx
 
 VERSION=`git describe --tags --always`
 BUILD_TIME=`date +%F`
@@ -19,6 +20,10 @@ $(BINARY): $(SOURCES) $(wildcard ../*.go) $(wildcard ../parsers/*.go) $(wildcard
 win: $(SOURCES)
 	go get -v -d ../...
 	GOOS=windows GOARCH=386 CGO_ENABLED=1 CC=i686-w64-mingw32-gcc CXX=i686-w64-mingw32-g++ CGO_LDFLAGS="-lssp -w" go build ${LDFLAGS} -o ${WINBINARY}
+
+osx:  $(SOURCES)
+	go get -v -d ../...
+	GOOS=darwin GOARCH=amd64 CGO_ENABLED=1 CC=o64-clang CXX=o64-clang++ CGO_LDFLAGS="-w" go build ${LDFLAGS} -o ${OSXBINARY}
 
 .PHONY: install
 install:
