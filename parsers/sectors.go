@@ -134,10 +134,17 @@ func trim(s string) string {
 //
 func removeExtras(companies []string) (list []string) {
 	list = make([]string, len(companies))
+
 	for i, co := range companies {
-		p := strings.Index(co, "[") - 1
-		if p > 0 {
-			list[i] = co[:p]
+		for _, p := range []int{
+			strings.Index(co, "S/A") - 1,
+			strings.Index(co, "S.A") - 1,
+			strings.Index(co, "[") - 1,
+		} {
+			if p > 0 {
+				list[i] = co[:p]
+				break
+			}
 		}
 	}
 
