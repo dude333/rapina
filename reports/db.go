@@ -94,7 +94,7 @@ func accountsValues(db *sql.DB, company string, year int, penult bool) (values m
 	WHERE
 		DENOM_CIA LIKE "%s%%"
 		AND ORDEM_EXERC LIKE "%s"
-		AND DT_REFER >= "%v" AND DT_REFER < "%v"
+		AND DT_REFER >= %v AND DT_REFER < %v
 	;`, company, period, t[0].Unix(), t[1].Unix())
 
 	values = make(map[uint32]float32)
@@ -106,13 +106,14 @@ func accountsValues(db *sql.DB, company string, year int, penult bool) (values m
 	}
 	defer rows.Close()
 
-	// var y time.Time
+	var denomCia, orderExec string
+	var dtRefer int
 	for rows.Next() {
 		rows.Scan(
 			&st.code,
-			nil, // denom_cia
-			nil, // ordem_exerc
-			nil, // dt_refer
+			&denomCia,
+			&orderExec,
+			&dtRefer,
 			&st.vlConta,
 		)
 
