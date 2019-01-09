@@ -38,15 +38,19 @@ var getCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		fmt.Println("[✓] Coletando dados ===========")
 		var err error
-		if sectors {
-			err = rapina.FetchSectors("./setores.yaml")
-		} else {
+		if !sectors { // if -s flag is selected, dowload only the sectors
 			err = rapina.FetchCVM()
 		}
 		if err != nil {
 			fmt.Println("[x]", err)
 			os.Exit(1)
 		}
+		err = rapina.FetchSectors("./setores.yaml")
+		if err != nil {
+			fmt.Println("[x]", err)
+			os.Exit(1)
+		}
+		fmt.Println("[✓] Arquivo salvo: setores.yaml")
 	},
 }
 

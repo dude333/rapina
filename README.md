@@ -14,10 +14,9 @@ Abra o terminal ([CMD](https://superuser.com/a/340051/61616) no Windows) e rode 
 
 # 2. Comandos
 
-Na primeira vez, rodar os seguintes comandos:
+Na primeira vez, rodar o seguinte comando:
 
     ./rapina get
-    ./rapina get -s
 
 Depois, para obter o relatório de uma determinada empresa, com o resumo das empresas do mesmo setor:
 
@@ -37,7 +36,7 @@ Este comando deve ser executado **pelo menos uma vez** antes dos outros comandos
   -s, --sectors   Baixa a classificação setorial das empresas e fundos negociados na B3
 ```
 
-**Importante:** para obter o resumo dos indicadores das empresas do mesmo setor, rodar pelo menos uma vez com a opção `-s`
+Usado para obter apenas o resumo dos indicadores das empresas do mesmo setor.
 
 [![asciicast](https://asciinema.org/a/656x2hrtCFFZLVLa9fGGcetw7.svg)](https://asciinema.org/a/656x2hrtCFFZLVLa9fGGcetw7?speed=4&autoplay=1&loop=1)
 

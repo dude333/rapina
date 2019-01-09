@@ -12,10 +12,9 @@ No installation required, just download the [latest released executable](https:/
 
 # 2. Commands
 
-For the first time, run the following commands:
+For the first time, run the following command:
 
     ./rapina get
-    ./rapina get -s
 
 Then, to get a company report, together with a summary for the companies from the same sector:
 
@@ -35,7 +34,7 @@ This command must be run **at least once** before you run the other commands.
   -s, --sectors   Download and sector classification for companies listed at B3
 ```
 
-**Important:** to get a summary for the other companies from the same sector, run at least once with the `-s` option.
+Used to get only a summary for the other companies from the same sector.
 
 [![asciicast](https://asciinema.org/a/656x2hrtCFFZLVLa9fGGcetw7.svg)](https://asciinema.org/a/656x2hrtCFFZLVLa9fGGcetw7?speed=4&autoplay=1&loop=1)
 
