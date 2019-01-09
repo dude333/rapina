@@ -122,9 +122,10 @@ func Report(db *sql.DB, company string, path, yamlFile string) (err error) {
 	wide := (end - begin) + 1
 	year := begin
 	top := 2
+	bottom := top
 	for col := 2; col <= 2+wide; col++ {
-		formulaCol := col + wide + 2
-		sheet.printTitle(axis(formulaCol, 1), "'"+strconv.Itoa(year)) // Print year
+		vCol := col + wide + 2                                  // Column where the vertical analysis will be printed
+		sheet.printTitle(axis(vCol, 1), "'"+strconv.Itoa(year)) // Print year
 		year++
 		var ref string
 		for row := top; row <= lastStatementsRow; row++ {
@@ -146,9 +147,18 @@ func Report(db *sql.DB, company string, path, yamlFile string) (err error) {
 			val := axis(col, row)
 			formula := fmt.Sprintf(`=IfError(%s/%s, "-")`, val, ref)
 
-			sheet.printFormula(axis(formulaCol, row), formula, PERCENT, baseItems[row])
+			sheet.printFormula(axis(vCol, row), formula, PERCENT, baseItems[row])
+			bottom = row
 		}
 	}
+
+	// Print VERTICAL ANALYSIS title
+	sheet.mergeCell(axis(1+wide+2, top), axis(1+wide+2, bottom))
+	format := newFormat(DEFAULT, RIGHT, true)
+	format.Alignment.Vertical = "top"
+	format.Alignment.TextRotation = 90
+	stl := format.newStyle(sheet.xlsx)
+	sheet.printCell(top, 1+wide+2, "ANÁLISE VERTICAL", stl)
 
 	sheet.autoWidth()
 
