@@ -22,23 +22,41 @@ type metric struct {
 	format int // mapped by constants NUMBER, INDEX, PERCENT
 }
 
+// report parameters used in most functions
+type report struct {
+	// Sqlite3 handle passed by the caller
+	db *sql.DB
+
+	// yamlFile contains the sector data for all companies
+	yamlFile string
+
+	// company being reported
+	company string
+}
+
 //
-// Report company from DB to Excel
+// Report of company data from DB to Excel
 //
 func Report(db *sql.DB, company string, path, yamlFile string) (err error) {
-	f, err := filename(path, company)
+	r := report{
+		db:       db,
+		yamlFile: yamlFile,
+		company:  company,
+	}
+
+	f, err := filename(path, r.company)
 	if err != nil {
 		return err
 	}
 
 	e := newExcel()
-	sheet, _ := e.newSheet(company)
+	sheet, _ := e.newSheet(r.company)
 
 	var lastStatementsRow, lastMetricsRow int
 
 	// Company name
 	sheet.mergeCell("A1", "B1")
-	sheet.printRows("A1", &[]string{company}, LEFT, true)
+	sheet.print("A1", &[]string{r.company}, LEFT, true)
 
 	// ACCOUNT NUMBERING AND DESCRIPTION (COLS A AND B) ===============\/
 
@@ -46,14 +64,14 @@ func Report(db *sql.DB, company string, path, yamlFile string) (err error) {
 	// starting on row 2. Adjust space related to the group, e.g.:
 	// 3.02 ABC <== print in bold if base item and stores the row position in baseItems[]
 	//   3.02.01 ABC
-	accounts, _ := accountsItems(db, company)
+	accounts, _ := r.accountsItems()
 	row := 2
 	baseItems := make([]bool, len(accounts)+row)
 	for _, it := range accounts {
 		var sp string
 		sp, baseItems[row] = ident(it.cdConta)
 		cell := "A" + strconv.Itoa(row)
-		sheet.printRows(cell, &[]string{sp + it.cdConta, sp + it.dsConta}, LEFT, baseItems[row])
+		sheet.print(cell, &[]string{sp + it.cdConta, sp + it.dsConta}, LEFT, baseItems[row])
 		row++
 	}
 	lastStatementsRow = row - 1
@@ -62,13 +80,13 @@ func Report(db *sql.DB, company string, path, yamlFile string) (err error) {
 	for _, metric := range metricsList(nil) {
 		if metric.descr != "" {
 			cell := "B" + strconv.Itoa(row)
-			sheet.printRows(cell, &[]string{metric.descr}, RIGHT, false)
+			sheet.print(cell, &[]string{metric.descr}, RIGHT, false)
 		}
 		row++
 	}
 	lastMetricsRow = row - 1
 
-	begin, end, err := timeRange(db)
+	begin, end, err := r.timeRange()
 	if err != nil {
 		return
 	}
@@ -87,7 +105,7 @@ func Report(db *sql.DB, company string, path, yamlFile string) (err error) {
 		cell := col + "1"
 		sheet.printTitle(cell, "["+strconv.Itoa(y)+"]") // Print year as title in row 1
 
-		values, _ = accountsValues(db, company, y, y == start)
+		values, _ = r.accountsValues(y, y == start)
 		row = 2
 		for _, acct := range accounts {
 			cell := col + strconv.Itoa(row)
@@ -171,7 +189,7 @@ func Report(db *sql.DB, company string, path, yamlFile string) (err error) {
 			excelize.ShowGridLines(false),
 			excelize.ZoomScale(80),
 		)
-		sectorReport(db, sheet2, company, yamlFile)
+		r.sectorReport(sheet2)
 	}
 
 	err = e.saveAndCloseExcel(f)
@@ -186,7 +204,7 @@ func Report(db *sql.DB, company string, path, yamlFile string) (err error) {
 // sectorReport gets all the companies related to the 'company' and reports
 // their financial summary
 //
-func sectorReport(db *sql.DB, sheet *Sheet, company, yamlFile string) (err error) {
+func (r report) sectorReport(sheet *Sheet) (err error) {
 	var interrupt bool
 
 	// Handle Ctrl+C
@@ -198,11 +216,11 @@ func sectorReport(db *sql.DB, sheet *Sheet, company, yamlFile string) (err error
 		interrupt = true
 	}()
 
-	companies, _ := parsers.FromSector(company, yamlFile)
+	companies, _ := parsers.FromSector(r.company, r.yamlFile)
 	if len(companies) <= 1 {
 		return
 	}
-	companies = append(companies, sectorAverage)
+	companies = append([]string{sectorAverage}, companies...)
 
 	fmt.Println("[i] Criando relatório setorial (Ctrl+C para interromper)")
 	var top, row, col int = 2, 0, 1
@@ -213,10 +231,10 @@ func sectorReport(db *sql.DB, sheet *Sheet, company, yamlFile string) (err error
 		fmt.Print("[ ] - ", co)
 		avg := false
 		if co == sectorAverage {
-			co = company
+			co = r.company
 			avg = true
 		}
-		empty, err := companySummary(db, sheet, &row, &col, count%3 == 0, co, avg, yamlFile)
+		empty, err := r.companySummary(sheet, &row, &col, count%3 == 0, avg)
 		ok := "✓"
 		if err != nil || empty {
 			ok = "x"
@@ -241,12 +259,12 @@ func sectorReport(db *sql.DB, sheet *Sheet, company, yamlFile string) (err error
 // companySummary reports all companies from the same segment into the
 // 'Setor' sheet.
 //
-func companySummary(db *sql.DB, sheet *Sheet, row, col *int, printDescr bool, company string, sectorAvg bool, yamlFile string) (empty bool, err error) {
-	if !sectorAvg && !isCompany(db, company) {
+func (r report) companySummary(sheet *Sheet, row, col *int, printDescr, sectorAvg bool) (empty bool, err error) {
+	if !sectorAvg && !r.isCompany() {
 		return true, nil
 	}
 
-	begin, end, err := timeRange(db)
+	begin, end, err := r.timeRange()
 	if err != nil {
 		return
 	}
@@ -279,7 +297,7 @@ func companySummary(db *sql.DB, sheet *Sheet, row, col *int, printDescr bool, co
 	if sectorAvg {
 		sheet.printCell(*row, *col, sectorAverage, sCompanyName)
 	} else {
-		sheet.printCell(*row, *col, company, sCompanyName)
+		sheet.printCell(*row, *col, r.company, sCompanyName)
 	}
 	if printDescr {
 		*col--
@@ -287,7 +305,7 @@ func companySummary(db *sql.DB, sheet *Sheet, row, col *int, printDescr bool, co
 	*row++
 
 	// Save starting row
-	r := *row
+	rw := *row
 
 	// Set width for the description col
 	if printDescr {
@@ -299,12 +317,12 @@ func companySummary(db *sql.DB, sheet *Sheet, row, col *int, printDescr bool, co
 	var values map[uint32]float32
 	for y := start; y <= end; y++ {
 		if sectorAvg {
-			values, _ = accountsAverage(db, company, y, y == start, yamlFile)
+			values, _ = r.accountsAverage(y, y == start)
 		} else {
-			values, _ = accountsValues(db, company, y, y == start)
+			values, _ = r.accountsValues(y, y == start)
 		}
 
-		*row = r
+		*row = rw
 
 		// Print year
 		sheet.printCell(*row, *col, "["+strconv.Itoa(y)+"]", sTitle)

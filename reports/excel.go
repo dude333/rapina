@@ -38,16 +38,16 @@ func (e *Excel) saveAndCloseExcel(filename string) (err error) {
 
 // Sheet struct
 type Sheet struct {
-	xlsx    *excelize.File
-	name    string
-	currRow int
+	xlsx *excelize.File
+	name string
+	row  int
+	col  int
 }
 
 func (e *Excel) newSheet(name string) (s *Sheet, err error) {
 	s = &Sheet{}
 	s.name = name
 	s.xlsx = e.xlsx
-	s.currRow = 1
 
 	// Create a new sheet.
 	// Avoid duplicated sheet
@@ -86,9 +86,9 @@ func (s *Sheet) printTitle(cell string, title string) (err error) {
 }
 
 //
-// printRows prints cols in Excel
+// print cols in Excel
 //
-func (s *Sheet) printRows(startingCel string, slice *[]string, format int, bold bool) error {
+func (s *Sheet) print(startingCel string, slice *[]string, format int, bold bool) error {
 	var err error
 	var style int
 

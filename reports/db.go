@@ -25,7 +25,7 @@ type accItems struct {
 // accountsItems returns all accounts codes and descriptions, e.g.:
 // [1 Ativo Total, 1.01 Ativo Circulante, ...]
 //
-func accountsItems(db *sql.DB, company string) (items []accItems, err error) {
+func (r report) accountsItems() (items []accItems, err error) {
 	selectItems := fmt.Sprintf(`
 	SELECT DISTINCT
 		CODE, CD_CONTA, DS_CONTA
@@ -37,9 +37,9 @@ func accountsItems(db *sql.DB, company string) (items []accItems, err error) {
 
 	ORDER BY
 		CD_CONTA, DS_CONTA
-	;`, company)
+	;`, r.company)
 
-	rows, err := db.Query(selectItems)
+	rows, err := r.db.Query(selectItems)
 	if err != nil {
 		panic(err)
 	}
@@ -71,7 +71,7 @@ type account struct {
 // accountsValues stores the values for each account into a map using a hash
 // of the account code and description as its key
 //
-func accountsValues(db *sql.DB, company string, year int, penult bool) (values map[uint32]float32, err error) {
+func (r report) accountsValues(year int, penult bool) (values map[uint32]float32, err error) {
 
 	period := "_LTIMO"
 	if penult {
@@ -102,12 +102,12 @@ func accountsValues(db *sql.DB, company string, year int, penult bool) (values m
 		DENOM_CIA LIKE "%s%%"
 		AND ORDEM_EXERC LIKE "%s"
 		AND DT_REFER >= %v AND DT_REFER < %v
-	;`, company, period, t[0].Unix(), t[1].Unix())
+	;`, r.company, period, t[0].Unix(), t[1].Unix())
 
 	values = make(map[uint32]float32)
 	st := account{}
 
-	rows, err := db.Query(selectReport)
+	rows, err := r.db.Query(selectReport)
 	if err != nil {
 		return
 	}
@@ -130,15 +130,20 @@ func accountsValues(db *sql.DB, company string, year int, penult bool) (values m
 	return
 }
 
-func accountsAverage(db *sql.DB, company string, year int, penult bool, yamlFile string) (values map[uint32]float32, err error) {
+//
+// accountsAverage stores the average of all companies of the same sector
+// for each account into a map using a hash of the account code and
+// description as its key
+//
+func (r report) accountsAverage(year int, penult bool) (values map[uint32]float32, err error) {
 
 	// COMPANIES NAMES (use companies names from DB)
-	companies, _ := parsers.FromSector(company, yamlFile)
+	companies, _ := parsers.FromSector(r.company, r.yamlFile)
 	if len(companies) <= 1 {
 		return
 	}
 
-	com, err := ListCompanies(db)
+	com, err := ListCompanies(r.db)
 	if err != nil {
 		err = errors.Wrap(err, "erro ao listar empresas")
 		return
@@ -202,7 +207,7 @@ func accountsAverage(db *sql.DB, company string, year int, penult bool, yamlFile
 	values = make(map[uint32]float32)
 	st := account{}
 
-	rows, err := db.Query(selectReport)
+	rows, err := r.db.Query(selectReport)
 	if err != nil {
 		return
 	}
@@ -304,17 +309,17 @@ func companies(db *sql.DB) (list []string, err error) {
 //
 // isCompany returns true if company exists on DB
 //
-func isCompany(db *sql.DB, company string) bool {
+func (r report) isCompany() bool {
 	selectCompany := fmt.Sprintf(`
 	SELECT DISTINCT
 		DENOM_CIA
 	FROM
 		dfp
 	WHERE
-		DENOM_CIA LIKE "%s%%";`, company)
+		DENOM_CIA LIKE "%s%%";`, r.company)
 
 	var c string
-	err := db.QueryRow(selectCompany).Scan(&c)
+	err := r.db.QueryRow(selectCompany).Scan(&c)
 	if err != nil {
 		return false
 	}
@@ -325,7 +330,7 @@ func isCompany(db *sql.DB, company string) bool {
 //
 // timeRange returns the begin=min(year) and end=max(year)
 //
-func timeRange(db *sql.DB) (begin, end int, err error) {
+func (r report) timeRange() (begin, end int, err error) {
 
 	selectYears := `
 	SELECT
@@ -333,7 +338,7 @@ func timeRange(db *sql.DB) (begin, end int, err error) {
 		MAX(CAST(strftime('%Y', DT_REFER, 'unixepoch') AS INTEGER))
 	FROM dfp;`
 
-	rows, err := db.Query(selectYears)
+	rows, err := r.db.Query(selectYears)
 	if err != nil {
 		err = errors.Wrap(err, "falha ao ler banco de dados")
 		return
