@@ -3,9 +3,16 @@ package reports
 import (
 	"database/sql"
 	"fmt"
+	"sort"
+	"strings"
 	"time"
+	"unicode"
 
+	"github.com/dude333/rapina/parsers"
+	"github.com/lithammer/fuzzysearch/fuzzy"
 	"github.com/pkg/errors"
+	"golang.org/x/text/transform"
+	"golang.org/x/text/unicode/norm"
 )
 
 type accItems struct {
@@ -114,6 +121,98 @@ func accountsValues(db *sql.DB, company string, year int, penult bool) (values m
 			&denomCia,
 			&orderExec,
 			&dtRefer,
+			&st.vlConta,
+		)
+
+		values[st.code] = st.vlConta
+	}
+
+	return
+}
+
+func accountsAverage(db *sql.DB, company string, year int, penult bool, yamlFile string) (values map[uint32]float32, err error) {
+
+	// COMPANIES NAMES (use companies names from DB)
+	companies, _ := parsers.FromSector(company, yamlFile)
+	if len(companies) <= 1 {
+		return
+	}
+
+	com, err := ListCompanies(db)
+	if err != nil {
+		err = errors.Wrap(err, "erro ao listar empresas")
+		return
+	}
+	listedCompanies := []string{}
+	for _, co := range companies {
+		co = removeDiacritics(co)
+		matches := []string{}
+		for _, c := range com {
+			if fuzzy.MatchFold(co, removeDiacritics(c)) {
+				matches = append(matches, c)
+			}
+		}
+		if len(matches) > 0 {
+			rank := fuzzy.RankFindFold(co, matches)
+			if len(rank) > 0 {
+				sort.Sort(rank)
+				listedCompanies = append(listedCompanies, rank[0].Target)
+			}
+		}
+	}
+
+	if len(listedCompanies) == 0 {
+		err = errors.Errorf("erro ao procurar empresas")
+		return
+	}
+
+	// PERIOD (last or before last year)
+	period := "_LTIMO"
+	if penult {
+		period = "PEN_LTIMO"
+		year++
+	}
+
+	// YEAR
+	layout := "2006-01-02"
+	var t [2]time.Time
+	for i, y := range [2]int{year, year + 1} {
+		t[i], err = time.Parse(layout, fmt.Sprintf("%d-01-01", y))
+		if err != nil {
+			err = errors.Wrapf(err, "data invalida %d", year)
+			return
+		}
+	}
+
+	selectReport := fmt.Sprintf(`
+	SELECT
+		CODE,
+		ORDEM_EXERC,
+		AVG(VL_CONTA) AS MD_CONTA
+	FROM
+		dfp
+	WHERE
+		DENOM_CIA IN ("%s")
+		AND ORDEM_EXERC LIKE "%s"
+		AND DT_REFER >= %v AND DT_REFER < %v
+	GROUP BY
+		CODE, ORDEM_EXERC;
+	`, strings.Join(listedCompanies, "\", \""), period, t[0].Unix(), t[1].Unix())
+
+	values = make(map[uint32]float32)
+	st := account{}
+
+	rows, err := db.Query(selectReport)
+	if err != nil {
+		return
+	}
+	defer rows.Close()
+
+	var orderExec string
+	for rows.Next() {
+		rows.Scan(
+			&st.code,
+			&orderExec,
 			&st.vlConta,
 		)
 
@@ -255,6 +354,20 @@ func timeRange(db *sql.DB) (begin, end int, err error) {
 		end = begin
 		begin = aux
 	}
+
+	return
+}
+
+//
+// removeDiacritics transforms, for example, "žůžo" into "zuzo"
+//
+func removeDiacritics(original string) (result string) {
+	isMn := func(r rune) bool {
+		return unicode.Is(unicode.Mn, r) // Mn: nonspacing marks
+	}
+
+	t := transform.Chain(norm.NFD, transform.RemoveFunc(isMn), norm.NFC)
+	result, _, _ = transform.String(t, original)
 
 	return
 }

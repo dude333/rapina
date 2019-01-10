@@ -13,6 +13,8 @@ import (
 	p "github.com/dude333/rapina/parsers"
 )
 
+const sectorAverage = "MÉDIA DO SETOR"
+
 // metric parameters
 type metric struct {
 	descr  string
@@ -162,6 +164,7 @@ func Report(db *sql.DB, company string, path, yamlFile string) (err error) {
 
 	sheet.autoWidth()
 
+	// Sector Report
 	sheet2, err := e.newSheet("SETOR")
 	if err == nil {
 		sheet2.xlsx.SetSheetViewOptions(sheet2.name, 0,
@@ -199,6 +202,7 @@ func sectorReport(db *sql.DB, sheet *Sheet, company, yamlFile string) (err error
 	if len(companies) <= 1 {
 		return
 	}
+	companies = append(companies, sectorAverage)
 
 	fmt.Println("[i] Criando relatório setorial (Ctrl+C para interromper)")
 	var top, row, col int = 2, 0, 1
@@ -207,7 +211,12 @@ func sectorReport(db *sql.DB, sheet *Sheet, company, yamlFile string) (err error
 		row = top
 		col++
 		fmt.Print("[ ] - ", co)
-		empty, err := companySummary(db, sheet, &row, &col, count%3 == 0, co)
+		avg := false
+		if co == sectorAverage {
+			co = company
+			avg = true
+		}
+		empty, err := companySummary(db, sheet, &row, &col, count%3 == 0, co, avg, yamlFile)
 		ok := "✓"
 		if err != nil || empty {
 			ok = "x"
@@ -232,8 +241,8 @@ func sectorReport(db *sql.DB, sheet *Sheet, company, yamlFile string) (err error
 // companySummary reports all companies from the same segment into the
 // 'Setor' sheet.
 //
-func companySummary(db *sql.DB, sheet *Sheet, row, col *int, printDescr bool, company string) (empty bool, err error) {
-	if !isCompany(db, company) {
+func companySummary(db *sql.DB, sheet *Sheet, row, col *int, printDescr bool, company string, sectorAvg bool, yamlFile string) (empty bool, err error) {
+	if !sectorAvg && !isCompany(db, company) {
 		return true, nil
 	}
 
@@ -267,7 +276,11 @@ func companySummary(db *sql.DB, sheet *Sheet, row, col *int, printDescr bool, co
 		*col++
 	}
 	sheet.mergeCell(axis(*col, *row), axis(*col+end-begin+1, *row))
-	sheet.printCell(*row, *col, company, sCompanyName)
+	if sectorAvg {
+		sheet.printCell(*row, *col, sectorAverage, sCompanyName)
+	} else {
+		sheet.printCell(*row, *col, company, sCompanyName)
+	}
 	if printDescr {
 		*col--
 	}
@@ -285,7 +298,11 @@ func companySummary(db *sql.DB, sheet *Sheet, row, col *int, printDescr bool, co
 	// Print values ONE YEAR PER COLUMN
 	var values map[uint32]float32
 	for y := start; y <= end; y++ {
-		values, _ = accountsValues(db, company, y, y == start)
+		if sectorAvg {
+			values, _ = accountsAverage(db, company, y, y == start, yamlFile)
+		} else {
+			values, _ = accountsValues(db, company, y, y == start)
+		}
 
 		*row = r
 
