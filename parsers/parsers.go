@@ -9,10 +9,12 @@ import (
 	"os"
 	"strings"
 	"time"
+	"unicode"
 
 	"github.com/pkg/errors"
 	"golang.org/x/text/encoding/charmap"
 	"golang.org/x/text/transform"
+	"golang.org/x/text/unicode/norm"
 )
 
 var fnvHash = fnv.New32a()
@@ -205,4 +207,18 @@ func toUtf8(iso8859_1_buf []byte) string {
 		buf[i] = rune(b)
 	}
 	return string(buf)
+}
+
+//
+// RemoveDiacritics transforms, for example, "žůžo" into "zuzo"
+//
+func RemoveDiacritics(original string) (result string) {
+	isMn := func(r rune) bool {
+		return unicode.Is(unicode.Mn, r) // Mn: nonspacing marks
+	}
+
+	t := transform.Chain(norm.NFD, transform.RemoveFunc(isMn), norm.NFC)
+	result, _, _ = transform.String(t, original)
+
+	return
 }

@@ -3,14 +3,12 @@ package rapina
 import (
 	"fmt"
 	"sort"
-	"unicode"
 
+	"github.com/dude333/rapina/parsers"
 	"github.com/dude333/rapina/reports"
 	"github.com/lithammer/fuzzysearch/fuzzy"
 	"github.com/manifoldco/promptui"
 	"github.com/pkg/errors"
-	"golang.org/x/text/transform"
-	"golang.org/x/text/unicode/norm"
 )
 
 const outputDir = "reports"
@@ -69,13 +67,13 @@ func SelectCompany(company string, scriptMode bool) string {
 		return ""
 	}
 
-	company = removeDiacritics(company)
+	company = parsers.RemoveDiacritics(company)
 
 	// Do a fuzzy match on the company name against
 	// all companies listed on the DB
 	matches := make([]string, 0, 10)
 	for _, c := range com {
-		if fuzzy.MatchFold(company, removeDiacritics(c)) {
+		if fuzzy.MatchFold(company, parsers.RemoveDiacritics(c)) {
 			matches = append(matches, c)
 		}
 	}
@@ -121,20 +119,6 @@ func promptUser(list []string) (result string) {
 		fmt.Printf("Prompt failed %v\n", err)
 		return
 	}
-
-	return
-}
-
-//
-// removeDiacritics transforms, for example, "žůžo" into "zuzo"
-//
-func removeDiacritics(original string) (result string) {
-	isMn := func(r rune) bool {
-		return unicode.Is(unicode.Mn, r) // Mn: nonspacing marks
-	}
-
-	t := transform.Chain(norm.NFD, transform.RemoveFunc(isMn), norm.NFC)
-	result, _, _ = transform.String(t, original)
 
 	return
 }

@@ -6,13 +6,10 @@ import (
 	"sort"
 	"strings"
 	"time"
-	"unicode"
 
 	"github.com/dude333/rapina/parsers"
 	"github.com/lithammer/fuzzysearch/fuzzy"
 	"github.com/pkg/errors"
-	"golang.org/x/text/transform"
-	"golang.org/x/text/unicode/norm"
 )
 
 type accItems struct {
@@ -148,10 +145,10 @@ func (r report) accountsAverage(company string, year int, penult bool) (values m
 	}
 	listedCompanies := []string{}
 	for _, co := range companies {
-		co = removeDiacritics(co)
+		co = parsers.RemoveDiacritics(co)
 		matches := []string{}
 		for _, c := range com {
-			if fuzzy.MatchFold(co, removeDiacritics(c)) {
+			if fuzzy.MatchFold(co, parsers.RemoveDiacritics(c)) {
 				matches = append(matches, c)
 			}
 		}
@@ -357,20 +354,6 @@ func (r report) timeRange() (begin, end int, err error) {
 		end = begin
 		begin = aux
 	}
-
-	return
-}
-
-//
-// removeDiacritics transforms, for example, "žůžo" into "zuzo"
-//
-func removeDiacritics(original string) (result string) {
-	isMn := func(r rune) bool {
-		return unicode.Is(unicode.Mn, r) // Mn: nonspacing marks
-	}
-
-	t := transform.Chain(norm.NFD, transform.RemoveFunc(isMn), norm.NFC)
-	result, _, _ = transform.String(t, original)
 
 	return
 }
