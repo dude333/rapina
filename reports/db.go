@@ -25,7 +25,7 @@ type accItems struct {
 // accountsItems returns all accounts codes and descriptions, e.g.:
 // [1 Ativo Total, 1.01 Ativo Circulante, ...]
 //
-func (r report) accountsItems() (items []accItems, err error) {
+func (r report) accountsItems(company string) (items []accItems, err error) {
 	selectItems := fmt.Sprintf(`
 	SELECT DISTINCT
 		CODE, CD_CONTA, DS_CONTA
@@ -37,7 +37,7 @@ func (r report) accountsItems() (items []accItems, err error) {
 
 	ORDER BY
 		CD_CONTA, DS_CONTA
-	;`, r.company)
+	;`, company)
 
 	rows, err := r.db.Query(selectItems)
 	if err != nil {
@@ -71,7 +71,7 @@ type account struct {
 // accountsValues stores the values for each account into a map using a hash
 // of the account code and description as its key
 //
-func (r report) accountsValues(year int, penult bool) (values map[uint32]float32, err error) {
+func (r report) accountsValues(company string, year int, penult bool) (values map[uint32]float32, err error) {
 
 	period := "_LTIMO"
 	if penult {
@@ -102,7 +102,7 @@ func (r report) accountsValues(year int, penult bool) (values map[uint32]float32
 		DENOM_CIA LIKE "%s%%"
 		AND ORDEM_EXERC LIKE "%s"
 		AND DT_REFER >= %v AND DT_REFER < %v
-	;`, r.company, period, t[0].Unix(), t[1].Unix())
+	;`, company, period, t[0].Unix(), t[1].Unix())
 
 	values = make(map[uint32]float32)
 	st := account{}
@@ -135,10 +135,10 @@ func (r report) accountsValues(year int, penult bool) (values map[uint32]float32
 // for each account into a map using a hash of the account code and
 // description as its key
 //
-func (r report) accountsAverage(year int, penult bool) (values map[uint32]float32, err error) {
+func (r report) accountsAverage(company string, year int, penult bool) (values map[uint32]float32, err error) {
 
 	// COMPANIES NAMES (use companies names from DB)
-	companies, _ := parsers.FromSector(r.company, r.yamlFile)
+	companies, _ := parsers.FromSector(company, r.yamlFile)
 	if len(companies) <= 1 {
 		return
 	}
@@ -309,14 +309,14 @@ func companies(db *sql.DB) (list []string, err error) {
 //
 // isCompany returns true if company exists on DB
 //
-func (r report) isCompany() bool {
+func (r report) isCompany(company string) bool {
 	selectCompany := fmt.Sprintf(`
 	SELECT DISTINCT
 		DENOM_CIA
 	FROM
 		dfp
 	WHERE
-		DENOM_CIA LIKE "%s%%";`, r.company)
+		DENOM_CIA LIKE "%s%%";`, company)
 
 	var c string
 	err := r.db.QueryRow(selectCompany).Scan(&c)

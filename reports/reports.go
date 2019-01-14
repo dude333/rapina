@@ -29,9 +29,6 @@ type report struct {
 
 	// yamlFile contains the sector data for all companies
 	yamlFile string
-
-	// company being reported
-	company string
 }
 
 //
@@ -41,22 +38,21 @@ func Report(db *sql.DB, company string, path, yamlFile string) (err error) {
 	r := report{
 		db:       db,
 		yamlFile: yamlFile,
-		company:  company,
 	}
 
-	f, err := filename(path, r.company)
+	f, err := filename(path, company)
 	if err != nil {
 		return err
 	}
 
 	e := newExcel()
-	sheet, _ := e.newSheet(r.company)
+	sheet, _ := e.newSheet(company)
 
 	var lastStatementsRow, lastMetricsRow int
 
 	// Company name
 	sheet.mergeCell("A1", "B1")
-	sheet.print("A1", &[]string{r.company}, LEFT, true)
+	sheet.print("A1", &[]string{company}, LEFT, true)
 
 	// ACCOUNT NUMBERING AND DESCRIPTION (COLS A AND B) ===============\/
 
@@ -64,7 +60,7 @@ func Report(db *sql.DB, company string, path, yamlFile string) (err error) {
 	// starting on row 2. Adjust space related to the group, e.g.:
 	// 3.02 ABC <== print in bold if base item and stores the row position in baseItems[]
 	//   3.02.01 ABC
-	accounts, _ := r.accountsItems()
+	accounts, _ := r.accountsItems(company)
 	row := 2
 	baseItems := make([]bool, len(accounts)+row)
 	for _, it := range accounts {
@@ -105,7 +101,7 @@ func Report(db *sql.DB, company string, path, yamlFile string) (err error) {
 		cell := col + "1"
 		sheet.printTitle(cell, "["+strconv.Itoa(y)+"]") // Print year as title in row 1
 
-		values, _ = r.accountsValues(y, y == start)
+		values, _ = r.accountsValues(company, y, y == start)
 		row = 2
 		for _, acct := range accounts {
 			cell := col + strconv.Itoa(row)
@@ -189,7 +185,7 @@ func Report(db *sql.DB, company string, path, yamlFile string) (err error) {
 			excelize.ShowGridLines(false),
 			excelize.ZoomScale(80),
 		)
-		r.sectorReport(sheet2)
+		r.sectorReport(sheet2, company)
 	}
 
 	err = e.saveAndCloseExcel(f)
@@ -204,7 +200,7 @@ func Report(db *sql.DB, company string, path, yamlFile string) (err error) {
 // sectorReport gets all the companies related to the 'company' and reports
 // their financial summary
 //
-func (r report) sectorReport(sheet *Sheet) (err error) {
+func (r report) sectorReport(sheet *Sheet, company string) (err error) {
 	var interrupt bool
 
 	// Handle Ctrl+C
@@ -216,7 +212,7 @@ func (r report) sectorReport(sheet *Sheet) (err error) {
 		interrupt = true
 	}()
 
-	companies, _ := parsers.FromSector(r.company, r.yamlFile)
+	companies, _ := parsers.FromSector(company, r.yamlFile)
 	if len(companies) <= 1 {
 		return
 	}
@@ -231,10 +227,10 @@ func (r report) sectorReport(sheet *Sheet) (err error) {
 		fmt.Print("[ ] - ", co)
 		avg := false
 		if co == sectorAverage {
-			co = r.company
+			co = company
 			avg = true
 		}
-		empty, err := r.companySummary(sheet, &row, &col, count%3 == 0, avg)
+		empty, err := r.companySummary(sheet, &row, &col, co, count%3 == 0, avg)
 		ok := "✓"
 		if err != nil || empty {
 			ok = "x"
@@ -259,8 +255,8 @@ func (r report) sectorReport(sheet *Sheet) (err error) {
 // companySummary reports all companies from the same segment into the
 // 'Setor' sheet.
 //
-func (r report) companySummary(sheet *Sheet, row, col *int, printDescr, sectorAvg bool) (empty bool, err error) {
-	if !sectorAvg && !r.isCompany() {
+func (r report) companySummary(sheet *Sheet, row, col *int, company string, printDescr, sectorAvg bool) (empty bool, err error) {
+	if !sectorAvg && !r.isCompany(company) {
 		return true, nil
 	}
 
@@ -297,7 +293,7 @@ func (r report) companySummary(sheet *Sheet, row, col *int, printDescr, sectorAv
 	if sectorAvg {
 		sheet.printCell(*row, *col, sectorAverage, sCompanyName)
 	} else {
-		sheet.printCell(*row, *col, r.company, sCompanyName)
+		sheet.printCell(*row, *col, company, sCompanyName)
 	}
 	if printDescr {
 		*col--
@@ -317,9 +313,9 @@ func (r report) companySummary(sheet *Sheet, row, col *int, printDescr, sectorAv
 	var values map[uint32]float32
 	for y := start; y <= end; y++ {
 		if sectorAvg {
-			values, _ = r.accountsAverage(y, y == start)
+			values, _ = r.accountsAverage(company, y, y == start)
 		} else {
-			values, _ = r.accountsValues(y, y == start)
+			values, _ = r.accountsValues(company, y, y == start)
 		}
 
 		*row = rw
