@@ -221,7 +221,7 @@ func (r report) sectorReport(sheet *Sheet, company string) (err error) {
 	}
 	companies = append([]string{sectorAverage}, companies...)
 
-	fmt.Println("[i] Criando relatório setorial (Ctrl+C para interromper)", companies)
+	fmt.Println("[i] Criando relatório setorial (Ctrl+C para interromper)")
 	var top, row, col int = 2, 0, 1
 	var count int
 	for _, co := range companies {
