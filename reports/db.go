@@ -71,7 +71,7 @@ type account struct {
 // accountsValues stores the values for each account into a map using a hash
 // of the account code and description as its key
 //
-func (r report) accountsValues(year int, penult bool) (values map[uint32]float32, err error) {
+func (r report) accountsValues(company string, year int, penult bool) (values map[uint32]float32, err error) {
 
 	period := "_LTIMO"
 	if penult {
@@ -102,7 +102,7 @@ func (r report) accountsValues(year int, penult bool) (values map[uint32]float32
 		DENOM_CIA LIKE "%s%%"
 		AND ORDEM_EXERC LIKE "%s"
 		AND DT_REFER >= %v AND DT_REFER < %v
-	;`, r.company, period, t[0].Unix(), t[1].Unix())
+	;`, company, period, t[0].Unix(), t[1].Unix())
 
 	values = make(map[uint32]float32)
 	st := account{}
@@ -309,14 +309,14 @@ func companies(db *sql.DB) (list []string, err error) {
 //
 // isCompany returns true if company exists on DB
 //
-func (r report) isCompany() bool {
+func (r report) isCompany(company string) bool {
 	selectCompany := fmt.Sprintf(`
 	SELECT DISTINCT
 		DENOM_CIA
 	FROM
 		dfp
 	WHERE
-		DENOM_CIA LIKE "%s%%";`, r.company)
+		DENOM_CIA LIKE "%s%%";`, company)
 
 	var c string
 	err := r.db.QueryRow(selectCompany).Scan(&c)

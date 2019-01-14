@@ -32,6 +32,9 @@ type report struct {
 
 	// company being reported
 	company string
+
+	// average metric values/year. Index 0: year, index 1: metric
+	average [][]float32
 }
 
 //
@@ -105,7 +108,7 @@ func Report(db *sql.DB, company string, path, yamlFile string) (err error) {
 		cell := col + "1"
 		sheet.printTitle(cell, "["+strconv.Itoa(y)+"]") // Print year as title in row 1
 
-		values, _ = r.accountsValues(y, y == start)
+		values, _ = r.accountsValues(r.company, y, y == start)
 		row = 2
 		for _, acct := range accounts {
 			cell := col + strconv.Itoa(row)
@@ -222,7 +225,7 @@ func (r report) sectorReport(sheet *Sheet) (err error) {
 	}
 	companies = append([]string{sectorAverage}, companies...)
 
-	fmt.Println("[i] Criando relatório setorial (Ctrl+C para interromper)")
+	fmt.Println("[i] Criando relatório setorial (Ctrl+C para interromper)", companies)
 	var top, row, col int = 2, 0, 1
 	var count int
 	for _, co := range companies {
@@ -234,7 +237,7 @@ func (r report) sectorReport(sheet *Sheet) (err error) {
 			co = r.company
 			avg = true
 		}
-		empty, err := r.companySummary(sheet, &row, &col, count%3 == 0, avg)
+		empty, err := r.companySummary(sheet, &row, &col, co, count%3 == 0, avg)
 		ok := "✓"
 		if err != nil || empty {
 			ok = "x"
@@ -259,8 +262,8 @@ func (r report) sectorReport(sheet *Sheet) (err error) {
 // companySummary reports all companies from the same segment into the
 // 'Setor' sheet.
 //
-func (r report) companySummary(sheet *Sheet, row, col *int, printDescr, sectorAvg bool) (empty bool, err error) {
-	if !sectorAvg && !r.isCompany() {
+func (r *report) companySummary(sheet *Sheet, row, col *int, company string, printDescr, sectorAvg bool) (empty bool, err error) {
+	if !sectorAvg && !r.isCompany(company) {
 		return true, nil
 	}
 
@@ -297,7 +300,7 @@ func (r report) companySummary(sheet *Sheet, row, col *int, printDescr, sectorAv
 	if sectorAvg {
 		sheet.printCell(*row, *col, sectorAverage, sCompanyName)
 	} else {
-		sheet.printCell(*row, *col, r.company, sCompanyName)
+		sheet.printCell(*row, *col, company, sCompanyName)
 	}
 	if printDescr {
 		*col--
@@ -318,8 +321,9 @@ func (r report) companySummary(sheet *Sheet, row, col *int, printDescr, sectorAv
 	for y := start; y <= end; y++ {
 		if sectorAvg {
 			values, _ = r.accountsAverage(y, y == start)
+			r.average = append(r.average, []float32{})
 		} else {
-			values, _ = r.accountsValues(y, y == start)
+			values, _ = r.accountsValues(company, y, y == start)
 		}
 
 		*row = rw
@@ -330,6 +334,9 @@ func (r report) companySummary(sheet *Sheet, row, col *int, printDescr, sectorAv
 
 		// Print financial metrics
 		for i, metric := range metricsList(values) {
+			if sectorAvg {
+				r.average[y-start] = append(r.average[y-start], metric.val)
+			}
 			// Description
 			if printDescr {
 				stl := sDescr
@@ -347,6 +354,18 @@ func (r report) companySummary(sheet *Sheet, row, col *int, printDescr, sectorAv
 					{Type: "bottom", Color: "cccccc", Style: 1},
 					{Type: "left", Color: "cccccc", Style: 1},
 				}
+				// fmt.Printf("[i] len(r.average) = %d, i = %d\n", len(r.average), i)
+				if len(r.average) > 0 && len(r.average[y-start]) > 0 && len(r.average[y-start]) >= i {
+					f := formatFill{Type: "pattern", Pattern: 1}
+					if metric.val > r.average[y-start][i] {
+						f.Color = []string{"c6efce"} // green
+						fVal.Fill = f
+					} else if metric.val < r.average[y-start][i] {
+						f.Color = []string{"ffc7ce"} // red
+						fVal.Fill = f
+					}
+				}
+
 				stl := fVal.newStyle(sheet.xlsx)
 				sheet.printCell(*row, *col, metric.val, stl)
 			}

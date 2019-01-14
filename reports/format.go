@@ -55,15 +55,17 @@ type formatBorder struct {
 	Style int    `json:"style"`
 }
 
+type formatFill struct {
+	Type    string   `json:"type"`
+	Pattern int      `json:"pattern"`
+	Color   []string `json:"color"`
+	Shading int      `json:"shading"`
+}
+
 // formatStyle directly maps the styles settings of the cells.
 type formatStyle struct {
-	Border []formatBorder `json:"border"`
-	Fill   struct {
-		Type    string   `json:"type"`
-		Pattern int      `json:"pattern"`
-		Color   []string `json:"color"`
-		Shading int      `json:"shading"`
-	} `json:"fill"`
+	Border     []formatBorder   `json:"border"`
+	Fill       formatFill       `json:"fill"`
 	Font       *formatFont      `json:"font"`
 	Alignment  *formatAlignment `json:"alignment"`
 	Protection *struct {
