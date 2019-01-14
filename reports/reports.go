@@ -29,6 +29,9 @@ type report struct {
 
 	// yamlFile contains the sector data for all companies
 	yamlFile string
+
+	// average metric values/year. Index 0: year, index 1: metric
+	average [][]float32
 }
 
 //
@@ -218,7 +221,7 @@ func (r report) sectorReport(sheet *Sheet, company string) (err error) {
 	}
 	companies = append([]string{sectorAverage}, companies...)
 
-	fmt.Println("[i] Criando relatório setorial (Ctrl+C para interromper)")
+	fmt.Println("[i] Criando relatório setorial (Ctrl+C para interromper)", companies)
 	var top, row, col int = 2, 0, 1
 	var count int
 	for _, co := range companies {
@@ -255,7 +258,7 @@ func (r report) sectorReport(sheet *Sheet, company string) (err error) {
 // companySummary reports all companies from the same segment into the
 // 'Setor' sheet.
 //
-func (r report) companySummary(sheet *Sheet, row, col *int, company string, printDescr, sectorAvg bool) (empty bool, err error) {
+func (r *report) companySummary(sheet *Sheet, row, col *int, company string, printDescr, sectorAvg bool) (empty bool, err error) {
 	if !sectorAvg && !r.isCompany(company) {
 		return true, nil
 	}
@@ -314,6 +317,7 @@ func (r report) companySummary(sheet *Sheet, row, col *int, company string, prin
 	for y := start; y <= end; y++ {
 		if sectorAvg {
 			values, _ = r.accountsAverage(company, y, y == start)
+			r.average = append(r.average, []float32{})
 		} else {
 			values, _ = r.accountsValues(company, y, y == start)
 		}
@@ -326,6 +330,9 @@ func (r report) companySummary(sheet *Sheet, row, col *int, company string, prin
 
 		// Print financial metrics
 		for i, metric := range metricsList(values) {
+			if sectorAvg {
+				r.average[y-start] = append(r.average[y-start], metric.val)
+			}
 			// Description
 			if printDescr {
 				stl := sDescr
@@ -343,6 +350,18 @@ func (r report) companySummary(sheet *Sheet, row, col *int, company string, prin
 					{Type: "bottom", Color: "cccccc", Style: 1},
 					{Type: "left", Color: "cccccc", Style: 1},
 				}
+				// Color the cell background according to its value compared with the average
+				if len(r.average) > 0 && len(r.average[y-start]) > 0 && len(r.average[y-start]) >= i {
+					f := formatFill{Type: "pattern", Pattern: 1}
+					if metric.val > r.average[y-start][i] {
+						f.Color = []string{"c6efce"} // green
+						fVal.Fill = f
+					} else if metric.val < r.average[y-start][i] {
+						f.Color = []string{"ffc7ce"} // red
+						fVal.Fill = f
+					}
+				}
+
 				stl := fVal.newStyle(sheet.xlsx)
 				sheet.printCell(*row, *col, metric.val, stl)
 			}
