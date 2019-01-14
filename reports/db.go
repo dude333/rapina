@@ -54,8 +54,6 @@ func (r report) accountsItems(company string) (items []accItems, err error) {
 		items = append(items, item)
 	}
 
-	// genericPrint(rows)
-
 	return
 }
 
