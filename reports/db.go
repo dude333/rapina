@@ -3,12 +3,10 @@ package reports
 import (
 	"database/sql"
 	"fmt"
-	"sort"
 	"strings"
 	"time"
 
 	"github.com/dude333/rapina/parsers"
-	"github.com/lithammer/fuzzysearch/fuzzy"
 	"github.com/pkg/errors"
 )
 
@@ -132,36 +130,12 @@ func (r report) accountsValues(company string, year int, penult bool) (values ma
 //
 func (r report) accountsAverage(company string, year int, penult bool) (values map[uint32]float32, err error) {
 
-	// COMPANIES NAMES (use companies names from DB)
-	companies, _ := parsers.FromSector(company, r.yamlFile)
-	if len(companies) <= 1 {
-		return
-	}
-
-	com, err := ListCompanies(r.db)
+	companies, err := r.fromSector(company)
 	if err != nil {
-		err = errors.Wrap(err, "erro ao listar empresas")
 		return
 	}
-	listedCompanies := []string{}
-	for _, co := range companies {
-		co = parsers.RemoveDiacritics(co)
-		matches := []string{}
-		for _, c := range com {
-			if fuzzy.MatchFold(co, parsers.RemoveDiacritics(c)) {
-				matches = append(matches, c)
-			}
-		}
-		if len(matches) > 0 {
-			rank := fuzzy.RankFindFold(co, matches)
-			if len(rank) > 0 {
-				sort.Sort(rank)
-				listedCompanies = append(listedCompanies, rank[0].Target)
-			}
-		}
-	}
 
-	if len(listedCompanies) == 0 {
+	if len(companies) == 0 {
 		err = errors.Errorf("erro ao procurar empresas")
 		return
 	}
@@ -184,6 +158,12 @@ func (r report) accountsAverage(company string, year int, penult bool) (values m
 		}
 	}
 
+	// List of companies
+	var list []string
+	for _, c := range companies {
+		list = append(list, c.trg)
+	}
+
 	selectReport := fmt.Sprintf(`
 	SELECT
 		CODE,
@@ -197,7 +177,7 @@ func (r report) accountsAverage(company string, year int, penult bool) (values m
 		AND DT_REFER >= %v AND DT_REFER < %v
 	GROUP BY
 		CODE, ORDEM_EXERC;
-	`, strings.Join(listedCompanies, "\", \""), period, t[0].Unix(), t[1].Unix())
+	`, strings.Join(list, "\", \""), period, t[0].Unix(), t[1].Unix())
 
 	values = make(map[uint32]float32)
 	st := account{}
@@ -217,6 +197,37 @@ func (r report) accountsAverage(company string, year int, penult bool) (values m
 		)
 
 		values[st.code] = st.vlConta
+	}
+
+	return
+}
+
+type tuple struct {
+	src string
+	trg string
+}
+
+func (r report) fromSector(company string) (companies []tuple, err error) {
+	// Companies from the same sector
+	secCo, _ := parsers.FromSector(company, r.yamlFile)
+	if len(secCo) <= 1 {
+		err = errors.Wrap(err, "erro ao ler arquivo dos setores "+r.yamlFile)
+		return
+	}
+
+	// All companies stored on db
+	list, err := ListCompanies(r.db)
+	if err != nil {
+		err = errors.Wrap(err, "erro ao listar empresas")
+		return
+	}
+
+	// Translate company names to match the name stored on db
+	var z tuple
+	for _, s := range secCo {
+		z.src = s
+		z.trg = parsers.FuzzyFind(s, list, 16)
+		companies = append(companies, z)
 	}
 
 	return

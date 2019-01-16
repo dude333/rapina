@@ -3,10 +3,11 @@ package parsers
 import (
 	"fmt"
 	"io/ioutil"
-	"regexp"
+	"sort"
 	"strings"
 
 	"github.com/360EntSecGroup-Skylar/excelize"
+	"github.com/lithammer/fuzzysearch/fuzzy"
 	"github.com/pkg/errors"
 	yaml "gopkg.in/yaml.v2"
 )
@@ -111,11 +112,8 @@ func FromSector(company, yamlFile string) (companies []string, err error) {
 		for _, subsector := range sector.Subsectors {
 			for _, segment := range subsector.Segments {
 				list := removeExtras(segment.Companies)
-				for _, co := range list {
-					match, _ := regexp.MatchString(co, company)
-					if match {
-						return list, nil
-					}
+				if FuzzyMatch(company, list, 16) {
+					return list, nil
 				}
 			}
 		}
@@ -124,26 +122,120 @@ func FromSector(company, yamlFile string) (companies []string, err error) {
 	return
 }
 
+//
+// FuzzyMatch measures the Levenshtein distance between
+// the source and the list, returning true if the distance
+// is less or equal the 'distance'.
+// Diacritics are removed from 'src' and 'list'.
+//
+func FuzzyMatch(src string, list []string, distance int) bool {
+	src = RemoveDiacritics(src)
+	for _, l := range list {
+		l = RemoveDiacritics(l)
+		r := fuzzy.RankMatchFold(src, l)
+		if r >= 0 && r <= distance {
+			return true
+		}
+		r = fuzzy.RankMatchFold(l, src)
+		if r >= 0 && r <= distance {
+			return true
+		}
+	}
+	return false
+}
+
+//
+// FuzzyFind returns the most approximate string inside 'list' that
+// matches the 'src' string within a maximum 'distance'.
+//
+func FuzzyFind(src string, list []string, distance int) string {
+	clean := make([]string, len(list))
+	txt := RemoveDiacritics(src)
+	for i, l := range list {
+		clean[i] = RemoveDiacritics(l)
+	}
+
+	// Fix for original B3 list:
+	switch src {
+	case "PINE":
+		txt = "BCO PINE"
+	case "BRASIL":
+		txt = "BANCO DO BRASIL"
+	case "ITAUSA":
+		txt = "ITAUSA - INVESTIMENTOS ITAU S.A."
+	case "INTER BANCO":
+		txt = "BANCO INTER"
+	}
+
+	rank := fuzzy.RankFindFold(txt, clean)
+	if len(rank) > 0 {
+		sort.Sort(rank)
+		if rank[0].Distance <= distance {
+			i := rank[0].OriginalIndex
+			return list[i]
+		}
+	}
+
+	return ""
+}
+
 func trim(s string) string {
 	return strings.Trim(s, " ")
 }
 
 //
 // removeExtras removes the extra info (stock name and segment) from
-// the list of companies
+// the list of companies and filters out companies not listed in
+// special segments of the B3 listing: Bovespa Mais,
+// Bovespa Mais Nível 2, Novo Mercado, Nível 2 and Nível 1
+//
+// pattern: COMPANY NAME [STCK SGM]
+//
+// (NM) Novo Mercado
+// (N1) Nível 1 of Corporate Governance
+// (N2) Nível 2 of Corporate Governance
+// (MA) Bovespa Mais
+// (M2) Bovespa Mais Nível 2
+//
+// Ignored:
+// (MB) Traditional Org. OTC
+// (DR1) Level 1 BDR
+// (DR2) Level 2 BDR
+// (DR3) Level 3 BDR
+// (DRN) Unsponsored BDRs
 //
 func removeExtras(companies []string) (list []string) {
-	list = make([]string, len(companies))
+	var ok int
+	valid := []string{"NM", "N1", "N2", "MA", "M2"}
 
-	for i, co := range companies {
-		for _, p := range []int{
-			strings.Index(co, "S/A") - 1,
-			strings.Index(co, "S.A") - 1,
-			strings.Index(co, "[") - 1,
-		} {
-			if p > 0 {
-				list[i] = co[:p]
-				break
+	for _, co := range companies {
+
+		// Check if is a valid segment (the SGM in [STCK SGM])
+		p := strings.Index(co, "[")
+		if p > 1 {
+			v := strings.Split(co[p:], " ")
+			if len(v) == 2 {
+				sgmt := v[1][:len(v[1])-1]
+				ok = 0
+				for _, v := range valid {
+					if sgmt == v {
+						ok++
+					}
+				}
+			}
+		}
+
+		if ok > 0 {
+			// Leave the company name only
+			for _, p := range []int{
+				strings.Index(co, "S/A") - 1,
+				strings.Index(co, "S.A") - 1,
+				strings.Index(co, "[") - 1,
+			} {
+				if p > 0 {
+					list = append(list, co[:p])
+					break
+				}
 			}
 		}
 	}

@@ -1,6 +1,10 @@
 package parsers
 
-import "testing"
+import (
+	"testing"
+
+	"github.com/lithammer/fuzzysearch/fuzzy"
+)
 
 func TestSectorsToYaml(t *testing.T) {
 	err := SectorsToYaml("../cli/.data/B3sectors.xlsx", "../cli/.data/sectors.yaml")
@@ -20,5 +24,32 @@ func TestFromSector(t *testing.T) {
 	copy(arr[:], s)
 	if arr != expected {
 		t.Errorf("\n- Expected:  %v\n- Got:       %v", expected, s)
+	}
+}
+
+func TestMatch(t *testing.T) {
+	testList := []string{
+		"ALGAR TELEC",
+		"ATT INC",
+		"OI",
+		"SPRINT",
+		"TELEBRAS",
+		"TELEF BRASIL",
+		"TIM PART",
+		"VERIZON",
+		"ITAUUNIBANCO",
+		"ITAU UNIBANCO",
+		"ITAU UNIBANCO HOLDING",
+		"ITAU UNIBANCO HOLDING S.A.",
+	}
+
+	company := RemoveDiacritics("ITAÚ UNIBANCO HOLDING S.A.")
+
+	for _, l := range testList {
+		l = RemoveDiacritics(l)
+		r := fuzzy.RankMatchFold(l, company)
+		if r != 100000 {
+			t.Errorf("Expecting x from %s ~= %s, received %d", company, l, r)
+		}
 	}
 }
