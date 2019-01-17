@@ -25,6 +25,7 @@ import (
 	"os"
 
 	"github.com/dude333/rapina"
+	"github.com/dude333/rapina/parsers"
 	"github.com/spf13/cobra"
 )
 
@@ -36,6 +37,10 @@ var getCmd = &cobra.Command{
 	Short: "Baixa os arquivos da CVM e os armazena no bando de dados",
 	Long:  `Baixa os arquivos do site da CVM, processa e os armazena no bando de dados.`,
 	Run: func(cmd *cobra.Command, args []string) {
+		parsers.Sectors()
+		return
+		// DEBUG ^
+
 		fmt.Println("[✓] Coletando dados ===========")
 		var err error
 		if !sectors { // if -s flag is selected, dowload only the sectors

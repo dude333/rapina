@@ -8,14 +8,15 @@ import (
 	"github.com/gocolly/colly"
 )
 
-func companies() {
+func companies(url string) {
 	c := colly.NewCollector(
 		// Restrict crawling to specific domains
-		colly.AllowedDomains("bvmf.bmfbovespa.com.br"),
+		// colly.AllowedDomains("bvmf.bmfbovespa.com.br"),
 		// Allow visiting the same page multiple times
 		colly.AllowURLRevisit(),
 		// Allow crawling to be done in parallel / async
 		colly.Async(false),
+		colly.CacheDir(".data/cache"),
 	)
 
 	// Find and visit all links
@@ -26,18 +27,27 @@ func companies() {
 
 		e.ForEachWithBreak("a", func(_ int, elem *colly.HTMLElement) bool {
 			if strings.Contains(elem.Attr("href"), "ResumoEmpresaPrincipal.aspx") {
-				fmt.Println("a> ", elem.Text)
+				fmt.Println("   >", elem.Text)
 			}
 			return false // get only the 1st elem
 		})
 
 	})
 
-	c.Visit("http://bvmf.bmfbovespa.com.br/cias-listadas/empresas-listadas/BuscaEmpresaListada.aspx?segmento=Bancos")
+	// c.OnResponse(func(r *colly.Response) {
+	// 	fmt.Println(string(r.Body))
+	// })
+
+	// c.OnRequest(func(r *colly.Request) {
+	// 	fmt.Println("Visiting", r.URL)
+	// })
+
+	c.Visit(url)
+	// c.Visit("http://bvmf.bmfbovespa.com.br/cias-listadas/empresas-listadas/BuscaEmpresaListada.aspx?segmento=Bancos")
 	// c.Visit("http://bvmf.bmfbovespa.com.br/cias-listadas/empresas-listadas/BuscaEmpresaListada.aspx?segmento=Explora%c3%a7%c3%a3o+de+Im%c3%b3veis")
 }
 
-func sectors() {
+func Sectors() {
 	c := colly.NewCollector(
 		// Restrict crawling to specific domains
 		// colly.AllowedDomains("bvmf.bmfbovespa.com.br"),
@@ -45,7 +55,7 @@ func sectors() {
 		colly.AllowURLRevisit(),
 		// Allow crawling to be done in parallel / async
 		colly.Async(false),
-		colly.CacheDir("./cache"),
+		colly.CacheDir(".data/cache"),
 	)
 
 	// Find and visit all links
@@ -62,28 +72,40 @@ func sectors() {
 		// h, _ := e.DOM.Find("td").Html()
 		// fmt.Printf("=> %#v \n", h)
 
+		var sector string
+		var subsectors []string
+		c := 0
 		e.ForEach("td", func(_ int, elem *colly.HTMLElement) {
-			// 	// if strings.Contains(elem.Attr("href"), "ResumoEmpresaPrincipal.aspx") {
-			// 	fmt.Printf("=> %#v \n", elem.DOM.Find("td").Text())
-			// 	// }
-			// h, _ := elem.DOM.Html()
-			// fmt.Printf("=> %#v \n", h)
-
 			elem.DOM.Each(func(_ int, s *goquery.Selection) {
-				a := s.Find("a[href]").Text()
-				if len(a) == 0 {
-					h, _ := s.Html()
-					h = strings.Replace(h, "<br/>", ";", -1)
-					fmt.Printf("|=> %#v\n", h)
+				h, _ := s.Html()
+				if c == 0 {
+					sector = h
+				} else if c == 1 {
+					subsectors = strings.Split(h, "<br/>")
+					last := subsectors[0]
+					for i := range subsectors {
+						if subsectors[i] == "" {
+							subsectors[i] = last
+						}
+						last = subsectors[i]
+					}
 				}
+				c++
 			})
 
-			elem.ForEach("a[href]", func(_ int, elem *colly.HTMLElement) {
+			elem.ForEach("a[href]", func(i int, elem *colly.HTMLElement) {
 				if strings.Contains(elem.Attr("href"), "BuscaEmpresaListada.aspx") {
-					fmt.Printf("==> %-40s \t [%s]\n", elem.Text, elem.Attr("href"))
+					fmt.Printf("\n=> %s > %s > %s:\n", sector, subsectors[i], elem.Text) //, elem.Attr("href"))
+					companies("http://bvmf.bmfbovespa.com.br/cias-listadas/empresas-listadas/" + elem.Attr("href"))
 				}
 			})
 		})
+
+		// s := col[2]
+		// if len(col[2]) > 3 {
+		// 	s = s[2:]
+		// }
+		// fmt.Printf("|=> %s \n |==> %s \n  |====> %s\n", col[0], col[1], s)
 
 	})
 
