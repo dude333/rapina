@@ -20,6 +20,8 @@ rapina
 *.sql
 *_string.go
 *.yaml
+*.yml
+!.travis.yml
 
 # Test binary, build with `go test -c`
 *.test

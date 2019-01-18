@@ -1,18 +1,29 @@
 package parsers
 
 import (
+	"bufio"
 	"fmt"
+	"os"
 	"strings"
 
 	"github.com/PuerkitoBio/goquery"
 	"github.com/gocolly/colly"
+	"github.com/pkg/errors"
 )
 
 //
-// Sectors grab data from B3 website and prints out to a yaml file
+// SectorsToYaml grab data from B3 website and prints out to a yaml file
 // with all companies grouped by sector, subsector, segment
 //
-func Sectors() {
+func SectorsToYaml(yamlFile string) (err error) {
+	f, err := os.Create(yamlFile)
+	if err != nil {
+		return errors.Wrapf(err, "falha ao criar arquivo %s", yamlFile)
+	}
+	defer f.Close()
+
+	w := bufio.NewWriter(f)
+
 	c := colly.NewCollector(
 		// Restrict crawling to specific domains
 		// colly.AllowedDomains("bvmf.bmfbovespa.com.br"),
@@ -30,8 +41,8 @@ func Sectors() {
 				h, _ := s.Html()
 				if c == 0 {
 					sector = h
-					fmt.Println("  - Setor:", sector)
-					fmt.Println("    Subsetores:")
+					fmt.Fprintln(w, "  - Setor:", sector)
+					fmt.Fprintln(w, "    Subsetores:")
 				} else if c == 1 {
 					subsectors = strings.Split(h, "<br/>")
 					last := subsectors[0]
@@ -50,26 +61,30 @@ func Sectors() {
 				if strings.Contains(elem.Attr("href"), "BuscaEmpresaListada.aspx") {
 					// fmt.Printf("\n=> %s > %s > %s:\n", sector, subsectors[i], elem.Text) //, elem.Attr("href"))
 					if subsectors[i] != lastSub {
-						fmt.Println("      - Subsetor:", subsectors[i])
-						fmt.Println("        Segmentos:")
+						fmt.Fprintln(w, "      - Subsetor:", subsectors[i])
+						fmt.Fprintln(w, "        Segmentos:")
 					}
 					lastSub = subsectors[i]
-					fmt.Println("          - Segmento:", elem.Text)
-					fmt.Println("            Empresas:")
-					companies("http://bvmf.bmfbovespa.com.br/cias-listadas/empresas-listadas/" + elem.Attr("href"))
+					fmt.Fprintln(w, "          - Segmento:", elem.Text)
+					fmt.Fprintln(w, "            Empresas:")
+					companies(w, "http://bvmf.bmfbovespa.com.br/cias-listadas/empresas-listadas/"+elem.Attr("href"))
 				}
 			})
 		})
 	})
 
-	fmt.Println("Setores:")
+	fmt.Fprintln(w, "Setores:")
 	c.Visit("http://bvmf.bmfbovespa.com.br/cias-listadas/empresas-listadas/BuscaEmpresaListada.aspx?opcao=1&indiceAba=1&Idioma=pt-br")
+
+	w.Flush()
+
+	return
 }
 
 //
 // companies lists all companies in the same sector/subsector/segment
 //
-func companies(url string) {
+func companies(w *bufio.Writer, url string) {
 	c := colly.NewCollector(
 		// Restrict crawling to specific domains
 		// colly.AllowedDomains("bvmf.bmfbovespa.com.br"),
@@ -86,7 +101,7 @@ func companies(url string) {
 
 		e.ForEachWithBreak("a", func(_ int, elem *colly.HTMLElement) bool {
 			if strings.Contains(elem.Attr("href"), "ResumoEmpresaPrincipal.aspx") {
-				fmt.Println("              -", elem.Text)
+				fmt.Fprintln(w, "              -", elem.Text)
 			}
 			return false // get only the 1st elem
 		})

@@ -36,10 +36,10 @@ type Segment struct {
 }
 
 //
-// SectorsToYaml parses the excel file from B3 and saves its data into a YAML file
+// xlsSectorsToYaml parses the excel file from B3 and saves its data into a YAML file
 // excelFile =(input)=>[XXXX]=(output)=> yamlFile
 //
-func SectorsToYaml(excelFile, yamlFile string) (err error) {
+func xlsSectorsToYaml(excelFile, yamlFile string) (err error) {
 	x, err := excelize.OpenFile(excelFile)
 	if err != nil {
 		return

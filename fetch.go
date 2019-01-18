@@ -192,14 +192,7 @@ func fetchFile(dataType string, year int) (reqFile string, fileNotFound bool, er
 // sector, subsector, and segment; then this info is set into the config file.
 //
 func FetchSectors(yamlFile string) (err error) {
-	file, err := fetchB3()
-	if err != nil {
-		return
-	}
-
-	err = parsers.SectorsToYaml(file, yamlFile)
-	filesCleanup([]string{file})
-	// saveConfig(s)
+	err = parsers.SectorsToYaml(yamlFile)
 
 	return
 }
