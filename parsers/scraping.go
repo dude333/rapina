@@ -27,7 +27,7 @@ func companies(url string) {
 
 		e.ForEachWithBreak("a", func(_ int, elem *colly.HTMLElement) bool {
 			if strings.Contains(elem.Attr("href"), "ResumoEmpresaPrincipal.aspx") {
-				fmt.Println("   >", elem.Text)
+				fmt.Println("              -", elem.Text)
 			}
 			return false // get only the 1st elem
 		})
@@ -80,6 +80,8 @@ func Sectors() {
 				h, _ := s.Html()
 				if c == 0 {
 					sector = h
+					fmt.Println("  - Setor:", sector)
+					fmt.Println("    Subsetores:")
 				} else if c == 1 {
 					subsectors = strings.Split(h, "<br/>")
 					last := subsectors[0]
@@ -93,9 +95,17 @@ func Sectors() {
 				c++
 			})
 
+			lastSub := ""
 			elem.ForEach("a[href]", func(i int, elem *colly.HTMLElement) {
 				if strings.Contains(elem.Attr("href"), "BuscaEmpresaListada.aspx") {
-					fmt.Printf("\n=> %s > %s > %s:\n", sector, subsectors[i], elem.Text) //, elem.Attr("href"))
+					// fmt.Printf("\n=> %s > %s > %s:\n", sector, subsectors[i], elem.Text) //, elem.Attr("href"))
+					if subsectors[i] != lastSub {
+						fmt.Println("      - Subsetor:", subsectors[i])
+						fmt.Println("        Segmentos:")
+					}
+					lastSub = subsectors[i]
+					fmt.Println("          - Segmento:", elem.Text)
+					fmt.Println("            Empresas:")
 					companies("http://bvmf.bmfbovespa.com.br/cias-listadas/empresas-listadas/" + elem.Attr("href"))
 				}
 			})
@@ -109,13 +119,14 @@ func Sectors() {
 
 	})
 
-	c.OnResponse(func(r *colly.Response) {
-		// fmt.Println(string(r.Body))
-	})
+	// c.OnResponse(func(r *colly.Response) {
+	// fmt.Println(string(r.Body))
+	// })
 
-	c.OnRequest(func(r *colly.Request) {
-		fmt.Println("Visiting", r.URL)
-	})
+	// c.OnRequest(func(r *colly.Request) {
+	// fmt.Println("Visiting", r.URL)
+	// })
 
+	fmt.Println("Setores:")
 	c.Visit("http://bvmf.bmfbovespa.com.br/cias-listadas/empresas-listadas/BuscaEmpresaListada.aspx?opcao=1&indiceAba=1&Idioma=pt-br")
 }
