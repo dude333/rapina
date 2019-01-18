@@ -16,6 +16,12 @@ import (
 // with all companies grouped by sector, subsector, segment
 //
 func SectorsToYaml(yamlFile string) (err error) {
+	progress := []string{"/", "-", "\\", "|", "-", "\\"}
+	var p int32
+
+	if !overwritePrompt(yamlFile) {
+		return fmt.Errorf("arquivo %s não foi alterado", yamlFile)
+	}
 	f, err := os.Create(yamlFile)
 	if err != nil {
 		return errors.Wrapf(err, "falha ao criar arquivo %s", yamlFile)
@@ -69,13 +75,19 @@ func SectorsToYaml(yamlFile string) (err error) {
 					fmt.Fprintln(w, "            Empresas:")
 					companies(w, "http://bvmf.bmfbovespa.com.br/cias-listadas/empresas-listadas/"+elem.Attr("href"))
 				}
+
+				fmt.Printf("\r[%s]", progress[p%6])
+				p++
 			})
 		})
 	})
 
+	fmt.Print("[ ] Lendo informações do site da B3")
 	fmt.Fprintln(w, "Setores:")
+
 	c.Visit("http://bvmf.bmfbovespa.com.br/cias-listadas/empresas-listadas/BuscaEmpresaListada.aspx?opcao=1&indiceAba=1&Idioma=pt-br")
 
+	fmt.Println()
 	w.Flush()
 
 	return
@@ -109,4 +121,19 @@ func companies(w *bufio.Writer, url string) {
 	})
 
 	c.Visit(url)
+}
+
+//
+// overwritePrompt prompts to overwrite file if it exists
+func overwritePrompt(filename string) bool {
+	if _, err := os.Stat(filename); err == nil { // check if file exists
+		fmt.Printf("\n[?] Deseja sobrescrever o arquivo \"%s\"? (s/N) ", filename)
+		reader := bufio.NewReader(os.Stdin)
+		prompt, _ := reader.ReadString('\n')
+		if !strings.EqualFold(prompt, "s\n") && !strings.EqualFold(prompt, "sim\n") {
+			return false
+		}
+	}
+
+	return true
 }
