@@ -218,7 +218,7 @@ func (r report) sectorReport(sheet *Sheet, company string) (err error) {
 	if len(companies) <= 1 || err != nil {
 		return
 	}
-	companies = append([]tuple{{sectorAverage, ""}}, companies...)
+	companies = append([]tuple{{sectorAverage, company}}, companies...)
 
 	fmt.Println("[i] Criando relatório setorial (Ctrl+C para interromper)")
 	var top, row, col int = 2, 0, 1
@@ -228,10 +228,10 @@ func (r report) sectorReport(sheet *Sheet, company string) (err error) {
 		col++
 
 		avg := false
-		if co.trg == sectorAverage {
-			co.trg = company
+		if co.src == sectorAverage {
 			avg = true
-		} else if co.trg == "" {
+		}
+		if co.trg == "" {
 			fmt.Printf("[x] - %s\n", co.src)
 			continue
 		}
