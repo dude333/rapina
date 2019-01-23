@@ -8,6 +8,7 @@ import (
 
 	"github.com/dude333/rapina/parsers"
 	"github.com/pkg/errors"
+	"github.com/schollz/closestmatch"
 )
 
 type accItems struct {
@@ -213,10 +214,10 @@ func (r report) fromSector(company string) (companies []string, err error) {
 	}
 
 	// Translate company names to match the name stored on db
-	var z string
+	bagSizes := []int{2, 3, 4}
+	cm := closestmatch.New(list, bagSizes)
 	for _, s := range secCo {
-		z = parsers.FuzzyFind(s, list, 26)
-		companies = append(companies, z)
+		companies = append(companies, cm.Closest(strings.ToLower(s)))
 	}
 
 	return

@@ -3,12 +3,12 @@ package parsers
 import (
 	"fmt"
 	"io/ioutil"
-	"sort"
 	"strings"
 
 	"github.com/360EntSecGroup-Skylar/excelize"
 	"github.com/lithammer/fuzzysearch/fuzzy"
 	"github.com/pkg/errors"
+	"github.com/schollz/closestmatch"
 	yaml "gopkg.in/yaml.v2"
 )
 
@@ -148,22 +148,10 @@ func FuzzyMatch(src string, list []string, distance int) bool {
 // matches the 'src' string within a maximum 'distance'.
 //
 func FuzzyFind(src string, list []string, distance int) string {
-	clean := make([]string, len(list))
-	txt := RemoveDiacritics(src)
-	for i, l := range list {
-		clean[i] = RemoveDiacritics(l)
-	}
+	bagSizes := []int{2, 3, 4}
+	cm := closestmatch.New(list, bagSizes)
 
-	rank := fuzzy.RankFindFold(txt, clean)
-	if len(rank) > 0 {
-		sort.Sort(rank)
-		if rank[0].Distance <= distance {
-			i := rank[0].OriginalIndex
-			return list[i]
-		}
-	}
-
-	return ""
+	return cm.Closest(src)
 }
 
 func trim(s string) string {
