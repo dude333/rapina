@@ -32,7 +32,7 @@ func (r report) accountsItems(company string) (items []accItems, err error) {
 
 	ORDER BY
 		CD_CONTA, DS_CONTA
-	;`, company)
+	;`, fixSA(company))
 
 	rows, err := r.db.Query(selectItems)
 	if err != nil {
@@ -95,7 +95,7 @@ func (r report) accountsValues(company string, year int, penult bool) (values ma
 		DENOM_CIA LIKE "%s%%"
 		AND ORDEM_EXERC LIKE "%s"
 		AND DT_REFER >= %v AND DT_REFER < %v
-	;`, company, period, t[0].Unix(), t[1].Unix())
+	;`, fixSA(company), period, t[0].Unix(), t[1].Unix())
 
 	values = make(map[uint32]float32)
 	st := account{}
@@ -131,7 +131,8 @@ func (r report) accountsValues(company string, year int, penult bool) (values ma
 func (r report) accountsAverage(company string, year int, penult bool) (values map[uint32]float32, err error) {
 
 	companies, err := r.fromSector(company)
-	if err != nil {
+	if len(companies) <= 1 || err != nil {
+		err = errors.Wrap(err, "erro ao ler arquivo de setores "+r.yamlFile)
 		return
 	}
 
@@ -158,12 +159,6 @@ func (r report) accountsAverage(company string, year int, penult bool) (values m
 		}
 	}
 
-	// List of companies
-	var list []string
-	for _, c := range companies {
-		list = append(list, c.trg)
-	}
-
 	selectReport := fmt.Sprintf(`
 	SELECT
 		CODE,
@@ -177,7 +172,7 @@ func (r report) accountsAverage(company string, year int, penult bool) (values m
 		AND DT_REFER >= %v AND DT_REFER < %v
 	GROUP BY
 		CODE, ORDEM_EXERC;
-	`, strings.Join(list, "\", \""), period, t[0].Unix(), t[1].Unix())
+	`, strings.Join(companies, "\", \""), period, t[0].Unix(), t[1].Unix())
 
 	values = make(map[uint32]float32)
 	st := account{}
@@ -202,12 +197,7 @@ func (r report) accountsAverage(company string, year int, penult bool) (values m
 	return
 }
 
-type tuple struct {
-	src string
-	trg string
-}
-
-func (r report) fromSector(company string) (companies []tuple, err error) {
+func (r report) fromSector(company string) (companies []string, err error) {
 	// Companies from the same sector
 	secCo, _ := parsers.FromSector(company, r.yamlFile)
 	if len(secCo) <= 1 {
@@ -223,10 +213,9 @@ func (r report) fromSector(company string) (companies []tuple, err error) {
 	}
 
 	// Translate company names to match the name stored on db
-	var z tuple
+	var z string
 	for _, s := range secCo {
-		z.src = s
-		z.trg = parsers.FuzzyFind(s, list, 16)
+		z = parsers.FuzzyFind(s, list, 26)
 		companies = append(companies, z)
 	}
 
@@ -367,4 +356,26 @@ func (r report) timeRange() (begin, end int, err error) {
 	}
 
 	return
+}
+
+//
+// fixSA removes SA, S/A, S.A., etc. and replaces with %
+//
+func fixSAs(companies []string) (list []string) {
+	for _, c := range companies {
+		list = append(list, fixSA(c))
+	}
+
+	return
+}
+
+func fixSA(company string) string {
+	SA := []string{" S.A.", " SA", " S/A"}
+	for _, s := range SA {
+		pos := strings.Index(company, s)
+		if pos > 1 {
+			return company[:pos] + "%" + company[pos+len(s):]
+		}
+	}
+	return company
 }

@@ -10,6 +10,7 @@ import (
 
 	"github.com/360EntSecGroup-Skylar/excelize"
 	p "github.com/dude333/rapina/parsers"
+	"github.com/pkg/errors"
 )
 
 const sectorAverage = "MÉDIA DO SETOR"
@@ -214,11 +215,13 @@ func (r report) sectorReport(sheet *Sheet, company string) (err error) {
 		interrupt = true
 	}()
 
+	// Companies from the same sector
 	companies, err := r.fromSector(company)
 	if len(companies) <= 1 || err != nil {
+		err = errors.Wrap(err, "erro ao ler arquivo de setores "+r.yamlFile)
 		return
 	}
-	companies = append([]tuple{{sectorAverage, company}}, companies...)
+	companies = append([]string{sectorAverage}, companies...)
 
 	fmt.Println("[i] Criando relatório setorial (Ctrl+C para interromper)")
 	var top, row, col int = 2, 0, 1
@@ -227,16 +230,13 @@ func (r report) sectorReport(sheet *Sheet, company string) (err error) {
 		row = top
 		col++
 
+		fmt.Printf("[ ] - %s", co)
 		avg := false
-		if co.src == sectorAverage {
+		if co == sectorAverage {
 			avg = true
+			co = company
 		}
-		if co.trg == "" {
-			fmt.Printf("[x] - %s\n", co.src)
-			continue
-		}
-		fmt.Printf("[ ] - %s => %s", co.src, co.trg)
-		empty, err := r.companySummary(sheet, &row, &col, co.trg, count%3 == 0, avg)
+		empty, err := r.companySummary(sheet, &row, &col, co, count%3 == 0, avg)
 		ok := "✓"
 		if err != nil || empty {
 			ok = "x"

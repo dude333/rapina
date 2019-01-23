@@ -111,9 +111,8 @@ func FromSector(company, yamlFile string) (companies []string, err error) {
 	for _, sector := range s.Sectors {
 		for _, subsector := range sector.Subsectors {
 			for _, segment := range subsector.Segments {
-				list := removeExtras(segment.Companies)
-				if FuzzyMatch(company, list, 16) {
-					return list, nil
+				if FuzzyMatch(company, segment.Companies, 4) {
+					return segment.Companies, nil
 				}
 			}
 		}
@@ -153,18 +152,6 @@ func FuzzyFind(src string, list []string, distance int) string {
 	txt := RemoveDiacritics(src)
 	for i, l := range list {
 		clean[i] = RemoveDiacritics(l)
-	}
-
-	// Fix for original B3 list:
-	switch src {
-	case "PINE":
-		txt = "BCO PINE"
-	case "BRASIL":
-		txt = "BANCO DO BRASIL"
-	case "ITAUSA":
-		txt = "ITAUSA - INVESTIMENTOS ITAU S.A."
-	case "INTER BANCO":
-		txt = "BANCO INTER"
 	}
 
 	rank := fuzzy.RankFindFold(txt, clean)
