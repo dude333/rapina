@@ -8,7 +8,6 @@ import (
 
 	"github.com/dude333/rapina/parsers"
 	"github.com/pkg/errors"
-	"github.com/schollz/closestmatch"
 )
 
 type accItems struct {
@@ -214,13 +213,14 @@ func (r report) fromSector(company string) (companies []string, err error) {
 	}
 
 	// Translate company names to match the name stored on db
-	bagSizes := []int{2, 3, 4}
-	cm := closestmatch.New(list, bagSizes)
 	for _, s := range secCo {
-		companies = append(companies, cm.Closest(strings.ToLower(s)))
+		z := parsers.FuzzyFind(s, list, 3)
+		if len(z) > 0 {
+			companies = append(companies, z)
+		}
 	}
 
-	return
+	return removeDuplicates(companies), nil
 }
 
 //
@@ -379,4 +379,23 @@ func fixSA(company string) string {
 		}
 	}
 	return company
+}
+
+func removeDuplicates(elements []string) []string { // change string to int here if required
+	// Use map to record duplicates as we find them.
+	encountered := map[string]bool{} // change string to int here if required
+	result := []string{}             // change string to int here if required
+
+	for v := range elements {
+		if encountered[elements[v]] == true {
+			// Do not add duplicate.
+		} else {
+			// Record this element as an encountered element.
+			encountered[elements[v]] = true
+			// Append to result slice.
+			result = append(result, elements[v])
+		}
+	}
+	// Return the new slice.
+	return result
 }

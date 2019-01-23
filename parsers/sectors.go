@@ -8,7 +8,6 @@ import (
 	"github.com/360EntSecGroup-Skylar/excelize"
 	"github.com/lithammer/fuzzysearch/fuzzy"
 	"github.com/pkg/errors"
-	"github.com/schollz/closestmatch"
 	yaml "gopkg.in/yaml.v2"
 )
 
@@ -111,7 +110,7 @@ func FromSector(company, yamlFile string) (companies []string, err error) {
 	for _, sector := range s.Sectors {
 		for _, subsector := range sector.Subsectors {
 			for _, segment := range subsector.Segments {
-				if FuzzyMatch(company, segment.Companies, 4) {
+				if FuzzyMatch(company, segment.Companies, 6) {
 					return segment.Companies, nil
 				}
 			}
@@ -128,17 +127,8 @@ func FromSector(company, yamlFile string) (companies []string, err error) {
 // Diacritics are removed from 'src' and 'list'.
 //
 func FuzzyMatch(src string, list []string, distance int) bool {
-	src = RemoveDiacritics(src)
-	for _, l := range list {
-		l = RemoveDiacritics(l)
-		r := fuzzy.RankMatchFold(src, l)
-		if r >= 0 && r <= distance {
-			return true
-		}
-		r = fuzzy.RankMatchFold(l, src)
-		if r >= 0 && r <= distance {
-			return true
-		}
+	if FuzzyFind(src, list, distance) != "" {
+		return true
 	}
 	return false
 }
@@ -147,11 +137,24 @@ func FuzzyMatch(src string, list []string, distance int) bool {
 // FuzzyFind returns the most approximate string inside 'list' that
 // matches the 'src' string within a maximum 'distance'.
 //
-func FuzzyFind(src string, list []string, distance int) string {
-	bagSizes := []int{2, 3, 4}
-	cm := closestmatch.New(list, bagSizes)
+func FuzzyFind(source string, targets []string, maxDistance int) (found string) {
+	for _, target := range targets {
+		distance := fuzzy.LevenshteinDistance(fix(source), target)
+		if distance <= maxDistance {
+			maxDistance = distance
+			found = target
+		}
+	}
+	return
+}
 
-	return cm.Closest(src)
+func fix(txt string) string {
+	switch txt {
+	case "BCO BRASIL S.A.":
+		return "BANCO DO BRASIL S.A."
+	}
+
+	return txt
 }
 
 func trim(s string) string {
