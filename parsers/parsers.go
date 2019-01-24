@@ -198,18 +198,6 @@ func prepareFields(header map[string]int, hash, code uint32, fields []string) (f
 }
 
 //
-// toUtf8 convert iso8859-1 to utf8
-// https://stackoverflow.com/a/13511463/276311
-//
-func toUtf8(iso8859_1_buf []byte) string {
-	buf := make([]rune, len(iso8859_1_buf))
-	for i, b := range iso8859_1_buf {
-		buf[i] = rune(b)
-	}
-	return string(buf)
-}
-
-//
 // RemoveDiacritics transforms, for example, "žůžo" into "zuzo"
 //
 func RemoveDiacritics(original string) (result string) {

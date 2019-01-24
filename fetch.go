@@ -198,50 +198,6 @@ func FetchSectors(yamlFile string) (err error) {
 }
 
 //
-// fetchB3 downloads the sectoral classification file from B3
-//
-func fetchB3() (xlsxfile string, err error) {
-	xlsxfile = dataDir + "/setorial.xlsx"
-	fmt.Print("[ ] Baixando arquivo de classificação setorial da B3\r")
-	zipfile := dataDir + "/sector.zip"
-
-	// Check if files already exists
-	if _, err := os.Stat(zipfile); !os.IsNotExist(err) {
-		return xlsxfile, nil
-	}
-
-	// Download file from B3 server
-	// TODO: check url as it can change
-	err = downloadFile(zipfile, "http://www.b3.com.br/lumis/portal/file/fileDownload.jsp?fileId=8AA8D0975A2D7918015A3C81693D4CA4")
-	if err != nil {
-		fmt.Println("[x")
-		return
-	}
-	fmt.Println("[✓")
-
-	// Unzip and list files
-	var files []string
-	files, err = Unzip(zipfile, dataDir)
-	if err != nil {
-		return "", errors.Wrap(err, "could not unzip file")
-	}
-	if len(files) <= 0 {
-		return "", errors.Wrap(err, "zip file is empty")
-	}
-	files = append(files, zipfile)
-
-	// Considering there is only one file
-	os.Remove(xlsxfile)
-	os.Rename(files[0], xlsxfile)
-
-	files[0] = files[len(files)-1] // Replace it with the last one.
-	files = files[:len(files)-1]   // Chop off the last one.
-	filesCleanup(files)
-
-	return
-}
-
-//
 // filesCleanup
 //
 func filesCleanup(files []string) {

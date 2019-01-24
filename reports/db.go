@@ -32,7 +32,7 @@ func (r report) accountsItems(company string) (items []accItems, err error) {
 
 	ORDER BY
 		CD_CONTA, DS_CONTA
-	;`, fixSA(company))
+	;`, company)
 
 	rows, err := r.db.Query(selectItems)
 	if err != nil {
@@ -95,7 +95,7 @@ func (r report) accountsValues(company string, year int, penult bool) (values ma
 		DENOM_CIA LIKE "%s%%"
 		AND ORDEM_EXERC LIKE "%s"
 		AND DT_REFER >= %v AND DT_REFER < %v
-	;`, fixSA(company), period, t[0].Unix(), t[1].Unix())
+	;`, company, period, t[0].Unix(), t[1].Unix())
 
 	values = make(map[uint32]float32)
 	st := account{}
@@ -224,56 +224,6 @@ func (r report) fromSector(company string) (companies []string, err error) {
 }
 
 //
-// genericPrint prints the entire row
-//
-func genericPrint(rows *sql.Rows) (err error) {
-	limit := 0
-	cols, _ := rows.Columns()
-	for rows.Next() {
-		// Create a slice of interface{}'s to represent each column,
-		// and a second slice to contain pointers to each item in the columns slice.
-		columns := make([]interface{}, len(cols))
-		columnPointers := make([]interface{}, len(cols))
-		for i := range columns {
-			columnPointers[i] = &columns[i]
-		}
-
-		// Scan the result into the column pointers...
-		if err := rows.Scan(columnPointers...); err != nil {
-			return err
-		}
-
-		// Create our map, and retrieve the value for each column from the pointers slice,
-		// storing it in the map with the name of the column as the key.
-		// m := make(map[string]interface{})
-		for i := range cols {
-			val := columnPointers[i].(*interface{})
-			// m[colName] = *val
-			// fmt.Println(colName, *val)
-
-			switch (*val).(type) {
-			default:
-				fmt.Print(*val, ";")
-			case []uint8:
-				y := *val
-				var x = y.([]uint8)
-				fmt.Print(string(x[:]), ";")
-			}
-		}
-		fmt.Println()
-
-		// Outputs: map[columnName:value columnName2:value2 columnName3:value3 ...]
-		// fmt.Println(m)
-		limit++
-		if limit >= 4000 {
-			break
-		}
-	}
-
-	return
-}
-
-//
 // companies returns available companies in the DB
 //
 func companies(db *sql.DB) (list []string, err error) {
@@ -357,28 +307,6 @@ func (r report) timeRange() (begin, end int, err error) {
 	}
 
 	return
-}
-
-//
-// fixSA removes SA, S/A, S.A., etc. and replaces with %
-//
-func fixSAs(companies []string) (list []string) {
-	for _, c := range companies {
-		list = append(list, fixSA(c))
-	}
-
-	return
-}
-
-func fixSA(company string) string {
-	SA := []string{" S.A.", " SA", " S/A"}
-	for _, s := range SA {
-		pos := strings.Index(company, s)
-		if pos > 1 {
-			return company[:pos] + "%" + company[pos+len(s):]
-		}
-	}
-	return company
 }
 
 func removeDuplicates(elements []string) []string { // change string to int here if required
