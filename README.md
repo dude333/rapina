@@ -50,6 +50,10 @@ Usado para obter apenas o resumo dos indicadores das empresas do mesmo setor.
 
     ./rapina report [flags] empresa
 
+Será criada uma planilha com os dados financeiros (BP, DRE, DFC) e, em outra aba, o resumo de todas as empresas do mesmo setor.
+
+A lista setorial é obtida da B3 e salva no arquivo `setor.yml` (via comando `get -s`). Caso deseje alterar o agrupamento setorial, basta editar este arquivo.
+
 ### 2.3.1. Opções
 
 ```

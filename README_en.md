@@ -48,6 +48,10 @@ Used to get only a summary for the other companies from the same sector.
 
     ./rapina report [flags] company_name
 
+A spreadsheet with the financial data will be created and, on another sheet, the summary of all companies in the same sector.
+
+The sector list is obtained from B3 and saved in the `sector.yml` file (via `get -s` command). If you want to change the sector grouping, just edit this file.
+
 ### 2.3.1. Options
 
 ```
