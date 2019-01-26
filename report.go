@@ -51,6 +51,23 @@ func ListCompanies() (err error) {
 }
 
 //
+// ListSector shows all companies from the same sector as 'company'
+//
+func ListSector(company, yamlFile string) (err error) {
+	db, err := openDatabase()
+	if err != nil {
+		return errors.Wrap(err, "fail to open db")
+	}
+
+	err = reports.ListSector(db, company, yamlFile)
+	if err != nil {
+		return errors.Wrap(err, "erro ao listar empresas")
+	}
+
+	return
+}
+
+//
 // SelectCompany returns the company name compared to the names
 // stored in the DB
 //
