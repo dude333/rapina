@@ -139,7 +139,7 @@ func Report(db *sql.DB, company string, path, yamlFile string) (err error) {
 	// CODES | DESCRIPTION | Y1 | Y2 | Yn | sp | v1 | v2 | v3
 	//
 	wide := (end - begin) + 1
-	year := begin
+	year := start
 	top := 2
 	bottom := top
 	for col := 2; col <= 2+wide; col++ {
