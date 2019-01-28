@@ -100,11 +100,28 @@ func Report(db *sql.DB, company string, path, yamlFile string) (err error) {
 		if y-start >= len(cols) {
 			break
 		}
+
+		values, _ = r.accountsValues(company, y, y == start)
+
+		// Check if last year is empty
+		if y == end {
+			zeroed := true
+			for _, acct := range accounts {
+				if values[acct.code] != 0.0 {
+					zeroed = false
+					break
+				}
+			}
+			if zeroed {
+				end--
+				break
+			}
+		}
+
 		col := string(cols[y-start])
 		cell := col + "1"
 		sheet.printTitle(cell, "["+strconv.Itoa(y)+"]") // Print year as title in row 1
 
-		values, _ = r.accountsValues(company, y, y == start)
 		row = 2
 		for _, acct := range accounts {
 			cell := col + strconv.Itoa(row)
@@ -350,6 +367,21 @@ func (r *report) companySummary(sheet *Sheet, row, col *int, company string, pri
 			r.average = append(r.average, []float32{})
 		} else {
 			values, _ = r.accountsValues(company, y, y == start)
+		}
+
+		// Check if last year is empty
+		if y == end {
+			zeroed := true
+			for _, val := range values {
+				if val != 0.0 {
+					zeroed = false
+					break
+				}
+			}
+			if zeroed {
+				end--
+				break
+			}
 		}
 
 		*row = rw
