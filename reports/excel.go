@@ -198,8 +198,12 @@ func (s *Sheet) autoWidth() {
 		}
 	}
 
-	setColWidth(s.name, "C", string(cols[spaced-1]), 9.5)                            // Account values
-	setColWidth(s.name, string(cols[spaced]), string(cols[(spaced-3)+spaced]), 4.64) // Vertical Analysis values
+	// 012345678901234567890
+	// AB2DE5GHI => 5-2+5 = 8
+	// AB2DEF6HIJK => 6-2+6 = 10
+	// AB2DEFG7IJKLM => 7-2+7 = 12
+	setColWidth(s.name, "C", string(cols[spaced-1]), 9.5)                       // Account values
+	setColWidth(s.name, string(cols[spaced]), string(cols[(spaced*2)-1]), 4.64) // Vertical Analysis values
 }
 
 func (s *Sheet) setColWidth(col int, width float64) {
