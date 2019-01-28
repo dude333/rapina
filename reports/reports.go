@@ -131,8 +131,6 @@ func Report(db *sql.DB, company string, path, yamlFile string) (err error) {
 
 	} // next year
 
-	_ = lastMetricsRow
-
 	//
 	// VERTICAL ANALYSIS
 	//
@@ -176,12 +174,41 @@ func Report(db *sql.DB, company string, path, yamlFile string) (err error) {
 	format := newFormat(DEFAULT, RIGHT, true)
 	format.Alignment.Vertical = "top"
 	format.Alignment.TextRotation = 90
-	stl := format.newStyle(sheet.xlsx)
-	sheet.printCell(top, 1+wide+2, "ANÁLISE VERTICAL", stl)
+	rotatedTextStyle := format.newStyle(sheet.xlsx)
+	sheet.printCell(top, 1+wide+2, "ANÁLISE  VERTICAL", rotatedTextStyle)
 
+	//
+	// HORIZONTAL ANALYSIS
+	//
+	// sp | DESCRIPTION | Y1 | Y2 | Yn | sp | h1 | h2 | hn
+	//
+	wide = (end - start)
+	year = begin
+	top = lastStatementsRow + 2
+	bottom = lastMetricsRow
+	for col := 0; col <= wide-1; col++ {
+		vCol := (2 + wide + 2) + col                              // Column where the horizontal analysis will be printed
+		sheet.printTitle(axis(vCol, top), "'"+strconv.Itoa(year)) // Print year
+		year++
+		for row := top + 1; row <= bottom; row++ {
+			valI := axis(col+2, row)
+			valF := axis(col+3, row)
+			if valI != "" && valF != "" {
+				formula := fmt.Sprintf(`=IF(OR(%s="", %s=""), "", IF(MIN(%s, %s)<=0, IF((%s - %s)>0, "      ⇧", "      ⇩"), (%s/%s)-1))`,
+					valF, valI, valF, valI, valF, valI, valF, valI)
+				sheet.printFormula(axis(vCol, row), formula, PERCENT, false)
+			}
+		}
+	}
+
+	// Print HORIZONTAL ANALYSIS title
+	sheet.mergeCell(axis(2+wide+1, top+1), axis(2+wide+1, bottom))
+	sheet.printCell(top+1, 1+wide+2, "ANÁLISE  HORIZONTAL", rotatedTextStyle)
+
+	// ADJUST COLUMNS WIDTH
 	sheet.autoWidth()
 
-	// Sector Report
+	// SECTOR REPORT
 	sheet2, err := e.newSheet("SETOR")
 	if err == nil {
 		sheet2.xlsx.SetSheetViewOptions(sheet2.name, 0,
