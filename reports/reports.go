@@ -194,6 +194,10 @@ func Report(db *sql.DB, company string, path, yamlFile string) (err error) {
 	rotatedTextStyle := format.newStyle(sheet.xlsx)
 	sheet.printCell(top, 1+wide+2, "ANÁLISE  VERTICAL", rotatedTextStyle)
 
+	// Print HORIZONTAL ANALYSIS title
+	sheet.mergeCell(axis(2+wide+1, top+1), axis(2+wide+1, bottom))
+	sheet.printCell(top+1, 1+wide+2, "ANÁLISE  HORIZONTAL", rotatedTextStyle)
+
 	//
 	// HORIZONTAL ANALYSIS
 	//
@@ -208,19 +212,25 @@ func Report(db *sql.DB, company string, path, yamlFile string) (err error) {
 		sheet.printTitle(axis(vCol, top), "'"+strconv.Itoa(year)) // Print year
 		year++
 		for row := top + 1; row <= bottom; row++ {
-			valI := axis(col+2, row)
-			valF := axis(col+3, row)
-			if valI != "" && valF != "" {
-				formula := fmt.Sprintf(`=IF(OR(%s="", %s=""), "", IF(MIN(%s, %s)<=0, IF((%s - %s)>0, "      ⇧", "      ⇩"), (%s/%s)-1))`,
-					valF, valI, valF, valI, valF, valI, valF, valI)
-				sheet.printFormula(axis(vCol, row), formula, PERCENT, false)
-			}
+			vt0 := axis(col+2, row)
+			vtn := axis(col+3, row)
+			formula := fmt.Sprintf(`=IF(OR(%s="", %s=""), "", IF(MIN(%s, %s)<=0, IF((%s - %s)>0, "      ⇧", "      ⇩"), (%s/%s)-1))`,
+				vtn, vt0, vtn, vt0, vtn, vt0, vtn, vt0)
+			sheet.printFormula(axis(vCol, row), formula, PERCENT, false)
 		}
 	}
 
-	// Print HORIZONTAL ANALYSIS title
-	sheet.mergeCell(axis(2+wide+1, top+1), axis(2+wide+1, bottom))
-	sheet.printCell(top+1, 1+wide+2, "ANÁLISE  HORIZONTAL", rotatedTextStyle)
+	// CAGR (compound annual growth rate)
+	// CAGR (t0, tn) = (V(tn)/V(t0))^(1/(tn-t0))-1
+	vCol := (2 + wide + 2) + wide + 1
+	sheet.printTitle(axis(vCol, top), "CAGR")
+	for row := top + 1; row <= bottom; row++ {
+		vt0 := axis(2, row)
+		vtn := axis(2+wide, row)
+		formula := fmt.Sprintf(`=IF(OR(%s="", %s="", %s=0, (%s*%s)<0), "", (%s/%s)^(1/%d)-1)`,
+			vtn, vt0, vt0, vt0, vtn, vtn, vt0, wide+1)
+		sheet.printFormula(axis(vCol, row), formula, PERCENT, false)
+	}
 
 	// ADJUST COLUMNS WIDTH
 	sheet.autoWidth()
@@ -437,6 +447,21 @@ func (r *report) companySummary(sheet *Sheet, row, col *int, company string, pri
 		printDescr = false
 		*col++
 	} // next year
+
+	bottom := *row
+
+	// CAGR (compound annual growth rate)
+	// CAGR (t0, tn) = (V(tn)/V(t0))^(1/(tn-t0))-1
+	wide := end - start
+	sheet.printTitle(axis(*col, rw), "CAGR")
+	for r := rw + 1; r <= bottom; r++ {
+		vt0 := axis(*col-wide-1, r)
+		vtn := axis(*col-1, r)
+		formula := fmt.Sprintf(`=IF(OR(%s="", %s="", %s=0, (%s*%s)<0), "", (%s/%s)^(1/%d)-1)`,
+			vtn, vt0, vt0, vt0, vtn, vtn, vt0, wide+1)
+		sheet.printFormula(axis(*col, r), formula, PERCENT, false)
+	}
+	*col++
 
 	return
 }
