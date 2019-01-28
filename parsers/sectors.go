@@ -47,7 +47,7 @@ func FromSector(company, yamlFile string) (companies []string, err error) {
 	for _, sector := range s.Sectors {
 		for _, subsector := range sector.Subsectors {
 			for _, segment := range subsector.Segments {
-				if FuzzyMatch(company, segment.Companies, 3) {
+				if FuzzyMatch(company, segment.Companies, 2) {
 					return segment.Companies, nil
 				}
 			}
