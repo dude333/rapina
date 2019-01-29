@@ -37,15 +37,10 @@ type report struct {
 //
 // Report of company data from DB to Excel
 //
-func Report(db *sql.DB, company string, path, yamlFile string) (err error) {
+func Report(db *sql.DB, company string, filename, yamlFile string) (err error) {
 	r := report{
 		db:       db,
 		yamlFile: yamlFile,
-	}
-
-	f, err := filename(path, company)
-	if err != nil {
-		return err
 	}
 
 	e := newExcel()
@@ -245,9 +240,9 @@ func Report(db *sql.DB, company string, path, yamlFile string) (err error) {
 		r.sectorReport(sheet2, company)
 	}
 
-	err = e.saveAndCloseExcel(f)
+	err = e.saveAndCloseExcel(filename)
 	if err == nil {
-		fmt.Printf("[✓] Dados salvos em %s\n", f)
+		fmt.Printf("[✓] Dados salvos em %s\n", filename)
 	}
 
 	return

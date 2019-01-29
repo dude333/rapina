@@ -2,7 +2,9 @@ package rapina
 
 import (
 	"fmt"
+	"os"
 	"sort"
+	"strings"
 
 	"github.com/dude333/rapina/parsers"
 	"github.com/dude333/rapina/reports"
@@ -27,7 +29,12 @@ func Report(company string, path, yamlFile string) (err error) {
 		path = outputDir
 	}
 
-	return reports.Report(db, company, path, yamlFile)
+	file, err := filename(path, company)
+	if err != nil {
+		return err
+	}
+
+	return reports.Report(db, company, file, yamlFile)
 }
 
 //
@@ -135,6 +142,53 @@ func promptUser(list []string) (result string) {
 	if err != nil {
 		fmt.Printf("Prompt failed %v\n", err)
 		return
+	}
+
+	return
+}
+
+//
+// filename cleans up the filename and returns the path/filename
+func filename(path, name string) (filepath string, err error) {
+	clean := func(r rune) rune {
+		switch r {
+		case ' ', ',', '/', '\\':
+			return '_'
+		}
+		return r
+	}
+	path = strings.TrimSuffix(path, "/")
+	name = strings.TrimSuffix(name, ".")
+	name = strings.Map(clean, name)
+	filepath = path + "/" + name + ".xlsx"
+
+	const max = 50
+	var x int
+	for x = 1; x <= max; x++ {
+		_, err = os.Stat(filepath)
+		if err == nil {
+			// File exists, try again with another name
+			filepath = fmt.Sprintf("%s/%s(%d).xlsx", path, name, x)
+		} else if os.IsNotExist(err) {
+			err = nil // reset error
+			break
+		} else {
+			err = fmt.Errorf("file %s stat error: %v", filepath, err)
+			return
+		}
+	}
+
+	if x > max {
+		err = fmt.Errorf("remova o arquivo %s/%s.xlsx antes de continuar", path, name)
+		return
+	}
+
+	// Create directory
+	_ = os.Mkdir(path, os.ModePerm)
+
+	// Check if the directory was created
+	if _, err := os.Stat(path); os.IsNotExist(err) {
+		return "", errors.Wrap(err, "diretório não pode ser criado")
 	}
 
 	return
