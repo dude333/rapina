@@ -189,10 +189,6 @@ func Report(db *sql.DB, company string, filename, yamlFile string) (err error) {
 	rotatedTextStyle := format.newStyle(sheet.xlsx)
 	sheet.printCell(top, 1+wide+2, "ANÁLISE  VERTICAL", rotatedTextStyle)
 
-	// Print HORIZONTAL ANALYSIS title
-	sheet.mergeCell(axis(2+wide+1, top+1), axis(2+wide+1, bottom))
-	sheet.printCell(top+1, 1+wide+2, "ANÁLISE  HORIZONTAL", rotatedTextStyle)
-
 	//
 	// HORIZONTAL ANALYSIS
 	//
@@ -214,6 +210,10 @@ func Report(db *sql.DB, company string, filename, yamlFile string) (err error) {
 			sheet.printFormula(axis(vCol, row), formula, PERCENT, false)
 		}
 	}
+
+	// Print HORIZONTAL ANALYSIS title
+	sheet.mergeCell(axis(2+wide+1, top+1), axis(2+wide+1, bottom))
+	sheet.printCell(top+1, 1+wide+2, "ANÁLISE  HORIZONTAL", rotatedTextStyle)
 
 	// CAGR (compound annual growth rate)
 	// CAGR (t0, tn) = (V(tn)/V(t0))^(1/(tn-t0))-1
