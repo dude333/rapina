@@ -242,7 +242,7 @@ func Report(db *sql.DB, company string, filename, yamlFile string) (err error) {
 
 	err = e.saveAndCloseExcel(filename)
 	if err == nil {
-		fmt.Printf("[✓] Dados salvos em %s\n", filename)
+		fmt.Printf("[√] Dados salvos em %s\n", filename)
 	}
 
 	return
@@ -286,7 +286,7 @@ func (r report) sectorReport(sheet *Sheet, company string) (err error) {
 			co = company
 		}
 		empty, err := r.companySummary(sheet, &row, &col, co, count%3 == 0, avg)
-		ok := "✓"
+		ok := "√"
 		if err != nil || empty {
 			ok = "x"
 			col--

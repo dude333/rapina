@@ -72,7 +72,7 @@ OUTER:
 	fmt.Print("\n[ ] Inserindo código das contas")
 	err = parsers.CodeAccounts(db)
 	if err == nil {
-		fmt.Print("\r[✓")
+		fmt.Print("\r[√")
 	} else {
 		fmt.Print("\r[x")
 	}
@@ -157,7 +157,7 @@ func fetchFile(dataType string, year int) (reqFile string, fileNotFound bool, er
 		fileNotFound = true
 		return
 	}
-	fmt.Println("[✓] Download do arquivo", dataType)
+	fmt.Println("[√] Download do arquivo", dataType)
 
 	// Unzip and list files
 	var files []string

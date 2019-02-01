@@ -38,7 +38,7 @@ var getCmd = &cobra.Command{
 	Short: "Baixa os arquivos da CVM e os armazena no bando de dados",
 	Long:  `Baixa os arquivos do site da CVM, processa e os armazena no bando de dados.`,
 	Run: func(cmd *cobra.Command, args []string) {
-		fmt.Println("[✓] Coletando dados ===========")
+		fmt.Println("[√] Coletando dados ===========")
 		var err error
 		if !sectors { // if -s flag is selected, dowload only the sectors
 			err = rapina.FetchCVM()
@@ -52,7 +52,7 @@ var getCmd = &cobra.Command{
 			fmt.Println("[x]", err)
 			os.Exit(1)
 		}
-		fmt.Println("[✓] Arquivo salvo: setores.yaml")
+		fmt.Println("[√] Arquivo salvo: setores.yaml")
 	},
 }
 

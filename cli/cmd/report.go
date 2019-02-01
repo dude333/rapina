@@ -66,7 +66,7 @@ func report(company string) {
 		return
 	}
 	fmt.Println()
-	fmt.Printf("[✓] Criando relatório para %s ========\n", company)
+	fmt.Printf("[√] Criando relatório para %s ========\n", company)
 	err := rapina.Report(company, outputDir, yamlFile)
 	if err != nil {
 		fmt.Println("[x]", err)

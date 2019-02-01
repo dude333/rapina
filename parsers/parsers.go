@@ -64,7 +64,7 @@ func Exec(db *sql.DB, dataType string, file string) (err error) {
 	fmt.Print("[ ] Processando arquivo ", dataType)
 	err = populateTable(db, dataType, file)
 	if err == nil {
-		fmt.Print("\r[✓")
+		fmt.Print("\r[√")
 		storeFile(db, file)
 	} else {
 		fmt.Print("\r[x")
