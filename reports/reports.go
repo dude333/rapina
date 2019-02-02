@@ -216,14 +216,14 @@ func Report(db *sql.DB, company string, filename, yamlFile string) (err error) {
 	sheet.printCell(top+1, 1+wide+2, "ANÁLISE  HORIZONTAL", rotatedTextStyle)
 
 	// CAGR (compound annual growth rate)
-	// CAGR (t0, tn) = (V(tn)/V(t0))^(1/(tn-t0))-1
+	// CAGR (t0, tn) = (V(tn)/V(t0))^(1/(tn-t0-1))-1
 	vCol := (2 + wide + 2) + wide + 1
 	sheet.printTitle(axis(vCol, top), "CAGR")
 	for row := top + 1; row <= bottom; row++ {
 		vt0 := axis(2, row)
 		vtn := axis(2+wide, row)
 		formula := fmt.Sprintf(`=IF(OR(%s="", %s="", %s=0, (%s*%s)<0), "", (%s/%s)^(1/%d)-1)`,
-			vtn, vt0, vt0, vt0, vtn, vtn, vt0, wide+1)
+			vtn, vt0, vt0, vt0, vtn, vtn, vt0, wide)
 		sheet.printFormula(axis(vCol, row), formula, PERCENT, false)
 	}
 
@@ -446,14 +446,14 @@ func (r *report) companySummary(sheet *Sheet, row, col *int, company string, pri
 	bottom := *row
 
 	// CAGR (compound annual growth rate)
-	// CAGR (t0, tn) = (V(tn)/V(t0))^(1/(tn-t0))-1
+	// CAGR (t0, tn) = (V(tn)/V(t0))^(1/(tn-t0-1))-1
 	wide := end - start
 	sheet.printTitle(axis(*col, rw), "CAGR")
 	for r := rw + 1; r <= bottom; r++ {
 		vt0 := axis(*col-wide-1, r)
 		vtn := axis(*col-1, r)
 		formula := fmt.Sprintf(`=IF(OR(%s="", %s="", %s=0, (%s*%s)<0), "", (%s/%s)^(1/%d)-1)`,
-			vtn, vt0, vt0, vt0, vtn, vtn, vt0, wide+1)
+			vtn, vt0, vt0, vt0, vtn, vtn, vt0, wide)
 		sheet.printFormula(axis(*col, r), formula, PERCENT, false)
 	}
 	*col++
