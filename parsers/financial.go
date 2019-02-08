@@ -1,3 +1,6 @@
+// financial.go
+// Parses data from csv files containing financial statements
+
 package parsers
 
 import (
