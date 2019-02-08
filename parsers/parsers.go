@@ -113,6 +113,9 @@ func populateTable(db *sql.DB, dataType, file string) (err error) {
 	// Loop thru file, line by line
 	for scanner.Scan() {
 		line := scanner.Text()
+		if len(line) == 0 {
+			continue
+		}
 		fields := strings.FieldsFunc(line, sep)
 
 		if len(header) == 0 { // HEADER
@@ -125,7 +128,7 @@ func populateTable(db *sql.DB, dataType, file string) (err error) {
 				table, strings.Join(fields, ","), strings.Repeat(",?", len(fields)))
 			stmt, err = tx.Prepare(insert)
 			if err != nil {
-				err = errors.Wrap(err, "Erro ao preparar insert")
+				err = errors.Wrapf(err, "erro ao preparar insert (verificar cabeçalho do arquivo %s)", file)
 				return
 			}
 			defer stmt.Close()
