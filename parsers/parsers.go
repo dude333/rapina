@@ -30,10 +30,10 @@ func GetHash(s string) uint32 {
 }
 
 //
-// Exec start the data import process, including the database creation
+// ImportCsv start the data import process, including the database creation
 // if necessary
 //
-func Exec(db *sql.DB, dataType string, file string) (err error) {
+func ImportCsv(db *sql.DB, dataType string, file string) (err error) {
 
 	// Create status table
 	if err = createTable(db, "STATUS"); err != nil {

@@ -93,7 +93,7 @@ func processReport(db *sql.DB, dataType string, year int) (fileNotFound bool, er
 		return
 	}
 
-	if err = parsers.Exec(db, dataType, file); err != nil {
+	if err = parsers.ImportCsv(db, dataType, file); err != nil {
 		return
 	}
 
