@@ -19,7 +19,7 @@ $(BINARY): $(SOURCES) $(wildcard ../*.go) $(wildcard ../parsers/*.go) $(wildcard
 
 win: $(SOURCES)
 	go get -v -d ../...
-	GOOS=windows GOARCH=386 CGO_ENABLED=1 CC=i686-w64-mingw32-gcc CXX=i686-w64-mingw32-g++ CGO_LDFLAGS="-lssp -w" go build ${LDFLAGS} -o ${WINBINARY}
+	GOOS=windows GOARCH=386 CGO_ENABLED=1 CC=i686-w64-mingw32-gcc CXX=i686-w64-mingw32-g++ CGO_LDFLAGS="-lssp -w" go build ${LDFLAGS} -o ${WINBINARY} -pkgdir /tmp/ -i
 
 osx:  $(SOURCES)
 	go get -v -d ../...
