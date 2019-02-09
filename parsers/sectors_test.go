@@ -10,7 +10,7 @@ func TestFromSector(t *testing.T) {
 	const filename = "/tmp/test_sectors.yml"
 
 	createYaml(filename)
-	s, _ := FromSector("GRENDENE S.A.", filename)
+	s, _, _ := FromSector("GRENDENE S.A.", filename)
 	expected := [...]string{"ALPARGATAS S.A.", "CAMBUCI S.A.", "GRENDENE S.A.", "VULCABRAS/AZALEIA S.A."}
 	if len(s) != 4 {
 		t.Errorf("\n- Expected:  %v\n- Got:       %v", expected, s)
