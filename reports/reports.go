@@ -503,7 +503,9 @@ func metricsList(v map[uint32]float32) (metrics []metric) {
 		{"FCO", v[p.FCO], NUMBER},
 		{"FCI", v[p.FCI], NUMBER},
 		{"FCF", v[p.FCF], NUMBER},
-		{"Fluxo de Caixa Total", v[p.FCO] + v[p.FCI] + v[p.FCF], NUMBER},
+		{"FCT", v[p.FCO] + v[p.FCI] + v[p.FCF], NUMBER},
+		{"FCL", v[p.FCO] + v[p.FCI], NUMBER},
+
 		{"", 0, EMPTY},
 
 		{"Proventos", proventos, NUMBER},
