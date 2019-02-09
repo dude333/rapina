@@ -265,7 +265,7 @@ func (r report) sectorReport(sheet *Sheet, company string) (err error) {
 	}()
 
 	// Companies from the same sector
-	companies, err := r.fromSector(company)
+	companies, secName, err := r.fromSector(company)
 	if len(companies) <= 1 || err != nil {
 		err = errors.Wrap(err, "erro ao ler arquivo de setores "+r.yamlFile)
 		return
@@ -285,7 +285,7 @@ func (r report) sectorReport(sheet *Sheet, company string) (err error) {
 			avg = true
 			co = company
 		}
-		empty, err := r.companySummary(sheet, &row, &col, co, count%3 == 0, avg)
+		empty, err := r.companySummary(sheet, &row, &col, co, secName, count%3 == 0, avg)
 		ok := "√"
 		if err != nil || empty {
 			ok = "x"
@@ -310,7 +310,7 @@ func (r report) sectorReport(sheet *Sheet, company string) (err error) {
 // companySummary reports all companies from the same segment into the
 // 'Setor' sheet.
 //
-func (r *report) companySummary(sheet *Sheet, row, col *int, company string, printDescr, sectorAvg bool) (empty bool, err error) {
+func (r *report) companySummary(sheet *Sheet, row, col *int, company, sectorName string, printDescr, sectorAvg bool) (empty bool, err error) {
 	// if !sectorAvg && !r.isCompany(company) {
 	// 	return true, nil
 	// }
@@ -326,6 +326,9 @@ func (r *report) companySummary(sheet *Sheet, row, col *int, company string, pri
 	fCompanyName := newFormat(DEFAULT, CENTER, true)
 	fCompanyName.size(16)
 	sCompanyName := fCompanyName.newStyle(sheet.xlsx)
+	fSectorName := newFormat(DEFAULT, LEFT, false)
+	fSectorName.size(14)
+	sSectorName := fSectorName.newStyle(sheet.xlsx)
 	//
 	fDescr := newFormat(DEFAULT, RIGHT, false)
 	fDescr.Border = []formatBorder{{Type: "left", Color: "333333", Style: 1}}
@@ -346,6 +349,7 @@ func (r *report) companySummary(sheet *Sheet, row, col *int, company string, pri
 	}
 	sheet.mergeCell(axis(*col, *row), axis(*col+end-begin+1, *row))
 	if sectorAvg {
+		sheet.printCell(*row-1, *col-1, sectorName, sSectorName)
 		sheet.printCell(*row, *col, sectorAverage, sCompanyName)
 	} else {
 		sheet.printCell(*row, *col, company, sCompanyName)

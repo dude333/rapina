@@ -166,7 +166,7 @@ type Segment struct {
 //
 // FromSector returns all companies from the same sector as the 'company'
 //
-func FromSector(company, yamlFile string) (companies []string, err error) {
+func FromSector(company, yamlFile string) (companies []string, sectorName string, err error) {
 
 	y, err := ioutil.ReadFile(yamlFile)
 	if err != nil {
@@ -181,7 +181,9 @@ func FromSector(company, yamlFile string) (companies []string, err error) {
 		for _, subsector := range sector.Subsectors {
 			for _, segment := range subsector.Segments {
 				if FuzzyMatch(company, segment.Companies, 2) {
-					return segment.Companies, nil
+					companies = segment.Companies
+					sectorName = strings.Join([]string{sector.Name, subsector.Name, segment.Name}, " > ")
+					return
 				}
 			}
 		}

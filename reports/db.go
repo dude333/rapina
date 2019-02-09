@@ -130,7 +130,7 @@ func (r report) accountsValues(company string, year int, penult bool) (values ma
 //
 func (r report) accountsAverage(company string, year int, penult bool) (values map[uint32]float32, err error) {
 
-	companies, err := r.fromSector(company)
+	companies, _, err := r.fromSector(company)
 	if len(companies) <= 1 || err != nil {
 		err = errors.Wrap(err, "erro ao ler arquivo de setores "+r.yamlFile)
 		return
@@ -197,10 +197,10 @@ func (r report) accountsAverage(company string, year int, penult bool) (values m
 	return
 }
 
-func (r report) fromSector(company string) (companies []string, err error) {
+func (r report) fromSector(company string) (companies []string, sectorName string, err error) {
 	// Companies from the same sector
-	secCo, _ := parsers.FromSector(company, r.yamlFile)
-	if len(secCo) <= 1 {
+	secCo, secName, err := parsers.FromSector(company, r.yamlFile)
+	if len(secCo) <= 1 || err != nil {
 		err = errors.Wrap(err, "erro ao ler arquivo dos setores "+r.yamlFile)
 		return
 	}
@@ -220,7 +220,7 @@ func (r report) fromSector(company string) (companies []string, err error) {
 		}
 	}
 
-	return removeDuplicates(companies), nil
+	return removeDuplicates(companies), secName, nil
 }
 
 //

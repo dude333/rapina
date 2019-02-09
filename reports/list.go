@@ -34,8 +34,8 @@ func ListCompanies(db *sql.DB) (com []string, err error) {
 //
 func ListSector(db *sql.DB, company, yamlFile string) (err error) {
 	// Companies from the same sector
-	secCo, _ := parsers.FromSector(company, yamlFile)
-	if len(secCo) <= 1 {
+	secCo, secName, err := parsers.FromSector(company, yamlFile)
+	if len(secCo) <= 1 || err != nil {
 		err = errors.Wrap(err, "erro ao ler arquivo dos setores "+yamlFile)
 		return
 	}
@@ -58,6 +58,7 @@ func ListSector(db *sql.DB, company, yamlFile string) (err error) {
 			fmt.Printf("%-40s %s\n", s, "Nao encontrado")
 		}
 	}
+	fmt.Printf("\nSETOR: %s\n", secName)
 
 	return
 }
