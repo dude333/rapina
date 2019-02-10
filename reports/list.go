@@ -69,7 +69,7 @@ func ListSector(db *sql.DB, company, yamlFile string) (err error) {
 // ListCompaniesProfits lists companies by net profit: more sustainable growth
 // listed first
 //
-func ListCompaniesProfits(db *sql.DB) error {
+func ListCompaniesProfits(db *sql.DB, rate float32) error {
 
 	list, err := companies(db)
 	if err != nil {
@@ -118,10 +118,10 @@ func ListCompaniesProfits(db *sql.DB) error {
 			continue
 		}
 
-		// Ignore if next profix < 80% of current profit
+		// Ignore if next profix < 'rate' * current profit
 		profitable := true
 		for i := 1; i < len(profits); i++ {
-			if profits[i].profit < 0 || profits[i].profit < .8*profits[i-1].profit {
+			if profits[i].profit < 0 || profits[i].profit < rate*profits[i-1].profit {
 				profitable = false
 				break
 			}

@@ -77,13 +77,13 @@ func ListSector(company, yamlFile string) (err error) {
 //
 // ListCompaniesProfits lists companies profits
 //
-func ListCompaniesProfits() (err error) {
+func ListCompaniesProfits(rate float32) (err error) {
 	db, err := openDatabase()
 	if err != nil {
 		return errors.Wrap(err, "fail to open db")
 	}
 
-	err = reports.ListCompaniesProfits(db)
+	err = reports.ListCompaniesProfits(db, rate)
 	if err != nil {
 		return errors.Wrap(err, "erro ao listar lucros")
 	}
