@@ -3,6 +3,7 @@ package reports
 import (
 	"database/sql"
 	"fmt"
+	"math"
 	"strings"
 
 	"github.com/dude333/rapina/parsers"
@@ -81,28 +82,46 @@ func ListCompaniesProfits(db *sql.DB) error {
 		return fmt.Errorf("falha ao obter a faixa de datas (%v)", err)
 	}
 
+	// Header
 	var sep string
 	fmt.Printf("%20s ", " ") // Space to match company name
 	for y := yi; y <= yf; y++ {
 		fmt.Printf("%10d ", y)
 		sep += fmt.Sprintf("%s ", strings.Repeat("-", 10))
 	}
-	fmt.Println()
+	fmt.Printf("%10s\n", "CAGR")
+	sep += fmt.Sprintf("%s ", strings.Repeat("-", 10))
 	fmt.Printf("%20s %s\n", " ", sep)
 
+	// Profits
 	pt := message.NewPrinter(language.Portuguese)
-
 	for _, c := range list {
 		profits, err := companyProfits(db, c)
 		if err != nil {
 			return fmt.Errorf("falha ao obter lucros de %s (%v)", c, err)
 		}
+
+		// FILTERS ----------------------------
+		// At least 4 years
 		if len(profits) < 4 {
 			continue
 		}
+		// Ignore if there is no recent data
+		if profits[len(profits)-1].year < yf-1 {
+			continue
+		}
+
+		pi := profits[0].profit
+		pf := profits[len(profits)-1].profit
+
+		if pf < pi {
+			continue
+		}
+
+		// Ignore if next profix < 80% of current profit
 		profitable := true
 		for i := 1; i < len(profits); i++ {
-			if profits[i].profit < 0 || profits[i].profit < profits[i-1].profit {
+			if profits[i].profit < 0 || profits[i].profit < .8*profits[i-1].profit {
 				profitable = false
 				break
 			}
@@ -111,12 +130,28 @@ func ListCompaniesProfits(db *sql.DB) error {
 			continue
 		}
 
-		fmt.Printf("%-20.20s %s", c, strings.Repeat(" ", (profits[0].year-yi)*11))
-		for _, p := range profits {
-			pt.Printf("%10.0f ", p.profit)
+		// COMPANY NAME -----------------------
+		fmt.Printf("%-20.20s ", c)
+
+		// PROFIT VALUES ----------------------
+		i := 0
+		for y := yi; y <= yf; y++ {
+			if i < len(profits) && profits[i].year == y {
+				pt.Printf("%10.0f ", profits[i].profit)
+				i++
+			} else {
+				fmt.Printf("%10s ", " ")
+			}
+		}
+
+		// CAGR -------------------------------
+		if pi != 0 && pf != 0 {
+			cagr := math.Pow(float64(pf/pi), 1/float64(yf-yi-1)) - 1
+			pt.Printf("%10.1f%%", cagr*100)
 		}
 		fmt.Println()
-	}
+
+	} // next c
 
 	return nil
 }
