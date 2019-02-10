@@ -145,7 +145,7 @@ func ListCompaniesProfits(db *sql.DB, rate float32) error {
 		}
 
 		// CAGR -------------------------------
-		if pi != 0 && pf != 0 {
+		if pi != 0 && pf != 0 && pf*pi >= 0 {
 			cagr := math.Pow(float64(pf/pi), 1/float64(yf-yi-1)) - 1
 			pt.Printf("%10.1f%%", cagr*100)
 		}
