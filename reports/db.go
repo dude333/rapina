@@ -327,3 +327,47 @@ func removeDuplicates(elements []string) []string { // change string to int here
 	// Return the new slice.
 	return result
 }
+
+type profit struct {
+	year   int
+	profit float32
+}
+
+func companiesProfits(db *sql.DB, company string) (profits []profit, err error) {
+
+	selectProfits := fmt.Sprintf(`
+	SELECT
+		ORDEM_EXERC,
+		strftime('%%Y', DT_REFER, 'unixepoch'),
+		VL_CONTA
+	FROM
+		dfp
+	WHERE
+		DENOM_CIA LIKE "%s%%"
+		AND CODE = %d
+		AND (ORDEM_EXERC LIKE "_LTIMO"
+			OR (
+				ORDEM_EXERC LIKE "PEN_LTIMO"
+				AND DT_REFER = (SELECT MIN(DT_REFER) FROM dfp WHERE DENOM_CIA LIKE "%s%%")
+			)
+		)
+	ORDER BY
+		DT_REFER;`, company, parsers.LucLiq, company)
+
+	rows, err := db.Query(selectProfits)
+	if err != nil {
+		err = errors.Wrap(err, "falha ao ler banco de dados")
+		return
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var period string
+		var year int
+		var val float32
+		rows.Scan(&period, &year, &val)
+		profits = append(profits, profit{year, val})
+	}
+
+	return
+}

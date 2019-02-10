@@ -75,6 +75,23 @@ func ListSector(company, yamlFile string) (err error) {
 }
 
 //
+// ListCompaniesProfits lists companies profits
+//
+func ListCompaniesProfits() (err error) {
+	db, err := openDatabase()
+	if err != nil {
+		return errors.Wrap(err, "fail to open db")
+	}
+
+	err = reports.ListCompaniesProfits(db)
+	if err != nil {
+		return errors.Wrap(err, "erro ao listar lucros")
+	}
+
+	return
+}
+
+//
 // SelectCompany returns the company name compared to the names
 // stored in the DB
 //

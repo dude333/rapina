@@ -9,6 +9,7 @@ import (
 	"github.com/pkg/errors"
 	"golang.org/x/text/collate"
 	"golang.org/x/text/language"
+	"golang.org/x/text/message"
 )
 
 //
@@ -61,4 +62,36 @@ func ListSector(db *sql.DB, company, yamlFile string) (err error) {
 	fmt.Printf("\nSETOR: %s\n", secName)
 
 	return
+}
+
+//
+// ListCompaniesProfits lists companies by net profit: more sustainable growth
+// listed first
+//
+func ListCompaniesProfits(db *sql.DB) error {
+
+	list, err := companies(db)
+	if err != nil {
+		return fmt.Errorf("falha ao obter a lista de empresas (%v)", err)
+	}
+
+	for _, c := range list {
+		profits, err := companiesProfits(db, c)
+		if err != nil {
+			return fmt.Errorf("falha ao obter lucros de %s (%v)", c, err)
+		}
+		fmt.Printf("%s ", strings.Repeat(" ", 20))
+		for _, p := range profits {
+			fmt.Printf("%10d ", p.year)
+		}
+		fmt.Println()
+		fmt.Printf("%-20.20s ", c)
+		pt := message.NewPrinter(language.Portuguese)
+		for _, p := range profits {
+			pt.Printf("%10.0f ", p.profit)
+		}
+		fmt.Println()
+	}
+
+	return nil
 }

@@ -30,6 +30,7 @@ import (
 // Flags
 var scriptMode bool
 var outputDir string
+var netProfit bool
 
 // reportCmd represents the report command
 var reportCmd = &cobra.Command{
@@ -45,21 +46,20 @@ var reportCmd = &cobra.Command{
 func init() {
 	rootCmd.AddCommand(reportCmd)
 
-	// Here you will define your flags and configuration settings.
-
-	// Cobra supports Persistent Flags which will work for this command
-	// and all subcommands, e.g.:
-	// reportCmd.PersistentFlags().String("foo", "", "A help for foo")
-
-	// Cobra supports local flags which will only run when this command
-	// is called directly, e.g.:
-	// reportCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
-
+	reportCmd.Flags().BoolVarP(&netProfit, "lucroLiquido", "l", false, "Lista os lucros de todas as empresas")
 	reportCmd.Flags().BoolVarP(&scriptMode, "scriptMode", "s", false, "Para modo script (escolhe a empresa com nome mais próximo)")
 	reportCmd.Flags().StringVarP(&outputDir, "outputDir", "d", "", "Diretório onde o relatório será salvo")
 }
 
 func report(company string) {
+	if netProfit {
+		err := rapina.ListCompaniesProfits()
+		if err != nil {
+			fmt.Println("[x]", err)
+		}
+		return
+	}
+
 	company = rapina.SelectCompany(company, scriptMode)
 	if company == "" {
 		fmt.Println("[x] Empresa não encontrada")

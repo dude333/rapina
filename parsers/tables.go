@@ -141,12 +141,13 @@ func CreateIndexes(db *sql.DB, group int) (err error) {
 		"CREATE INDEX IF NOT EXISTS dfp_code_accounts ON dfp (CD_CONTA, DS_CONTA);",
 		"CREATE INDEX IF NOT EXISTS dfp_code_accounts_ds ON dfp (DS_CONTA);",
 		"CREATE INDEX IF NOT EXISTS dfp_metrics ON dfp (CODE, DENOM_CIA, ORDEM_EXERC, DT_REFER, VL_CONTA);",
+		"CREATE INDEX IF NOT EXISTS dfp_date ON dfp (DT_REFER, DENOM_CIA);",
 	}
 
 	groups := [3][2]int{
 		{0, 1},
-		{2, 2},
-		{0, 2},
+		{2, 3},
+		{0, 3},
 	}
 
 	if group < 1 || group > len(groups) {
@@ -173,6 +174,7 @@ func DropIndexes(db *sql.DB) (err error) {
 		"DROP INDEX IF EXISTS dfp_code_accounts;",
 		"DROP INDEX IF EXISTS dfp_code_accounts_ds;",
 		"DROP INDEX IF EXISTS dfp_metrics;",
+		"DROP INDEX IF EXISTS dfp_date;",
 	}
 
 	for _, idx := range indexes {
