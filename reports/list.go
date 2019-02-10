@@ -121,7 +121,7 @@ func ListCompaniesProfits(db *sql.DB, rate float32) error {
 		// Ignore if next profix < 'rate' * current profit
 		profitable := true
 		for i := 1; i < len(profits); i++ {
-			if profits[i].profit < 0 || profits[i].profit < rate*profits[i-1].profit {
+			if profits[i].profit < 0 || profits[i].profit < (1+rate)*profits[i-1].profit {
 				profitable = false
 				break
 			}
@@ -152,6 +152,8 @@ func ListCompaniesProfits(db *sql.DB, rate float32) error {
 		fmt.Println()
 
 	} // next c
+
+	fmt.Printf("\nEmpresas com lucros positivos e inicial maior que o final, com variação mínima de %0.0f%% de um ano para o outro.\n\n", rate*100)
 
 	return nil
 }

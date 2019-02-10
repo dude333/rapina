@@ -30,7 +30,6 @@ import (
 // Flags
 var scriptMode bool
 var outputDir string
-var netProfitRate float32
 
 // reportCmd represents the report command
 var reportCmd = &cobra.Command{
@@ -46,20 +45,11 @@ var reportCmd = &cobra.Command{
 func init() {
 	rootCmd.AddCommand(reportCmd)
 
-	reportCmd.Flags().Float32VarP(&netProfitRate, "lucroLiquido", "l", 1, "Lista os lucros de todas as empresas")
 	reportCmd.Flags().BoolVarP(&scriptMode, "scriptMode", "s", false, "Para modo script (escolhe a empresa com nome mais próximo)")
 	reportCmd.Flags().StringVarP(&outputDir, "outputDir", "d", "", "Diretório onde o relatório será salvo")
 }
 
 func report(company string) {
-	if netProfitRate != 0 {
-		err := rapina.ListCompaniesProfits(netProfitRate)
-		if err != nil {
-			fmt.Println("[x]", err)
-		}
-		return
-	}
-
 	company = rapina.SelectCompany(company, scriptMode)
 	if company == "" {
 		fmt.Println("[x] Empresa não encontrada")

@@ -21,6 +21,8 @@
 package cmd
 
 import (
+	"fmt"
+
 	"github.com/dude333/rapina"
 	"github.com/spf13/cobra"
 )
@@ -28,23 +30,40 @@ import (
 // listCmd represents the list command
 var listCmd = &cobra.Command{
 	Use:   "list",
-	Short: "Lista todos as empresas disponíveis",
-	Long:  "Lista todos as empresas disponíveis",
-	Run: func(cmd *cobra.Command, args []string) {
-		rapina.ListCompanies()
-	},
+	Short: "Lista informações armazenadas no banco de dados",
 }
 
 func init() {
+	var (
+		listCompanies bool
+		sector        string
+		netProfitRate float32
+	)
+
 	rootCmd.AddCommand(listCmd)
 
-	// Here you will define your flags and configuration settings.
+	listCmd.Flags().BoolVarP(&listCompanies, "empresas", "e", false, "Lista todas as empresas disponíveis")
+	listCmd.Flags().StringVarP(&sector, "setor", "s", "", "Lista todas as empresas do mesmo setor")
+	listCmd.Flags().Float32VarP(&netProfitRate, "lucroLiquido", "l", -1000, "Lista empresas com lucros lucros positivos e com a taxa de crescimento definida")
 
-	// Cobra supports Persistent Flags which will work for this command
-	// and all subcommands, e.g.:
-	// listCmd.PersistentFlags().String("foo", "", "A help for foo")
+	listCmd.Run = func(cmd *cobra.Command, args []string) {
+		if listCmd.Flags().NFlag() == 0 {
+			listCmd.Help()
+			return
+		}
 
-	// Cobra supports local flags which will only run when this command
-	// is called directly, e.g.:
-	// listCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
+		if listCompanies {
+			rapina.ListCompanies()
+		}
+		if sector != "" {
+			rapina.ListSector(sector, yamlFile)
+		}
+		if netProfitRate != -1000 {
+			err := rapina.ListCompaniesProfits(netProfitRate)
+			if err != nil {
+				fmt.Println("[x]", err)
+			}
+		}
+	}
+
 }
