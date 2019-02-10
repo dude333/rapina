@@ -80,7 +80,7 @@ func Report(db *sql.DB, company string, filename, yamlFile string) (err error) {
 	}
 	lastMetricsRow = row - 1
 
-	begin, end, err := r.timeRange()
+	begin, end, err := timeRange(r.db)
 	if err != nil {
 		return
 	}
@@ -315,7 +315,7 @@ func (r *report) companySummary(sheet *Sheet, row, col *int, company, sectorName
 	// 	return true, nil
 	// }
 
-	begin, end, err := r.timeRange()
+	begin, end, err := timeRange(r.db)
 	if err != nil {
 		return
 	}

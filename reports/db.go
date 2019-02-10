@@ -276,7 +276,7 @@ func (r report) isCompany(company string) bool {
 //
 // timeRange returns the begin=min(year) and end=max(year)
 //
-func (r report) timeRange() (begin, end int, err error) {
+func timeRange(db *sql.DB) (begin, end int, err error) {
 
 	selectYears := `
 	SELECT
@@ -284,7 +284,7 @@ func (r report) timeRange() (begin, end int, err error) {
 		MAX(CAST(strftime('%Y', DT_REFER, 'unixepoch') AS INTEGER))
 	FROM dfp;`
 
-	rows, err := r.db.Query(selectYears)
+	rows, err := db.Query(selectYears)
 	if err != nil {
 		err = errors.Wrap(err, "falha ao ler banco de dados")
 		return
@@ -333,12 +333,12 @@ type profit struct {
 	profit float32
 }
 
-func companiesProfits(db *sql.DB, company string) (profits []profit, err error) {
+func companyProfits(db *sql.DB, company string) (profits []profit, err error) {
 
 	selectProfits := fmt.Sprintf(`
 	SELECT
 		ORDEM_EXERC,
-		strftime('%%Y', DT_REFER, 'unixepoch'),
+		strftime('%%Y', DT_REFER, 'unixepoch') AS DT_REFER,
 		VL_CONTA
 	FROM
 		dfp
@@ -366,6 +366,9 @@ func companiesProfits(db *sql.DB, company string) (profits []profit, err error) 
 		var year int
 		var val float32
 		rows.Scan(&period, &year, &val)
+		if period == "PENÚLTIMO" {
+			year--
+		}
 		profits = append(profits, profit{year, val})
 	}
 

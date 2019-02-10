@@ -75,18 +75,43 @@ func ListCompaniesProfits(db *sql.DB) error {
 		return fmt.Errorf("falha ao obter a lista de empresas (%v)", err)
 	}
 
+	yi, yf, err := timeRange(db)
+	yi-- // Considering penultimate period
+	if err != nil {
+		return fmt.Errorf("falha ao obter a faixa de datas (%v)", err)
+	}
+
+	var sep string
+	fmt.Printf("%20s ", " ") // Space to match company name
+	for y := yi; y <= yf; y++ {
+		fmt.Printf("%10d ", y)
+		sep += fmt.Sprintf("%s ", strings.Repeat("-", 10))
+	}
+	fmt.Println()
+	fmt.Printf("%20s %s\n", " ", sep)
+
+	pt := message.NewPrinter(language.Portuguese)
+
 	for _, c := range list {
-		profits, err := companiesProfits(db, c)
+		profits, err := companyProfits(db, c)
 		if err != nil {
 			return fmt.Errorf("falha ao obter lucros de %s (%v)", c, err)
 		}
-		fmt.Printf("%s ", strings.Repeat(" ", 20))
-		for _, p := range profits {
-			fmt.Printf("%10d ", p.year)
+		if len(profits) < 4 {
+			continue
 		}
-		fmt.Println()
-		fmt.Printf("%-20.20s ", c)
-		pt := message.NewPrinter(language.Portuguese)
+		profitable := true
+		for i := 1; i < len(profits); i++ {
+			if profits[i].profit < 0 || profits[i].profit < profits[i-1].profit {
+				profitable = false
+				break
+			}
+		}
+		if !profitable {
+			continue
+		}
+
+		fmt.Printf("%-20.20s %s", c, strings.Repeat(" ", (profits[0].year-yi)*11))
 		for _, p := range profits {
 			pt.Printf("%10.0f ", p.profit)
 		}
