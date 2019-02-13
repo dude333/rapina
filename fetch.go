@@ -146,11 +146,6 @@ func fetchFile(dataType string, year int) (reqFile string, fileNotFound bool, er
 	zipfile := fmt.Sprintf("%s/%s_%d.zip", dataDir, dt, year)
 	reqFile = fmt.Sprintf("%s/%s_cia_aberta_con_%d.csv", dataDir, dt, year)
 
-	// Check if files already exists
-	if _, err = os.Stat(reqFile); !os.IsNotExist(err) {
-		return
-	}
-
 	// Download file from CVM server
 	err = downloadFile(zipfile, url)
 	if err != nil {
