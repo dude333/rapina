@@ -20,19 +20,19 @@ type accItems struct {
 // accountsItems returns all accounts codes and descriptions, e.g.:
 // [1 Ativo Total, 1.01 Ativo Circulante, ...]
 //
-func (r report) accountsItems(company string) (items []accItems, err error) {
+func (r report) accountsItems(cnpj string) (items []accItems, err error) {
 	selectItems := fmt.Sprintf(`
 	SELECT DISTINCT
 		CODE, CD_CONTA, DS_CONTA
 	FROM
 		dfp
 	WHERE
-		DENOM_CIA LIKE "%s%%"
+		CNPJ_CIA = "%s"
 		AND ORDEM_EXERC LIKE "_LTIMO"
 
 	ORDER BY
 		CD_CONTA, DS_CONTA
-	;`, company)
+	;`, cnpj)
 
 	rows, err := r.db.Query(selectItems)
 	if err != nil {
@@ -64,7 +64,7 @@ type account struct {
 // accountsValues stores the values for each account into a map using a hash
 // of the account code and description as its key
 //
-func (r report) accountsValues(company string, year int, penult bool) (values map[uint32]float32, err error) {
+func (r report) accountsValues(cnpj string, year int, penult bool) (values map[uint32]float32, err error) {
 
 	period := "_LTIMO"
 	if penult {
@@ -92,10 +92,10 @@ func (r report) accountsValues(company string, year int, penult bool) (values ma
 	FROM
 		dfp
 	WHERE
-		DENOM_CIA LIKE "%s%%"
+		CNPJ_CIA = "%s"
 		AND ORDEM_EXERC LIKE "%s"
 		AND DT_REFER >= %v AND DT_REFER < %v
-	;`, company, period, t[0].Unix(), t[1].Unix())
+	;`, cnpj, period, t[0].Unix(), t[1].Unix())
 
 	values = make(map[uint32]float32)
 	st := account{}
@@ -159,6 +159,11 @@ func (r report) accountsAverage(company string, year int, penult bool) (values m
 		}
 	}
 
+	cnpjs := make([]string, len(companies))
+	for i, co := range companies {
+		cnpjs[i] = cnpj(r.db, co)
+	}
+
 	selectReport := fmt.Sprintf(`
 	SELECT
 		CODE,
@@ -167,12 +172,12 @@ func (r report) accountsAverage(company string, year int, penult bool) (values m
 	FROM
 		dfp
 	WHERE
-		DENOM_CIA IN ("%s")
+		CNPJ_CIA IN ("%s")
 		AND ORDEM_EXERC LIKE "%s"
 		AND DT_REFER >= %v AND DT_REFER < %v
 	GROUP BY
 		CODE, ORDEM_EXERC;
-	`, strings.Join(companies, "\", \""), period, t[0].Unix(), t[1].Unix())
+	`, strings.Join(cnpjs, "\", \""), period, t[0].Unix(), t[1].Unix())
 
 	values = make(map[uint32]float32)
 	st := account{}
@@ -223,18 +228,22 @@ func (r report) fromSector(company string) (companies []string, sectorName strin
 	return removeDuplicates(companies), secName, nil
 }
 
+// CompanyInfo contains the company name and CNPJ
+type CompanyInfo struct {
+	name string
+	cnpj string
+}
+
 //
 // companies returns available companies in the DB
 //
-func companies(db *sql.DB) (list []string, err error) {
+func companies(db *sql.DB) (list []CompanyInfo, err error) {
 
 	selectCompanies := `
-		SELECT DISTINCT
-			DENOM_CIA
-		FROM
-			dfp
-		ORDER BY
-			DENOM_CIA;`
+		SELECT DISTINCT MIN(DENOM_CIA), CNPJ_CIA
+		FROM dfp
+		GROUP BY CNPJ_CIA
+		ORDER BY DENOM_CIA;`
 
 	rows, err := db.Query(selectCompanies)
 	if err != nil {
@@ -243,13 +252,26 @@ func companies(db *sql.DB) (list []string, err error) {
 	}
 	defer rows.Close()
 
-	var companyName string
+	var info CompanyInfo
 	for rows.Next() {
-		rows.Scan(&companyName)
-		list = append(list, companyName)
+		rows.Scan(&info.name, &info.cnpj)
+		list = append(list, info)
 	}
 
 	return
+}
+
+//
+// cnpj returns the company CNPJ
+//
+func cnpj(db *sql.DB, company string) string {
+	selectCNPJ := fmt.Sprintf(`SELECT DISTINCT CNPJ_CIA FROM dfp WHERE DENOM_CIA LIKE "%s%%"`, company)
+	var cnpj string
+	err := db.QueryRow(selectCNPJ).Scan(&cnpj)
+	if err != nil {
+		return ""
+	}
+	return cnpj
 }
 
 //

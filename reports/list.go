@@ -16,17 +16,28 @@ import (
 //
 // ListCompanies shows all available companies
 //
-func ListCompanies(db *sql.DB) (com []string, err error) {
-	com, err = companies(db)
+func ListCompanies(db *sql.DB) (names []string, err error) {
+	info, err := companies(db)
 
 	if err != nil {
 		fmt.Println("[x] Falha:", err)
 		return
 	}
 
+	if len(info) == 0 {
+		err = fmt.Errorf("lista vazia")
+		return
+	}
+
+	// Extract companies names
+	names = make([]string, len(info))
+	for i, co := range info {
+		names[i] = co.name
+	}
+
 	// Sort accents correctly
 	cl := collate.New(language.BrazilianPortuguese, collate.Loose)
-	cl.SortStrings(com)
+	cl.SortStrings(names)
 
 	return
 }
@@ -71,7 +82,7 @@ func ListSector(db *sql.DB, company, yamlFile string) (err error) {
 //
 func ListCompaniesProfits(db *sql.DB, rate float32) error {
 
-	list, err := companies(db)
+	info, err := companies(db)
 	if err != nil {
 		return fmt.Errorf("falha ao obter a lista de empresas (%v)", err)
 	}
@@ -95,10 +106,10 @@ func ListCompaniesProfits(db *sql.DB, rate float32) error {
 
 	// Profits
 	pt := message.NewPrinter(language.Portuguese)
-	for _, c := range list {
-		profits, err := companyProfits(db, c)
+	for _, co := range info {
+		profits, err := companyProfits(db, co.name)
 		if err != nil {
-			return fmt.Errorf("falha ao obter lucros de %s (%v)", c, err)
+			return fmt.Errorf("falha ao obter lucros de %s (%v)", co.name, err)
 		}
 
 		// FILTERS ----------------------------
@@ -131,7 +142,7 @@ func ListCompaniesProfits(db *sql.DB, rate float32) error {
 		}
 
 		// COMPANY NAME -----------------------
-		fmt.Printf("%-20.20s ", c)
+		fmt.Printf("%-20.20s ", co.name)
 
 		// PROFIT VALUES ----------------------
 		i := 0

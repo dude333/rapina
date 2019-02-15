@@ -37,20 +37,25 @@ type report struct {
 //
 // Report of company data from DB to Excel
 //
-func Report(db *sql.DB, company string, filename, yamlFile string) (err error) {
+func Report(db *sql.DB, _company string, filename, yamlFile string) (err error) {
 	r := report{
 		db:       db,
 		yamlFile: yamlFile,
 	}
 
+	cnpj := cnpj(db, _company)
+	if cnpj == "" {
+		return fmt.Errorf("empresa '%s' não encontrada no banco de dados", _company)
+	}
+
 	e := newExcel()
-	sheet, _ := e.newSheet(company)
+	sheet, _ := e.newSheet(_company)
 
 	var lastStatementsRow, lastMetricsRow int
 
 	// Company name
 	sheet.mergeCell("A1", "B1")
-	sheet.print("A1", &[]string{company}, LEFT, true)
+	sheet.print("A1", &[]string{_company}, LEFT, true)
 
 	// ACCOUNT NUMBERING AND DESCRIPTION (COLS A AND B) ===============\/
 
@@ -58,7 +63,7 @@ func Report(db *sql.DB, company string, filename, yamlFile string) (err error) {
 	// starting on row 2. Adjust space related to the group, e.g.:
 	// 3.02 ABC <== print in bold if base item and stores the row position in baseItems[]
 	//   3.02.01 ABC
-	accounts, _ := r.accountsItems(company)
+	accounts, _ := r.accountsItems(cnpj)
 	row := 2
 	baseItems := make([]bool, len(accounts)+row)
 	for _, it := range accounts {
@@ -96,7 +101,7 @@ func Report(db *sql.DB, company string, filename, yamlFile string) (err error) {
 			break
 		}
 
-		values, _ = r.accountsValues(company, y, y == start)
+		values, _ = r.accountsValues(cnpj, y, y == start)
 
 		// Check if last year is empty
 		if y == end {
@@ -237,7 +242,7 @@ func Report(db *sql.DB, company string, filename, yamlFile string) (err error) {
 			excelize.ShowGridLines(false),
 			excelize.ZoomScale(80),
 		)
-		r.sectorReport(sheet2, company)
+		r.sectorReport(sheet2, _company)
 	}
 
 	err = e.saveAndCloseExcel(filename)
@@ -310,10 +315,16 @@ func (r report) sectorReport(sheet *Sheet, company string) (err error) {
 // companySummary reports all companies from the same segment into the
 // 'Setor' sheet.
 //
-func (r *report) companySummary(sheet *Sheet, row, col *int, company, sectorName string, printDescr, sectorAvg bool) (empty bool, err error) {
+func (r *report) companySummary(sheet *Sheet, row, col *int, _company, sectorName string, printDescr, sectorAvg bool) (empty bool, err error) {
 	// if !sectorAvg && !r.isCompany(company) {
 	// 	return true, nil
 	// }
+
+	cnpj := cnpj(r.db, _company)
+	if cnpj == "" {
+		err = errors.Errorf("empresa '%s' não encontrada no banco de dados", _company)
+		return
+	}
 
 	begin, end, err := timeRange(r.db)
 	if err != nil {
@@ -352,7 +363,7 @@ func (r *report) companySummary(sheet *Sheet, row, col *int, company, sectorName
 		sheet.printCell(*row-1, *col-1, sectorName, sSectorName)
 		sheet.printCell(*row, *col, sectorAverage, sCompanyName)
 	} else {
-		sheet.printCell(*row, *col, company, sCompanyName)
+		sheet.printCell(*row, *col, _company, sCompanyName)
 	}
 	if printDescr {
 		*col--
@@ -372,10 +383,10 @@ func (r *report) companySummary(sheet *Sheet, row, col *int, company, sectorName
 	var values map[uint32]float32
 	for y := start; y <= end; y++ {
 		if sectorAvg {
-			values, _ = r.accountsAverage(company, y, y == start)
+			values, _ = r.accountsAverage(_company, y, y == start)
 			r.average = append(r.average, []float32{})
 		} else {
-			values, _ = r.accountsValues(company, y, y == start)
+			values, _ = r.accountsValues(cnpj, y, y == start)
 		}
 
 		// Check if last year is empty
