@@ -44,7 +44,7 @@ func init() {
 
 	listCmd.Flags().BoolVarP(&listCompanies, "empresas", "e", false, "Lista todas as empresas disponíveis")
 	listCmd.Flags().StringVarP(&sector, "setor", "s", "", "Lista todas as empresas do mesmo setor")
-	listCmd.Flags().Float32VarP(&netProfitRate, "lucroLiquido", "l", -1000, "Lista empresas com lucros lucros positivos e com a taxa de crescimento definida")
+	listCmd.Flags().Float32VarP(&netProfitRate, "lucroLiquido", "l", -0.8, "Lista empresas com lucros lucros positivos e com a taxa de crescimento definida")
 
 	listCmd.Run = func(cmd *cobra.Command, args []string) {
 		if listCmd.Flags().NFlag() == 0 {
@@ -58,7 +58,7 @@ func init() {
 		if sector != "" {
 			rapina.ListSector(sector, yamlFile)
 		}
-		if netProfitRate != -1000 {
+		if listCmd.Flags().Changed("lucroLiquido") {
 			err := rapina.ListCompaniesProfits(netProfitRate)
 			if err != nil {
 				fmt.Println("[x]", err)
