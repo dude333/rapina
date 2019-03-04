@@ -9,17 +9,16 @@ import (
 	_ "github.com/mattn/go-sqlite3"
 )
 
-const (
-	fileDB  = "/tmp/rapina_test.db"
-	fileBPA = "/tmp/bpa.csv"
-)
-
-func openDB() (*sql.DB, error) {
-	os.Remove(fileDB)
-	return sql.Open("sqlite3", fileDB)
+func tempFilename(t *testing.T) string {
+	f, err := ioutil.TempFile("", "rapina-test-")
+	if err != nil {
+		t.Fatal(err)
+	}
+	f.Close()
+	return f.Name()
 }
 
-func samples() error {
+func samples(filename string) error {
 	bpa := []byte(`
 CNPJ_CIA;DT_REFER;VERSAO;DENOM_CIA;CD_CVM;GRUPO_DFP;MOEDA;ESCALA_MOEDA;ORDEM_EXERC;DT_FIM_EXERC;CD_CONTA;DS_CONTA;VL_CONTA
 00.000.000/0001-91;2013-12-31;4;BANCO DO BRASIL S.A.;1023;DF Consolidado - Balan�o Patrimonial Ativo;REAL;MILHAR;�LTIMO;2013-12-31;1;Ativo Total;1162167882.00
@@ -33,7 +32,7 @@ CNPJ_CIA;DT_REFER;VERSAO;DENOM_CIA;CD_CVM;GRUPO_DFP;MOEDA;ESCALA_MOEDA;ORDEM_EXE
 00.000.000/0001-91;2013-12-31;4;BANCO DO BRASIL S.A.;1023;DF Consolidado - Balan�o Patrimonial Ativo;REAL;MILHAR;�LTIMO;2013-12-31;1.03;Empr�stimos e Receb�veis;755821983.00
 00.000.000/0001-91;2013-12-31;4;BANCO DO BRASIL S.A.;1023;DF Consolidado - Balan�o Patrimonial Ativo;REAL;MILHAR;�LTIMO;2013-12-31;1.04;Tributos Diferidos;21954460.00
 	`)
-	err := ioutil.WriteFile(fileBPA, bpa, 0600)
+	err := ioutil.WriteFile(filename, bpa, 0600)
 
 	return err
 }
@@ -41,16 +40,35 @@ CNPJ_CIA;DT_REFER;VERSAO;DENOM_CIA;CD_CVM;GRUPO_DFP;MOEDA;ESCALA_MOEDA;ORDEM_EXE
 func TestImportCsv(t *testing.T) {
 	var db *sql.DB
 	var err error
+	fileBPA := tempFilename(t)
+	defer os.Remove(fileBPA)
+	fileDB := tempFilename(t)
+	defer os.Remove(fileDB)
 
-	if db, err = openDB(); err != nil {
+	if db, err = sql.Open("sqlite3", fileDB); err != nil {
 		t.Errorf("Fail to open db: %v", err)
 	}
-	if err = samples(); err != nil {
+	defer db.Close()
+
+	if err = samples(fileBPA); err != nil {
 		t.Errorf("Fail to create samples: %v", err)
 	}
+
 	if err = ImportCsv(db, "BPA", fileBPA); err != nil {
 		t.Errorf("Fail to parse: %v", err)
 	}
+
+	for _, tp := range []string{"BPA", "MD5"} {
+		if v, table := dbVersion(db, tp); v != currentDbVersion {
+			t.Errorf("Expecting table %s on version %d, received %d", table, currentDbVersion, v)
+		}
+	}
+
+	isNew, err := isNewFile(db, fileBPA)
+	if isNew && err == nil {
+		t.Errorf("Expecting processed file, got new file")
+	}
+
 }
 
 func TestGetHash(t *testing.T) {
