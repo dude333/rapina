@@ -192,7 +192,8 @@ func (s *Sheet) autoWidth() {
 	// vertical analysis numbers
 	var spaced int
 	for col := 2; col < len(cols); col++ {
-		if len(s.xlsx.GetCellValue(s.name, axis(col, 1))) == 0 {
+		val, _ := s.xlsx.GetCellValue(s.name, axis(col, 1))
+		if len(val) == 0 {
 			spaced = col
 			break
 		}
@@ -207,7 +208,7 @@ func (s *Sheet) autoWidth() {
 }
 
 func (s *Sheet) setColWidth(col int, width float64) {
-	c := excelize.ToAlphaString(col)
+	c, _ := excelize.ColumnNumberToName(col)
 	s.xlsx.SetColWidth(s.name, c, c, width)
 }
 
@@ -215,7 +216,8 @@ func (s *Sheet) setColWidth(col int, width float64) {
 // axis transforms (2, 3) into "B3"
 //
 func axis(col, row int) string {
-	return excelize.ToAlphaString(col) + strconv.Itoa(row)
+	c, _ := excelize.ColumnNumberToName(col)
+	return c + strconv.Itoa(row)
 }
 
 //
