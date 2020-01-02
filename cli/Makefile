@@ -8,13 +8,14 @@ OSXBINARY=rapina-osx
 VERSION=`git describe --tags --always`
 BUILD_TIME=`date +%F`
 
+export GO111MODULE=on
+
 # Setup the -ldflags option for go build here, interpolate the variable values
 LDFLAGS=-ldflags "-w -s -X main.version=${VERSION} -X main.build=${BUILD_TIME}"
 
 .DEFAULT_GOAL: $(BINARY)
 
 $(BINARY): $(SOURCES) $(wildcard ../*.go) $(wildcard ../parsers/*.go) $(wildcard ../reports/*.go)
-	go get -v -d ../...
 	go build ${LDFLAGS} -o $(BINARY)
 
 win: $(SOURCES)
