@@ -1,5 +1,7 @@
 language: go
 
+env: GO111MODULE=on
+
 matrix:
   include:
     - go: 1.10.x
