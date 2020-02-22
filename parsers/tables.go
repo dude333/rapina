@@ -131,12 +131,12 @@ func wipeDB(db *sql.DB, dataType string) (err error) {
 }
 
 //
-// CreateIndexes to optimize queries
+// createIndexes to optimize queries
 // group 1: used for parsers.CodeAccounts
 // group 2: used for reports
 // group 3: all
 //
-func CreateIndexes(db *sql.DB, group int) (err error) {
+func createIndexes(db *sql.DB, group int) (err error) {
 	indexes := []string{
 		"CREATE INDEX IF NOT EXISTS dfp_code_accounts ON dfp (CD_CONTA, DS_CONTA);",
 		"CREATE INDEX IF NOT EXISTS dfp_code_accounts_ds ON dfp (DS_CONTA);",
@@ -168,9 +168,9 @@ func CreateIndexes(db *sql.DB, group int) (err error) {
 }
 
 //
-// DropIndexes created by createIndexes
+// dropIndexes created by createIndexes
 //
-func DropIndexes(db *sql.DB) (err error) {
+func dropIndexes(db *sql.DB) (err error) {
 	indexes := []string{
 		"DROP INDEX IF EXISTS dfp_code_accounts;",
 		"DROP INDEX IF EXISTS dfp_code_accounts_ds;",

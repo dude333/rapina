@@ -87,6 +87,11 @@ func CodeAccounts(db *sql.DB) (err error) {
 	}
 
 	// <== DFP TABLE ==>
+
+	// Tweak table indexes to optmize i/o
+	dropIndexes(db)
+	createIndexes(db, 1)
+
 	// Set code for every account based on 'accounts' list ======
 	for _, acc := range accounts {
 		// WHERE clause
@@ -108,6 +113,10 @@ func CodeAccounts(db *sql.DB) (err error) {
 			return errors.Wrap(err, "erro ao atualizar dados")
 		}
 	} // next acc
+
+	// Tweak table indexes to optmize i/o
+	dropIndexes(db)
+	createIndexes(db, 2)
 
 	return
 }

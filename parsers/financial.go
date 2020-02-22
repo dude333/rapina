@@ -64,6 +64,10 @@ func ImportCsv(db *sql.DB, dataType string, file string) (err error) {
 		return
 	}
 
+	// Remove indexes to speed up insertion
+	fmt.Println("[i] Apagando índices do bd para acelerarar processamento")
+	dropIndexes(db)
+
 	fmt.Print("[ ] Processando arquivo ", dataType)
 	err = populateTable(db, dataType, file)
 	if err == nil {
@@ -116,7 +120,6 @@ func populateTable(db *sql.DB, dataType, file string) (err error) {
 	insert := ""
 	var stmt, delStmt *sql.Stmt
 
-	// Create index to help on deletes
 	indexCnpjYear(db, true)
 
 	// Loop thru file, line by line
