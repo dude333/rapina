@@ -82,7 +82,9 @@ func ImportCsv(db *sql.DB, dataType string, file string) (err error) {
 //
 func populateTable(db *sql.DB, dataType, file string) (err error) {
 	progress := []string{"/", "-", "\\", "|", "-", "\\"}
+	progress2 := []string{".", "!", "|", "\\", "\"", "'", " "}
 	p := 0
+	p2 := 0
 
 	table, err := whatTable(dataType)
 	if err != nil {
@@ -114,6 +116,9 @@ func populateTable(db *sql.DB, dataType, file string) (err error) {
 	insert := ""
 	var stmt, delStmt *sql.Stmt
 
+	// Create index to help on deletes
+	indexCnpjYear(db, true)
+
 	// Loop thru file, line by line
 	for scanner.Scan() {
 		line := scanner.Text()
@@ -141,7 +146,7 @@ func populateTable(db *sql.DB, dataType, file string) (err error) {
 			_, ok1 := header["CNPJ_CIA"]
 			_, ok2 := header["DT_REFER"]
 			if ok1 && ok2 {
-				delete := fmt.Sprintf(`DELETE FROM %s WHERE CNPJ_CIA = ? AND strftime('%%Y', DT_REFER, 'unixepoch') = ?`, table)
+				delete := fmt.Sprintf(`DELETE FROM %s WHERE CNPJ_CIA = ? AND (DT_REFER >= ? AND DT_REFER <= ?)`, table)
 				delStmt, err = tx.Prepare(delete)
 				if err != nil {
 					err = errors.Wrapf(err, "erro ao preparar delete")
@@ -160,7 +165,12 @@ func populateTable(db *sql.DB, dataType, file string) (err error) {
 				year := fields[header["DT_REFER"]][:4]
 				if _, ok := deleteTable[cnpj+year]; !ok {
 					deleteTable[cnpj+year] = true
-					delStmt.Exec(cnpj, year)
+					a, b, err := yearRange(year)
+					if err == nil {
+						fmt.Printf("\r[%s", progress2[p2%7])
+						p2++
+						delStmt.Exec(cnpj, a, b)
+					}
 				}
 
 				// INSERT

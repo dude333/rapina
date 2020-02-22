@@ -188,3 +188,23 @@ func DropIndexes(db *sql.DB) (err error) {
 
 	return nil
 }
+
+//
+// indexCnpjYear creates an index for CNPJ/DATE.
+// flag: TRUE creates index, FALSE deletes it.
+//
+func indexCnpjYear(db *sql.DB, flag bool) error {
+	idx := ""
+	if flag {
+		idx = "CREATE INDEX IF NOT EXISTS dfp_cnpj_date ON dfp (CNPJ_CIA, DT_REFER);"
+	} else {
+		idx = "DROP INDEX IF EXISTS dfp_cnpj;"
+	}
+
+	_, err := db.Exec(idx)
+	if err != nil {
+		return errors.Wrap(err, "erro ao apagar índice")
+	}
+
+	return nil
+}
