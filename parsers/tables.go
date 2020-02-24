@@ -7,13 +7,15 @@ import (
 	"github.com/pkg/errors"
 )
 
-const currentDbVersion = 3
+const currentDbVersion = 202002241248
 
 var createTableMap = map[string]string{
 	"dfp": `CREATE TABLE IF NOT EXISTS dfp
 	(
 		"ID" PRIMARY KEY,
 		"CODE" integer,
+		"DATA_TYPE" varchar(6),
+		"YEAR" integer,
 
 		"CNPJ_CIA" varchar(20),
 		"DT_REFER" integer,
@@ -83,6 +85,11 @@ func createTable(db *sql.DB, dataType string) (err error) {
 	_, err = db.Exec(createTableMap[table])
 	if err != nil {
 		return errors.Wrap(err, "erro ao criar tabela "+table)
+	}
+
+	err = createIndex(db, table)
+	if err != nil {
+		return errors.Wrap(err, "erro ao criar índice para table "+table)
 	}
 
 	if dataType != "STATUS" {
@@ -204,6 +211,18 @@ func indexCnpjYear(db *sql.DB, flag bool) error {
 	_, err := db.Exec(idx)
 	if err != nil {
 		return errors.Wrap(err, "erro ao apagar índice")
+	}
+
+	return nil
+}
+
+func createIndex(db *sql.DB, table string) error {
+	if table == "dfp" {
+		idx := "CREATE INDEX IF NOT EXISTS dfp_cnpj_date ON dfp (CNPJ_CIA, DT_REFER);"
+		_, err := db.Exec(idx)
+		if err != nil {
+			return errors.Wrap(err, idx)
+		}
 	}
 
 	return nil

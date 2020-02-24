@@ -64,15 +64,6 @@ OUTER:
 		}
 	}
 
-	fmt.Print("\n[ ] Inserindo código das contas")
-	err = parsers.CodeAccounts(db)
-	if err == nil {
-		fmt.Print("\r[√")
-	} else {
-		fmt.Print("\r[x")
-	}
-	fmt.Println()
-
 	return
 }
 

@@ -10,6 +10,7 @@ import (
 	"hash/fnv"
 	"log"
 	"os"
+	"strconv"
 	"strings"
 	"time"
 	"unicode"
@@ -48,7 +49,7 @@ func ImportCsv(db *sql.DB, dataType string, file string) (err error) {
 	for _, t := range []string{dataType, "MD5"} {
 		if v, table := dbVersion(db, t); v != currentDbVersion {
 			if v > 0 {
-				fmt.Printf("[i] Apagando table %s versão %d (versão atual: %d)\n", table, v, currentDbVersion)
+				fmt.Printf("[i] Apagando tabela %s versão %d (versão atual: %d)\n", table, v, currentDbVersion)
 			}
 			wipeDB(db, t)
 		}
@@ -65,8 +66,8 @@ func ImportCsv(db *sql.DB, dataType string, file string) (err error) {
 	}
 
 	// Remove indexes to speed up insertion
-	fmt.Println("[i] Apagando índices do bd para acelerarar processamento")
-	dropIndexes(db)
+	// fmt.Println("[i] Apagando índices do bd para acelerarar processamento")
+	// dropIndexes(db)
 
 	fmt.Print("[ ] Processando arquivo ", dataType)
 	err = populateTable(db, dataType, file)
@@ -120,8 +121,6 @@ func populateTable(db *sql.DB, dataType, file string) (err error) {
 	insert := ""
 	var stmt, delStmt *sql.Stmt
 
-	indexCnpjYear(db, true)
-
 	// Loop thru file, line by line
 	for scanner.Scan() {
 		line := scanner.Text()
@@ -136,8 +135,8 @@ func populateTable(db *sql.DB, dataType, file string) (err error) {
 				header[h] = i
 			}
 			// Prepare insert statement
-			insert = fmt.Sprintf(`INSERT OR IGNORE INTO %s (ID,CODE,%s) VALUES (?,?%s);`,
-				table, strings.Join(fields, ","), strings.Repeat(",?", len(fields)))
+			insert = fmt.Sprintf(`INSERT OR IGNORE INTO %s (ID,CODE,DATA_TYPE,YEAR,%s) VALUES (?,?,"%s",?%s);`,
+				table, strings.Join(fields, ","), dataType, strings.Repeat(",?", len(fields)))
 			stmt, err = tx.Prepare(insert)
 			if err != nil {
 				err = errors.Wrapf(err, "erro ao preparar insert (verificar cabeçalho do arquivo %s)", file)
@@ -146,18 +145,14 @@ func populateTable(db *sql.DB, dataType, file string) (err error) {
 			defer stmt.Close()
 
 			// Prepare delete statement (to avoid duplicated data in case of updated data from CVM)
-			_, ok1 := header["CNPJ_CIA"]
-			_, ok2 := header["DT_REFER"]
-			if ok1 && ok2 {
-				delete := fmt.Sprintf(`DELETE FROM %s WHERE CNPJ_CIA = ? AND (DT_REFER >= ? AND DT_REFER <= ?)`, table)
-				delStmt, err = tx.Prepare(delete)
-				if err != nil {
-					err = errors.Wrapf(err, "erro ao preparar delete")
-					return
-				}
-				defer delStmt.Close()
+			delete := fmt.Sprintf(`DELETE FROM %s WHERE CNPJ_CIA = ? AND DATA_TYPE = "%s" AND YEAR = ?;`,
+				table, dataType)
+			delStmt, err = tx.Prepare(delete)
+			if err != nil {
+				err = errors.Wrapf(err, "erro ao preparar delete")
+				return
 			}
-
+			defer delStmt.Close()
 		} else { // VALUES
 
 			if len(header) != len(fields) {
@@ -166,20 +161,19 @@ func populateTable(db *sql.DB, dataType, file string) (err error) {
 				// DELETE
 				cnpj := fields[header["CNPJ_CIA"]]
 				year := fields[header["DT_REFER"]][:4]
-				if _, ok := deleteTable[cnpj+year]; !ok {
-					deleteTable[cnpj+year] = true
-					a, b, err := yearRange(year)
+				if _, ok := deleteTable[cnpj+dataType+year]; !ok {
+					deleteTable[cnpj+dataType+year] = true
+					y, err := strconv.Atoi(year)
 					if err == nil {
 						fmt.Printf("\r[%s", progress2[p2%7])
 						p2++
-						delStmt.Exec(cnpj, a, b)
+						delStmt.Exec(cnpj, y)
 					}
 				}
 
 				// INSERT
 				hash := GetHash(line)
-				code := GetHash(fields[header["CD_CONTA"]] + fields[header["DS_CONTA"]])
-				f, err := prepareFields(header, hash, code, fields)
+				f, err := prepareFields(hash, header, fields)
 				_, err = stmt.Exec(f...)
 				if err != nil {
 					log.Fatal(err)
@@ -208,10 +202,13 @@ func populateTable(db *sql.DB, dataType, file string) (err error) {
 }
 
 //
-// prepareFields changes date from 'YYYY-MM-DD' to Unix epoch
-// To convert back on sqlite: strftime('%Y-%m-%d', DT_REFER, 'unixepoch')
+// prepareFields changes dates from 'YYYY-MM-DD' to Unix epoch, set the code
+// based on CD_CONTA and DS_CONTA, and set the DATA_TYPE with current time.
+// Returns: ID, CODE, DATA_TYPE, <fields from file following header order>.
 //
-func prepareFields(header map[string]int, hash, code uint32, fields []string) (f []interface{}, err error) {
+// To convert date on sqlite: strftime('%Y-%m-%d', DT_REFER, 'unixepoch')
+//
+func prepareFields(hash uint32, header map[string]int, fields []string) (f []interface{}, err error) {
 	list := []string{"DT_REFER", "DT_INI_EXERC", "DT_FIM_EXERC"}
 	layout := "2006-01-02"
 
@@ -227,11 +224,18 @@ func prepareFields(header map[string]int, hash, code uint32, fields []string) (f
 		}
 	}
 
-	f = make([]interface{}, len(fields)+2)
-	f[0] = hash
-	f[1] = code
+	year, err := strconv.Atoi(fields[header["DT_REFER"]][:4])
+	if err != nil {
+		errors.Wrapf(err, "registro com ano errado (%s)", fields[header["DT_REFER"]][:4])
+		return
+	}
+
+	f = make([]interface{}, len(fields)+3)
+	f[0] = hash                                                             // ID
+	f[1] = acctCode(fields[header["CD_CONTA"]], fields[header["DS_CONTA"]]) // CODE
+	f[2] = year
 	for i, v := range fields {
-		f[i+2] = v
+		f[i+3] = v
 	}
 
 	return
