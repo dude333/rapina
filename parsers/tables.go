@@ -7,15 +7,15 @@ import (
 	"github.com/pkg/errors"
 )
 
-const currentDbVersion = 202002241248
+const currentDbVersion = 20022423
 
 var createTableMap = map[string]string{
 	"dfp": `CREATE TABLE IF NOT EXISTS dfp
 	(
 		"ID" PRIMARY KEY,
 		"CODE" integer,
-		"DATA_TYPE" varchar(6),
-		"YEAR" integer,
+		"YEAR" string,
+		"DATA_TYPE" string,
 
 		"CNPJ_CIA" varchar(20),
 		"DT_REFER" integer,
@@ -138,12 +138,12 @@ func wipeDB(db *sql.DB, dataType string) (err error) {
 }
 
 //
-// createIndexes to optimize queries
+// CreateIndexes to optimize queries
 // group 1: used for parsers.CodeAccounts
 // group 2: used for reports
 // group 3: all
 //
-func createIndexes(db *sql.DB, group int) (err error) {
+func CreateIndexes(db *sql.DB, group int) (err error) {
 	indexes := []string{
 		"CREATE INDEX IF NOT EXISTS dfp_code_accounts ON dfp (CD_CONTA, DS_CONTA);",
 		"CREATE INDEX IF NOT EXISTS dfp_code_accounts_ds ON dfp (DS_CONTA);",
@@ -175,9 +175,9 @@ func createIndexes(db *sql.DB, group int) (err error) {
 }
 
 //
-// dropIndexes created by createIndexes
+// DropIndexes created by CreateIndexes
 //
-func dropIndexes(db *sql.DB) (err error) {
+func DropIndexes(db *sql.DB) (err error) {
 	indexes := []string{
 		"DROP INDEX IF EXISTS dfp_code_accounts;",
 		"DROP INDEX IF EXISTS dfp_code_accounts_ds;",
@@ -197,20 +197,19 @@ func dropIndexes(db *sql.DB) (err error) {
 }
 
 //
-// indexCnpjYear creates an index for CNPJ/DATE.
-// flag: TRUE creates index, FALSE deletes it.
+// OptimizeReport creates an index for optimize Report.
 //
-func indexCnpjYear(db *sql.DB, flag bool) error {
-	idx := ""
-	if flag {
-		idx = "CREATE INDEX IF NOT EXISTS dfp_cnpj_date ON dfp (CNPJ_CIA, DT_REFER);"
-	} else {
-		idx = "DROP INDEX IF EXISTS dfp_cnpj;"
+func OptimizeReport(db *sql.DB) error {
+	indexes := []string{
+		"CREATE INDEX IF NOT EXISTS dfp_metrics ON dfp (CODE, DENOM_CIA, ORDEM_EXERC, DT_REFER, VL_CONTA);",
+		"CREATE INDEX IF NOT EXISTS dfp_cnpj ON dfp (CNPJ_CIA, DENOM_CIA);",
 	}
 
-	_, err := db.Exec(idx)
-	if err != nil {
-		return errors.Wrap(err, "erro ao apagar índice")
+	for _, idx := range indexes {
+		_, err := db.Exec(idx)
+		if err != nil {
+			return errors.Wrap(err, "erro ao criar índice")
+		}
 	}
 
 	return nil
@@ -218,12 +217,11 @@ func indexCnpjYear(db *sql.DB, flag bool) error {
 
 func createIndex(db *sql.DB, table string) error {
 	if table == "dfp" {
-		idx := "CREATE INDEX IF NOT EXISTS dfp_cnpj_date ON dfp (CNPJ_CIA, DT_REFER);"
+		idx := "CREATE INDEX IF NOT EXISTS dfp_year ON dfp (YEAR, DATA_TYPE);"
 		_, err := db.Exec(idx)
 		if err != nil {
-			return errors.Wrap(err, idx)
+			return errors.Wrap(err, "erro ao criar índice")
 		}
 	}
-
 	return nil
 }

@@ -43,6 +43,9 @@ func Report(db *sql.DB, _company string, filename, yamlFile string) (err error) 
 		yamlFile: yamlFile,
 	}
 
+	// Create DB indexes
+	p.OptimizeReport(db)
+
 	cnpj := cnpj(db, _company)
 	if cnpj == "" {
 		return fmt.Errorf("empresa '%s' não encontrada no banco de dados", _company)

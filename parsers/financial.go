@@ -8,9 +8,7 @@ import (
 	"database/sql"
 	"fmt"
 	"hash/fnv"
-	"log"
 	"os"
-	"strconv"
 	"strings"
 	"time"
 	"unicode"
@@ -69,7 +67,6 @@ func ImportCsv(db *sql.DB, dataType string, file string) (err error) {
 	// fmt.Println("[i] Apagando índices do bd para acelerarar processamento")
 	// dropIndexes(db)
 
-	fmt.Print("[ ] Processando arquivo ", dataType)
 	err = populateTable(db, dataType, file)
 	if err == nil {
 		fmt.Print("\r[√")
@@ -87,9 +84,7 @@ func ImportCsv(db *sql.DB, dataType string, file string) (err error) {
 //
 func populateTable(db *sql.DB, dataType, file string) (err error) {
 	progress := []string{"/", "-", "\\", "|", "-", "\\"}
-	progress2 := []string{".", "!", "|", "\\", "\"", "'", " "}
 	p := 0
-	p2 := 0
 
 	table, err := whatTable(dataType)
 	if err != nil {
@@ -122,6 +117,7 @@ func populateTable(db *sql.DB, dataType, file string) (err error) {
 	var stmt, delStmt *sql.Stmt
 
 	// Loop thru file, line by line
+	fmt.Print("[ ] Processando arquivo ", dataType)
 	for scanner.Scan() {
 		line := scanner.Text()
 		if len(line) == 0 {
@@ -135,7 +131,7 @@ func populateTable(db *sql.DB, dataType, file string) (err error) {
 				header[h] = i
 			}
 			// Prepare insert statement
-			insert = fmt.Sprintf(`INSERT OR IGNORE INTO %s (ID,CODE,DATA_TYPE,YEAR,%s) VALUES (?,?,"%s",?%s);`,
+			insert = fmt.Sprintf(`INSERT OR IGNORE INTO %s (ID,CODE,YEAR,DATA_TYPE,%s) VALUES (?,?,?,"%s"%s);`,
 				table, strings.Join(fields, ","), dataType, strings.Repeat(",?", len(fields)))
 			stmt, err = tx.Prepare(insert)
 			if err != nil {
@@ -145,7 +141,7 @@ func populateTable(db *sql.DB, dataType, file string) (err error) {
 			defer stmt.Close()
 
 			// Prepare delete statement (to avoid duplicated data in case of updated data from CVM)
-			delete := fmt.Sprintf(`DELETE FROM %s WHERE CNPJ_CIA = ? AND DATA_TYPE = "%s" AND YEAR = ?;`,
+			delete := fmt.Sprintf(`DELETE FROM %s WHERE YEAR = ? AND DATA_TYPE = "%s";`,
 				table, dataType)
 			delStmt, err = tx.Prepare(delete)
 			if err != nil {
@@ -156,18 +152,21 @@ func populateTable(db *sql.DB, dataType, file string) (err error) {
 		} else { // VALUES
 
 			if len(header) != len(fields) {
-				fmt.Fprintf(os.Stderr, "[x] Linha com %d campos ao invés de %d\n", len(fields), len(header))
+				fmt.Fprintf(os.Stderr, "\r[x] Linha com %d campos ao invés de %d\n", len(fields), len(header))
+				fmt.Print("[ ] Processando arquivo ", dataType)
 			} else {
 				// DELETE
-				cnpj := fields[header["CNPJ_CIA"]]
 				year := fields[header["DT_REFER"]][:4]
-				if _, ok := deleteTable[cnpj+dataType+year]; !ok {
-					deleteTable[cnpj+dataType+year] = true
-					y, err := strconv.Atoi(year)
-					if err == nil {
-						fmt.Printf("\r[%s", progress2[p2%7])
-						p2++
-						delStmt.Exec(cnpj, y)
+				if _, ok := deleteTable[year+dataType]; !ok {
+					deleteTable[year+dataType] = true
+					res, err := delStmt.Exec(year)
+					if err != nil {
+						return errors.Wrap(err, "falha ao apagar registro")
+					}
+					count, err := res.RowsAffected()
+					if err == nil && count > 0 {
+						fmt.Printf("\n[%d] registros de %s apagados para evitar duplicidade\n", count, year)
+						fmt.Print("[ ] Processando arquivo ", dataType)
 					}
 				}
 
@@ -176,7 +175,7 @@ func populateTable(db *sql.DB, dataType, file string) (err error) {
 				f, err := prepareFields(hash, header, fields)
 				_, err = stmt.Exec(f...)
 				if err != nil {
-					log.Fatal(err)
+					return errors.Wrap(err, "falha ao inserir registro")
 				}
 			}
 		}
@@ -209,6 +208,7 @@ func populateTable(db *sql.DB, dataType, file string) (err error) {
 // To convert date on sqlite: strftime('%Y-%m-%d', DT_REFER, 'unixepoch')
 //
 func prepareFields(hash uint32, header map[string]int, fields []string) (f []interface{}, err error) {
+	year := fields[header["DT_REFER"]][:4]
 	list := []string{"DT_REFER", "DT_INI_EXERC", "DT_FIM_EXERC"}
 	layout := "2006-01-02"
 
@@ -224,16 +224,10 @@ func prepareFields(hash uint32, header map[string]int, fields []string) (f []int
 		}
 	}
 
-	year, err := strconv.Atoi(fields[header["DT_REFER"]][:4])
-	if err != nil {
-		errors.Wrapf(err, "registro com ano errado (%s)", fields[header["DT_REFER"]][:4])
-		return
-	}
-
 	f = make([]interface{}, len(fields)+3)
 	f[0] = hash                                                             // ID
 	f[1] = acctCode(fields[header["CD_CONTA"]], fields[header["DS_CONTA"]]) // CODE
-	f[2] = year
+	f[2] = year                                                             // YEAR
 	for i, v := range fields {
 		f[i+3] = v
 	}
