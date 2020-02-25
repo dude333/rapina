@@ -1,0 +1,42 @@
+#!/bin/sh
+
+# git config core.hooksPath .githooks
+
+echo "Running pre-commit checks at `pwd`"
+
+{
+  echo "go vet ./..."
+	go vet ./...
+} || {
+	exitStatus=$?
+
+	if [ $exitStatus ]; then
+		printf "\ngo vet issues found in your code, please fix them and try again."
+		exit 1
+	fi
+}
+
+{
+  echo "golint ./..."
+	golint ./...
+} || {
+	exitStatus=$?
+
+	if [ $exitStatus ]; then
+		printf "\nLint errors in your code, please fix them and try again."
+		exit 1
+	fi
+}
+
+{
+  echo "go test ./..."
+	go test ./...
+} || {
+	exitStatus=$?
+
+	if [ $exitStatus ]; then
+		printf "\nTest errors in your code, please fix them and try again."
+		exit 1
+	fi
+}
+
