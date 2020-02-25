@@ -31,7 +31,7 @@ import (
 	"time"
 
 	"github.com/dude333/rapina/parsers"
-	_ "github.com/mattn/go-sqlite3"
+	_ "github.com/mattn/go-sqlite3" // requires CGO_ENABLED=1 and gcc
 	"github.com/pkg/errors"
 )
 

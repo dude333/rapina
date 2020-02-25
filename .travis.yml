@@ -12,9 +12,7 @@ matrix:
     - go: tip
 
 before_script:
-  - go vet ./...
-  - diff -u <(echo -n) <(gofmt -d -s ..)
+  - go test -v ./...
   - cd cli
 script:
-  - go test -v ../...
   - make

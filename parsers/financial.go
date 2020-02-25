@@ -208,7 +208,17 @@ func populateTable(db *sql.DB, dataType, file string) (err error) {
 // To convert date on sqlite: strftime('%Y-%m-%d', DT_REFER, 'unixepoch')
 //
 func prepareFields(hash uint32, header map[string]int, fields []string) (f []interface{}, err error) {
-	year := fields[header["DT_REFER"]][:4]
+
+	v, ok := header["DT_REFER"]
+	if !ok {
+		return nil, fmt.Errorf("DT_REFER não encontrado")
+	}
+	year := fields[v]
+	if len(year) < 4 {
+		return nil, fmt.Errorf("DT_REFER incorreto: %v", year)
+	}
+	year = fields[v][:4]
+
 	list := []string{"DT_REFER", "DT_INI_EXERC", "DT_FIM_EXERC"}
 	layout := "2006-01-02"
 

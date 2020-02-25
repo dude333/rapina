@@ -109,26 +109,48 @@ func TestRemoveDiacritics(t *testing.T) {
 
 func TestPrepareFields(t *testing.T) {
 	list := []struct {
-		hash   uint32
-		header map[string]int
-		fields []string
+		hash        uint32
+		header      map[string]int
+		fields      []string
+		expectedErr bool
 	}{
 		{
 			5454,
-			map[string]int{"a": 1, "b": 2},
-			[]string{"x", "y", "z"},
+			map[string]int{"a": 0, "b": 1},
+			[]string{"a", "b"},
+			true,
+		},
+		{
+			393723,
+			map[string]int{"x": 0, "y": 1, "DT_REFER": 2},
+			[]string{"X", "Y", "2020-02-25"},
+			false,
+		},
+		{
+			393724,
+			map[string]int{"x": 0, "y": 2, "DT_REFER": 1},
+			[]string{"X", "2020-02-25", "Y"},
+			false,
+		},
+		{
+			393724,
+			map[string]int{"x": 0, "y": 2, "DT_REFER": 1},
+			[]string{"X", "202", "Y"},
+			true,
 		},
 	}
 
 	for _, l := range list {
 		f, err := prepareFields(l.hash, l.header, l.fields)
-		if err != nil {
-			t.Error("prepareFields returned error ", err)
+		if (err != nil) != l.expectedErr {
+			t.Errorf("prepareFields returned error %v instead of %v", err == nil, l.expectedErr)
 		}
 
-		ok := f[0] == l.hash
-		if !ok {
-			t.Error("field 0 error")
+		if err == nil {
+			ok := f[0] == l.hash
+			if !ok {
+				t.Error("field 0 error")
+			}
 		}
 	}
 }
