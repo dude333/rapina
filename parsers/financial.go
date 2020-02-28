@@ -202,6 +202,8 @@ func populateTable(db *sql.DB, dataType, file string) (err error) {
 		}
 	}
 
+	fmt.Print("\r[*")
+
 	// END TRANSACTION
 	err = tx.Commit()
 	if err != nil {
