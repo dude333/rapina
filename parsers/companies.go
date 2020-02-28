@@ -50,6 +50,9 @@ func saveCompanies(db *sql.DB, companies map[string]company) error {
 	return nil
 }
 
+//
+// updateCompanies inserts a new company to the map
+//
 func updateCompanies(companies map[string]company, cnpj, name string) {
 	if _, exists := companies[cnpj]; !exists {
 		companies[cnpj] = company{

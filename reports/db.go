@@ -3,6 +3,7 @@ package reports
 import (
 	"database/sql"
 	"fmt"
+	"strconv"
 	"strings"
 	"time"
 
@@ -20,19 +21,19 @@ type accItems struct {
 // accountsItems returns all accounts codes and descriptions, e.g.:
 // [1 Ativo Total, 1.01 Ativo Circulante, ...]
 //
-func (r report) accountsItems(cnpj string) (items []accItems, err error) {
+func (r report) accountsItems(cid int) (items []accItems, err error) {
 	selectItems := fmt.Sprintf(`
 	SELECT DISTINCT
 		CODE, CD_CONTA, DS_CONTA
 	FROM
 		dfp
 	WHERE
-		CNPJ_CIA = "%s"
+		ID_CIA = "%d"
 		AND ORDEM_EXERC LIKE "_LTIMO"
 
 	ORDER BY
 		CD_CONTA, DS_CONTA
-	;`, cnpj)
+	;`, cid)
 
 	rows, err := r.db.Query(selectItems)
 	if err != nil {
@@ -64,7 +65,7 @@ type account struct {
 // accountsValues stores the values for each account into a map using a hash
 // of the account code and description as its key
 //
-func (r report) accountsValues(cnpj string, year int, penult bool) (values map[uint32]float32, err error) {
+func (r report) accountsValues(cid, year int, penult bool) (values map[uint32]float32, err error) {
 
 	period := "_LTIMO"
 	if penult {
@@ -84,18 +85,20 @@ func (r report) accountsValues(cnpj string, year int, penult bool) (values map[u
 
 	selectReport := fmt.Sprintf(`
 	SELECT
-		CODE,
-		DENOM_CIA,
-		ORDEM_EXERC,
-		DT_REFER,
-		VL_CONTA
+		dfp.CODE,
+		companies.NAME,
+		dfp.ORDEM_EXERC,
+		dfp.DT_REFER,
+		dfp.VL_CONTA
 	FROM
 		dfp
+	JOIN
+		companies ON dfp.ID_CIA=companies.ID
 	WHERE
-		CNPJ_CIA = "%s"
+		ID_CIA = "%d"
 		AND ORDEM_EXERC LIKE "%s"
 		AND DT_REFER >= %v AND DT_REFER < %v
-	;`, cnpj, period, t[0].Unix(), t[1].Unix())
+	;`, cid, period, t[0].Unix(), t[1].Unix())
 
 	values = make(map[uint32]float32)
 	st := account{}
@@ -159,9 +162,11 @@ func (r report) accountsAverage(company string, year int, penult bool) (values m
 		}
 	}
 
-	cnpjs := make([]string, len(companies))
+	cids := make([]string, len(companies))
 	for i, co := range companies {
-		cnpjs[i] = cnpj(r.db, co)
+		if id, err := cid(r.db, co); err == nil {
+			cids[i] = strconv.Itoa(id)
+		}
 	}
 
 	selectReport := fmt.Sprintf(`
@@ -172,12 +177,12 @@ func (r report) accountsAverage(company string, year int, penult bool) (values m
 	FROM
 		dfp
 	WHERE
-		CNPJ_CIA IN ("%s")
+		ID_CIA IN ("%s")
 		AND ORDEM_EXERC LIKE "%s"
 		AND DT_REFER >= %v AND DT_REFER < %v
 	GROUP BY
 		CODE, ORDEM_EXERC;
-	`, strings.Join(cnpjs, "\", \""), period, t[0].Unix(), t[1].Unix())
+	`, strings.Join(cids, "\", \""), period, t[0].Unix(), t[1].Unix())
 
 	values = make(map[uint32]float32)
 	st := account{}
@@ -240,10 +245,9 @@ type CompanyInfo struct {
 func companies(db *sql.DB) (list []CompanyInfo, err error) {
 
 	selectCompanies := `
-		SELECT DISTINCT MIN(DENOM_CIA), CNPJ_CIA
-		FROM dfp
-		GROUP BY CNPJ_CIA
-		ORDER BY DENOM_CIA;`
+		SELECT NAME, CNPJ
+		FROM companies
+		ORDER BY NAME;`
 
 	rows, err := db.Query(selectCompanies)
 	if err != nil {
@@ -262,16 +266,16 @@ func companies(db *sql.DB) (list []CompanyInfo, err error) {
 }
 
 //
-// cnpj returns the company CNPJ
+// cid returns the company ID
 //
-func cnpj(db *sql.DB, company string) string {
-	selectCNPJ := fmt.Sprintf(`SELECT DISTINCT CNPJ_CIA FROM dfp WHERE DENOM_CIA LIKE "%s%%"`, company)
-	var cnpj string
-	err := db.QueryRow(selectCNPJ).Scan(&cnpj)
+func cid(db *sql.DB, company string) (int, error) {
+	selectID := fmt.Sprintf(`SELECT DISTINCT ID FROM companies WHERE NAME LIKE "%s%%"`, company)
+	var cid int
+	err := db.QueryRow(selectID).Scan(&cid)
 	if err != nil {
-		return ""
+		return 0, err
 	}
-	return cnpj
+	return cid, nil
 }
 
 //
@@ -279,12 +283,12 @@ func cnpj(db *sql.DB, company string) string {
 //
 func (r report) isCompany(company string) bool {
 	selectCompany := fmt.Sprintf(`
-	SELECT DISTINCT
-		DENOM_CIA
+	SELECT
+		NAME
 	FROM
-		dfp
+		companies
 	WHERE
-		DENOM_CIA LIKE "%s%%";`, company)
+		NAME LIKE "%s%%";`, company)
 
 	var c string
 	err := r.db.QueryRow(selectCompany).Scan(&c)
@@ -364,13 +368,15 @@ func companyProfits(db *sql.DB, company string) (profits []profit, err error) {
 		VL_CONTA
 	FROM
 		dfp
+	JOIN
+		companies ON dfp.ID_CIA = companies.ID
 	WHERE
-		DENOM_CIA LIKE "%s%%"
+		NAME LIKE "%s%%"
 		AND CODE = %d
 		AND (ORDEM_EXERC LIKE "_LTIMO"
 			OR (
 				ORDEM_EXERC LIKE "PEN_LTIMO"
-				AND DT_REFER = (SELECT MIN(DT_REFER) FROM dfp WHERE DENOM_CIA LIKE "%s%%")
+				AND DT_REFER = (SELECT MIN(DT_REFER) FROM dfp WHERE NAME LIKE "%s%%")
 			)
 		)
 	ORDER BY

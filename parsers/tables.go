@@ -7,21 +7,19 @@ import (
 	"github.com/pkg/errors"
 )
 
-const currentDbVersion = 20022423
+const currentDbVersion = 200202291
 
 var createTableMap = map[string]string{
 	"dfp": `CREATE TABLE IF NOT EXISTS dfp
 	(
 		"ID" PRIMARY KEY,
+		"ID_CIA" integer,
 		"CODE" integer,
 		"YEAR" string,
 		"DATA_TYPE" string,
 
-		"CNPJ_CIA" varchar(20),
 		"DT_REFER" integer,
 		"VERSAO" integer,
-		"DENOM_CIA" varchar(100),
-		"CD_CVM" integer,
 		"GRUPO_DFP" varchar(206),
 		"MOEDA" varchar(4),
 		"ESCALA_MOEDA" varchar(7),
@@ -147,43 +145,6 @@ func wipeDB(db *sql.DB, dataType string) (err error) {
 }
 
 //
-// CreateIndexes to optimize queries
-// group 1: used for parsers.CodeAccounts
-// group 2: used for reports
-// group 3: all
-//
-func CreateIndexes(db *sql.DB, group int) (err error) {
-	indexes := []string{
-		"CREATE INDEX IF NOT EXISTS dfp_code_accounts ON dfp (CD_CONTA, DS_CONTA);",
-		"CREATE INDEX IF NOT EXISTS dfp_code_accounts_ds ON dfp (DS_CONTA);",
-		"CREATE INDEX IF NOT EXISTS dfp_metrics ON dfp (CODE, DENOM_CIA, ORDEM_EXERC, DT_REFER, VL_CONTA);",
-		"CREATE INDEX IF NOT EXISTS dfp_date ON dfp (DT_REFER, DENOM_CIA);",
-		"CREATE INDEX IF NOT EXISTS dfp_cnpj ON dfp (CNPJ_CIA, DENOM_CIA);",
-	}
-
-	groups := [3][2]int{
-		{0, 1},
-		{2, 4},
-		{0, 4},
-	}
-
-	if group < 1 || group > len(groups) {
-		group = 2
-	} else {
-		group--
-	}
-
-	for i := groups[group][0]; i <= groups[group][1]; i++ {
-		_, err = db.Exec(indexes[i])
-		if err != nil {
-			return errors.Wrap(err, "erro ao criar índice")
-		}
-	}
-
-	return nil
-}
-
-//
 // DropIndexes created by CreateIndexes
 //
 func DropIndexes(db *sql.DB) (err error) {
@@ -210,8 +171,7 @@ func DropIndexes(db *sql.DB) (err error) {
 //
 func OptimizeReport(db *sql.DB) error {
 	indexes := []string{
-		"CREATE INDEX IF NOT EXISTS dfp_metrics ON dfp (CODE, DENOM_CIA, ORDEM_EXERC, DT_REFER, VL_CONTA);",
-		"CREATE INDEX IF NOT EXISTS dfp_cnpj ON dfp (CNPJ_CIA, DENOM_CIA);",
+		"CREATE INDEX IF NOT EXISTS dfp_metrics ON dfp (CODE, ID_CIA, ORDEM_EXERC, DT_REFER, VL_CONTA);",
 	}
 
 	for _, idx := range indexes {

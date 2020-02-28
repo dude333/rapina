@@ -7,29 +7,14 @@ import (
 	"bufio"
 	"database/sql"
 	"fmt"
-	"hash/fnv"
 	"os"
 	"strings"
 	"time"
-	"unicode"
 
 	"github.com/pkg/errors"
 	"golang.org/x/text/encoding/charmap"
 	"golang.org/x/text/transform"
-	"golang.org/x/text/unicode/norm"
 )
-
-var fnvHash = fnv.New32a()
-
-//
-// GetHash returns the FNV-1 non-cryptographic hash
-//
-func GetHash(s string) uint32 {
-	fnvHash.Write([]byte(s))
-	defer fnvHash.Reset()
-
-	return fnvHash.Sum32()
-}
 
 //
 // ImportCsv start the data import process, including the database creation
@@ -138,8 +123,19 @@ func populateTable(db *sql.DB, dataType, file string) (err error) {
 				header[h] = i
 			}
 			// Prepare insert statement
-			insert = fmt.Sprintf(`INSERT OR IGNORE INTO %s (ID,CODE,YEAR,DATA_TYPE,%s) VALUES (?,?,?,"%s"%s);`,
-				table, strings.Join(fields, ","), dataType, strings.Repeat(",?", len(fields)))
+			insert = fmt.Sprintf(`INSERT OR IGNORE INTO %s (
+				ID, ID_CIA, CODE, YEAR, DATA_TYPE,
+				DT_REFER, VERSAO, GRUPO_DFP, 
+				MOEDA, ESCALA_MOEDA, ESCALA_DRE,
+				ORDEM_EXERC, DT_INI_EXERC, DT_FIM_EXERC,
+				CD_CONTA, DS_CONTA, VL_CONTA
+			) VALUES (
+				?, ?, ?, ?, "%s",
+				?, ?, ?,
+				?, ?, ?,
+				?, ?, ?,
+				?, ?, ?
+				);`, table, dataType)
 			stmt, err = tx.Prepare(insert)
 			if err != nil {
 				err = errors.Wrapf(err, "erro ao preparar insert (verificar cabeçalho do arquivo %s)", file)
@@ -158,12 +154,14 @@ func populateTable(db *sql.DB, dataType, file string) (err error) {
 			defer delStmt.Close()
 		} else { // VALUES
 
-			if len(header) != len(fields) {
-				fmt.Fprintf(os.Stderr, "\r[x] Linha com %d campos ao invés de %d\n", len(fields), len(header))
-				fmt.Print("[ ] Processando arquivo ", dataType)
-			} else {
-				// DELETE
-				year := fields[header["DT_REFER"]][:4]
+			if len(fields) <= 12 {
+				continue
+			}
+
+			// DELETE
+			v, ok := header["DT_REFER"]
+			if ok && len(fields[v]) >= 4 {
+				year := fields[v][:4]
 				if _, ok := deleteTable[year+dataType]; !ok {
 					deleteTable[year+dataType] = true
 					res, err := delStmt.Exec(year)
@@ -176,21 +174,24 @@ func populateTable(db *sql.DB, dataType, file string) (err error) {
 						fmt.Print("[ ] Processando arquivo ", dataType)
 					}
 				}
+			}
 
-				// UPDATE COMPANIES
-				n1, ok1 := header["CNPJ_CIA"]
-				n2, ok2 := header["DENOM_CIA"]
-				if ok1 && ok2 && n1 >= 0 && n1 < len(fields) && n2 >= 0 && n2 < len(fields) {
-					updateCompanies(companies, fields[header["CNPJ_CIA"]], fields[header["DENOM_CIA"]])
-				}
+			// UPDATE COMPANIES
+			n1, ok1 := header["CNPJ_CIA"]
+			n2, ok2 := header["DENOM_CIA"]
+			if ok1 && ok2 && n1 >= 0 && n1 < len(fields) && n2 >= 0 && n2 < len(fields) {
+				updateCompanies(companies, fields[header["CNPJ_CIA"]], fields[header["DENOM_CIA"]])
+			}
 
-				// INSERT
-				hash := GetHash(line)
-				f, err := prepareFields(hash, header, fields)
-				_, err = stmt.Exec(f...)
-				if err != nil {
-					return errors.Wrap(err, "falha ao inserir registro")
-				}
+			// INSERT
+			hash := GetHash(line)
+			f, err := prepareFields(hash, header, fields, companies)
+			if err != nil {
+				return errors.Wrap(err, "falha ao preparar registro")
+			}
+			_, err = stmt.Exec(f...)
+			if err != nil {
+				return errors.Wrap(err, "falha ao inserir registro")
 			}
 		}
 
@@ -217,60 +218,77 @@ func populateTable(db *sql.DB, dataType, file string) (err error) {
 }
 
 //
-// prepareFields changes dates from 'YYYY-MM-DD' to Unix epoch, set the code
-// based on CD_CONTA and DS_CONTA, and set the DATA_TYPE with current time.
-// Returns: ID, CODE, DATA_TYPE, <fields from file following header order>.
+// prepareFields prepares all fields (columns) to be inserted on the DB.
 //
-// To convert date on sqlite: strftime('%Y-%m-%d', DT_REFER, 'unixepoch')
+// Returns:
+// ID, ID_CIA, CODE, YEAR,
+// DT_REFER, VERSAO, GRUPO_DFP,
+// MOEDA, ESCALA_MOEDA, ESCALA_DRE,
+// ORDEM_EXERC, DT_INI_EXERC, DT_FIM_EXERC,
+// CD_CONTA, DS_CONTA, VL_CONTA
 //
-func prepareFields(hash uint32, header map[string]int, fields []string) (f []interface{}, err error) {
+// Tip: to convert Unix timestamp to date on sqlite: strftime('%Y-%m-%d', DT_REFER, 'unixepoch')
+//
+func prepareFields(hash uint32, header map[string]int, fields []string, companies map[string]company) ([]interface{}, error) {
+	// AUX FUNCTIONS
+	val := func(key string) string {
+		v, ok := header[key]
+		if !ok {
+			return ""
+		}
+		return fields[v]
+	}
 
+	// Convert date string (YYYY-MM-DD) into Unix timestamp
+	tim := func(key string) int64 {
+		v, ok := header[key]
+		if !ok {
+			return 0
+		}
+		t, err := time.Parse("2006-01-02", fields[v])
+		if err != nil {
+			return 0
+		}
+		return t.Unix()
+	}
+
+	// REFERENCE DATE
 	v, ok := header["DT_REFER"]
 	if !ok {
 		return nil, fmt.Errorf("DT_REFER não encontrado")
 	}
-	year := fields[v]
-	if len(year) < 4 {
-		return nil, fmt.Errorf("DT_REFER incorreto: %v", year)
+	if len(fields[v]) < 4 || tim("DT_REFER") == 0 {
+		return nil, fmt.Errorf("DT_REFER incorreto: %v", fields[v])
 	}
-	year = fields[v][:4]
+	year := fields[v][:4]
 
-	list := []string{"DT_REFER", "DT_INI_EXERC", "DT_FIM_EXERC"}
-	layout := "2006-01-02"
-
-	for _, dt := range list {
-		if i, ok := header[dt]; ok {
-			var t time.Time
-			t, err = time.Parse(layout, fields[i])
-			if err != nil {
-				err = errors.Wrap(err, "data invalida "+fields[i])
-				return
-			}
-			fields[i] = fmt.Sprintf("%v", t.Unix())
-		}
+	// CNPJ_CIA and DENOM_CIA are replaced by company id
+	cnpj := fields[header["CNPJ_CIA"]]
+	c, ok := companies[cnpj]
+	if !ok {
+		return nil, fmt.Errorf("CNPJ %s não encontrado", cnpj)
 	}
+	companyID := c.id
 
-	f = make([]interface{}, len(fields)+3)
-	f[0] = hash                                                             // ID
-	f[1] = acctCode(fields[header["CD_CONTA"]], fields[header["DS_CONTA"]]) // CODE
-	f[2] = year                                                             // YEAR
-	for i, v := range fields {
-		f[i+3] = v
-	}
+	// Output
+	var f []interface{}
+	f = append(f, hash)                                                             // ID
+	f = append(f, companyID)                                                        // ID_CIA
+	f = append(f, acctCode(fields[header["CD_CONTA"]], fields[header["DS_CONTA"]])) // CODE
+	f = append(f, year)                                                             // YEAR
 
-	return
-}
+	f = append(f, tim("DT_REFER"))
+	f = append(f, val("VERSAO"))
+	f = append(f, val("GRUPO_DFP"))
+	f = append(f, val("MOEDA"))
+	f = append(f, val("ESCALA_MOEDA"))
+	f = append(f, val("ESCALA_DRE"))
+	f = append(f, val("ORDEM_EXERC"))
+	f = append(f, tim("DT_INI_EXERC"))
+	f = append(f, tim("DT_FIM_EXERC"))
+	f = append(f, val("CD_CONTA"))
+	f = append(f, val("DS_CONTA"))
+	f = append(f, val("VL_CONTA"))
 
-//
-// RemoveDiacritics transforms, for example, "žůžo" into "zuzo"
-//
-func RemoveDiacritics(original string) (result string) {
-	isMn := func(r rune) bool {
-		return unicode.Is(unicode.Mn, r) // Mn: nonspacing marks
-	}
-
-	t := transform.Chain(norm.NFD, transform.RemoveFunc(isMn), norm.NFC)
-	result, _, _ = transform.String(t, original)
-
-	return
+	return f, nil
 }

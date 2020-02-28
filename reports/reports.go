@@ -44,10 +44,13 @@ func Report(db *sql.DB, _company string, filename, yamlFile string) (err error) 
 	}
 
 	// Create DB indexes
-	p.OptimizeReport(db)
+	err = p.OptimizeReport(db)
+	if err != nil {
+		return fmt.Errorf("erro ao criar índices do BD (%v)", err)
+	}
 
-	cnpj := cnpj(db, _company)
-	if cnpj == "" {
+	cid, err := cid(db, _company)
+	if err != nil {
 		return fmt.Errorf("empresa '%s' não encontrada no banco de dados", _company)
 	}
 
@@ -66,7 +69,7 @@ func Report(db *sql.DB, _company string, filename, yamlFile string) (err error) 
 	// starting on row 2. Adjust space related to the group, e.g.:
 	// 3.02 ABC <== print in bold if base item and stores the row position in baseItems[]
 	//   3.02.01 ABC
-	accounts, _ := r.accountsItems(cnpj)
+	accounts, _ := r.accountsItems(cid)
 	row := 2
 	baseItems := make([]bool, len(accounts)+row)
 	for _, it := range accounts {
@@ -104,7 +107,7 @@ func Report(db *sql.DB, _company string, filename, yamlFile string) (err error) 
 			break
 		}
 
-		values, _ = r.accountsValues(cnpj, y, y == start)
+		values, _ = r.accountsValues(cid, y, y == start)
 
 		// Check if last year is empty
 		if y == end {
@@ -323,8 +326,8 @@ func (r *report) companySummary(sheet *Sheet, row, col *int, _company, sectorNam
 	// 	return true, nil
 	// }
 
-	cnpj := cnpj(r.db, _company)
-	if cnpj == "" {
+	cid, err := cid(r.db, _company)
+	if err != nil {
 		err = errors.Errorf("empresa '%s' não encontrada no banco de dados", _company)
 		return
 	}
@@ -389,7 +392,7 @@ func (r *report) companySummary(sheet *Sheet, row, col *int, _company, sectorNam
 			values, _ = r.accountsAverage(_company, y, y == start)
 			r.average = append(r.average, []float32{})
 		} else {
-			values, _ = r.accountsValues(cnpj, y, y == start)
+			values, _ = r.accountsValues(cid, y, y == start)
 		}
 
 		// Check if last year is empty

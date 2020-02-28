@@ -107,67 +107,85 @@ func TestRemoveDiacritics(t *testing.T) {
 	}
 }
 
-func TestPrepareFields(t *testing.T) {
-	list := []struct {
-		hash        uint32
-		header      map[string]int
-		fields      []string
-		expectedErr bool
+func Test_prepareFields(t *testing.T) {
+	companies := make(map[string]company)
+	companies["54321"] = company{1, "A"}
+
+	type args struct {
+		hash      uint32
+		header    map[string]int
+		fields    []string
+		companies map[string]company
+	}
+	tests := []struct {
+		name    string
+		args    args
+		wantErr bool
 	}{
 		{
-			5454,
-			map[string]int{"a": 0, "b": 1},
-			[]string{"a", "b"},
+			"dt_refer not found",
+			args{
+				5454,
+				map[string]int{"a": 0, "b": 1},
+				[]string{"a", "b"},
+				companies,
+			},
 			true,
-		},
-		{
-			393723,
-			map[string]int{"x": 0, "y": 1, "DT_REFER": 2},
-			[]string{"X", "Y", "2020-02-25"},
+		}, {
+			"should work",
+			args{
+				393723,
+				map[string]int{"x": 0, "y": 1, "DT_REFER": 2, "CNPJ_CIA": 3},
+				[]string{"X", "Y", "2020-02-25", "54321"},
+				companies,
+			},
 			false,
-		},
-		{
-			393724,
-			map[string]int{"x": 0, "y": 2, "DT_REFER": 1},
-			[]string{"X", "2020-02-25", "Y"},
-			false,
-		},
-		{
-			393724,
-			map[string]int{"x": 0, "y": 2, "DT_REFER": 1},
-			[]string{"X", "202", "Y"},
+		}, {
+			"cnpj not found",
+			args{
+				393724,
+				map[string]int{"x": 0, "y": 2, "DT_REFER": 1},
+				[]string{"X", "2020-02-25", "Y"},
+				companies,
+			},
+			true,
+		}, {
+			"dt_refer not found",
+			args{
+				393724,
+				map[string]int{"x": 0, "y": 2, "DT_REFER": 1},
+				[]string{"X", "202", "Y"},
+				companies,
+			},
 			true,
 		},
 	}
-
-	for _, l := range list {
-		f, err := prepareFields(l.hash, l.header, l.fields)
-		if (err != nil) != l.expectedErr {
-			t.Errorf("prepareFields returned error %v instead of %v", err == nil, l.expectedErr)
-		}
-
-		if err == nil {
-			ok := f[0] == l.hash
-			if !ok {
-				t.Error("field 0 error")
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_, err := prepareFields(tt.args.hash, tt.args.header, tt.args.fields, tt.args.companies)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("prepareFields() error = %v, wantErr %v", err, tt.wantErr)
+				return
 			}
-		}
+		})
 	}
 }
 
 func BenchmarkPrepareFields(b *testing.B) {
-	p := struct {
-		hash   uint32
-		header map[string]int
-		fields []string
-	}{
-		5454,
-		map[string]int{"field_1": 1, "field_2": 2, "field_3": 3},
-		[]string{"FIELD_1_HEADER", "FIELD_2_HEADER", "FIELD_3_HEADER"},
-	}
+	companies := make(map[string]company)
+	companies["54321"] = company{1, "A"}
+
+	h := make(map[string]int)
+	h = map[string]int{"x": 0, "y": 1, "DT_REFER": 2, "CNPJ_CIA": 3}
+
+	f := []string{"X", "Y", "2020-02-25", "54321"}
 
 	// run the prepareFields function b.N times
 	for n := 0; n < b.N; n++ {
-		prepareFields(p.hash, p.header, p.fields)
+		_, err := prepareFields(4433555, h, f, companies)
+		if err != nil {
+			b.Errorf("error: %v", err)
+			return
+		}
 	}
 }
