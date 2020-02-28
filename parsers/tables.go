@@ -40,6 +40,13 @@ var createTableMap = map[string]string{
 		"NAME" varchar(100)
 	);`,
 
+	"companies": `CREATE TABLE IF NOT EXISTS companies
+	(
+		"ID" INTEGER NOT NULL PRIMARY KEY,
+		"CNPJ" varchar(20),
+		"NAME" varchar(100)
+	);`,
+
 	"md5": `CREATE TABLE IF NOT EXISTS md5
 	(
 		md5 NOT NULL PRIMARY KEY
@@ -65,6 +72,8 @@ func whatTable(dataType string) (table string, err error) {
 		table = "md5"
 	case "STATUS":
 		table = "status"
+	case "COMPANIES":
+		table = "companies"
 	default:
 		return "", errors.Wrapf(err, "tipo de informação inexistente: %s", dataType)
 	}

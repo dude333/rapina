@@ -42,6 +42,11 @@ func ImportCsv(db *sql.DB, dataType string, file string) (err error) {
 		return err
 	}
 
+	// Create companies table
+	if err = createTable(db, "COMPANIES"); err != nil {
+		return err
+	}
+
 	// Check table version, wipe it if version differs from current version, and
 	// (re)create the table
 	for _, t := range []string{dataType, "MD5"} {
@@ -90,6 +95,8 @@ func populateTable(db *sql.DB, dataType, file string) (err error) {
 	if err != nil {
 		return err
 	}
+
+	companies, _ := loadCompanies(db)
 
 	fh, err := os.Open(file)
 	if err != nil {
@@ -170,6 +177,13 @@ func populateTable(db *sql.DB, dataType, file string) (err error) {
 					}
 				}
 
+				// UPDATE COMPANIES
+				n1, ok1 := header["CNPJ_CIA"]
+				n2, ok2 := header["DENOM_CIA"]
+				if ok1 && ok2 && n1 >= 0 && n1 < len(fields) && n2 >= 0 && n2 < len(fields) {
+					updateCompanies(companies, fields[header["CNPJ_CIA"]], fields[header["DENOM_CIA"]])
+				}
+
 				// INSERT
 				hash := GetHash(line)
 				f, err := prepareFields(hash, header, fields)
@@ -196,6 +210,8 @@ func populateTable(db *sql.DB, dataType, file string) (err error) {
 	if err := scanner.Err(); err != nil {
 		return errors.Wrapf(err, "erro ao ler arquivo %s", file)
 	}
+
+	saveCompanies(db, companies)
 
 	return
 }

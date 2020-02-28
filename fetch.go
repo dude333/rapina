@@ -59,7 +59,7 @@ OUTER:
 		for _, report := range []string{"BPA", "BPP", "DRE", "DFC_MD", "DFC_MI", "DVA"} {
 			notFound, err := processReport(db, report, year)
 			if notFound {
-				fmt.Println("[x] ---- Sem dados para", year)
+				fmt.Println("[x] ---- Sem dados de", report)
 				tries--
 				continue OUTER
 			} else if err != nil {
@@ -139,12 +139,14 @@ func fetchFile(dataType string, year int) (reqFile string, fileNotFound bool, er
 	reqFile = fmt.Sprintf("%s/%s_cia_aberta_con_%d.csv", dataDir, dt, year)
 
 	// Download file from CVM server
+	fmt.Print("[ ] Download do arquivo ", dataType)
 	err = downloadFile(zipfile, url)
 	if err != nil {
 		fileNotFound = true
+		fmt.Println("\r[x")
 		return
 	}
-	fmt.Println("[√] Download do arquivo", dataType)
+	fmt.Println("\r[√")
 
 	// Unzip and list files
 	var files []string
