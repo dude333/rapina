@@ -235,34 +235,35 @@ func (r report) fromSector(company string) (companies []string, sectorName strin
 
 // CompanyInfo contains the company name and CNPJ
 type CompanyInfo struct {
+	id   int
 	name string
-	cnpj string
 }
 
 //
 // companies returns available companies in the DB
 //
-func companies(db *sql.DB) (list []CompanyInfo, err error) {
+func companies(db *sql.DB) ([]CompanyInfo, error) {
 
 	selectCompanies := `
-		SELECT NAME, CNPJ
+		SELECT ID, NAME
 		FROM companies
 		ORDER BY NAME;`
 
 	rows, err := db.Query(selectCompanies)
 	if err != nil {
 		err = errors.Wrap(err, "falha ao ler banco de dados")
-		return
+		return nil, err
 	}
 	defer rows.Close()
 
 	var info CompanyInfo
+	var list []CompanyInfo
 	for rows.Next() {
-		rows.Scan(&info.name, &info.cnpj)
+		rows.Scan(&info.id, &info.name)
 		list = append(list, info)
 	}
 
-	return
+	return list, nil
 }
 
 //
@@ -359,7 +360,7 @@ type profit struct {
 	profit float32
 }
 
-func companyProfits(db *sql.DB, company string) (profits []profit, err error) {
+func companyProfits(db *sql.DB, companyID int) (profits []profit, err error) {
 
 	selectProfits := fmt.Sprintf(`
 	SELECT
@@ -368,19 +369,17 @@ func companyProfits(db *sql.DB, company string) (profits []profit, err error) {
 		VL_CONTA
 	FROM
 		dfp
-	JOIN
-		companies ON dfp.ID_CIA = companies.ID
 	WHERE
-		NAME LIKE "%s%%"
+		ID_CIA = %d
 		AND CODE = %d
 		AND (ORDEM_EXERC LIKE "_LTIMO"
 			OR (
 				ORDEM_EXERC LIKE "PEN_LTIMO"
-				AND DT_REFER = (SELECT MIN(DT_REFER) FROM dfp WHERE NAME LIKE "%s%%")
+				AND DT_REFER = (SELECT MIN(DT_REFER) FROM dfp WHERE ID_CIA = %d)
 			)
 		)
 	ORDER BY
-		DT_REFER;`, company, parsers.LucLiq, company)
+		DT_REFER;`, companyID, parsers.LucLiq, companyID)
 
 	rows, err := db.Query(selectProfits)
 	if err != nil {

@@ -107,7 +107,7 @@ func ListCompaniesProfits(db *sql.DB, rate float32) error {
 	// Profits
 	pt := message.NewPrinter(language.Portuguese)
 	for _, co := range info {
-		profits, err := companyProfits(db, co.name)
+		profits, err := companyProfits(db, co.id)
 		if err != nil {
 			return fmt.Errorf("falha ao obter lucros de %s (%v)", co.name, err)
 		}
