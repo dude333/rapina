@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
-	"time"
 
 	"github.com/dude333/rapina/parsers"
 	"github.com/pkg/errors"
@@ -73,23 +72,13 @@ func (r report) accountsValues(cid, year int, penult bool) (values map[uint32]fl
 		year++
 	}
 
-	layout := "2006-01-02"
-	var t [2]time.Time
-	for i, y := range [2]int{year, year + 1} {
-		t[i], err = time.Parse(layout, fmt.Sprintf("%d-01-01", y))
-		if err != nil {
-			err = errors.Wrapf(err, "data invalida %d", year)
-			return
-		}
-	}
-
 	selectReport := fmt.Sprintf(`
 	SELECT
-		dfp.CODE,
-		companies.NAME,
-		dfp.ORDEM_EXERC,
-		dfp.DT_REFER,
-		dfp.VL_CONTA
+		CODE,
+		NAME,
+		ORDEM_EXERC,
+		YEAR,
+		VL_CONTA
 	FROM
 		dfp
 	JOIN
@@ -97,8 +86,8 @@ func (r report) accountsValues(cid, year int, penult bool) (values map[uint32]fl
 	WHERE
 		ID_CIA = "%d"
 		AND ORDEM_EXERC LIKE "%s"
-		AND DT_REFER >= %v AND DT_REFER < %v
-	;`, cid, period, t[0].Unix(), t[1].Unix())
+		AND YEAR = "%d"
+	;`, cid, period, year)
 
 	values = make(map[uint32]float32)
 	st := account{}
@@ -151,17 +140,6 @@ func (r report) accountsAverage(company string, year int, penult bool) (values m
 		year++
 	}
 
-	// YEAR
-	layout := "2006-01-02"
-	var t [2]time.Time
-	for i, y := range [2]int{year, year + 1} {
-		t[i], err = time.Parse(layout, fmt.Sprintf("%d-01-01", y))
-		if err != nil {
-			err = errors.Wrapf(err, "data invalida %d", year)
-			return
-		}
-	}
-
 	cids := make([]string, len(companies))
 	for i, co := range companies {
 		if id, err := cid(r.db, co); err == nil {
@@ -179,10 +157,10 @@ func (r report) accountsAverage(company string, year int, penult bool) (values m
 	WHERE
 		ID_CIA IN ("%s")
 		AND ORDEM_EXERC LIKE "%s"
-		AND DT_REFER >= %v AND DT_REFER < %v
+		AND YEAR = "%d"
 	GROUP BY
 		CODE, ORDEM_EXERC;
-	`, strings.Join(cids, "\", \""), period, t[0].Unix(), t[1].Unix())
+	`, strings.Join(cids, "\", \""), period, year)
 
 	values = make(map[uint32]float32)
 	st := account{}
@@ -307,8 +285,8 @@ func timeRange(db *sql.DB) (begin, end int, err error) {
 
 	selectYears := `
 	SELECT
-		MIN(CAST(strftime('%Y', DT_REFER, 'unixepoch') AS INTEGER)),
-		MAX(CAST(strftime('%Y', DT_REFER, 'unixepoch') AS INTEGER))
+		MIN(CAST(YEAR AS INTEGER)),
+		MAX(CAST(YEAR AS INTEGER))
 	FROM dfp;`
 
 	rows, err := db.Query(selectYears)
@@ -365,21 +343,21 @@ func companyProfits(db *sql.DB, companyID int) (profits []profit, err error) {
 	selectProfits := fmt.Sprintf(`
 	SELECT
 		ORDEM_EXERC,
-		strftime('%%Y', DT_REFER, 'unixepoch') AS DT_REFER,
+		YEAR,
 		VL_CONTA
 	FROM
 		dfp
 	WHERE
-		ID_CIA = %d
-		AND CODE = %d
+		ID_CIA = "%d"
+		AND CODE = "%d"
 		AND (ORDEM_EXERC LIKE "_LTIMO"
 			OR (
 				ORDEM_EXERC LIKE "PEN_LTIMO"
-				AND DT_REFER = (SELECT MIN(DT_REFER) FROM dfp WHERE ID_CIA = %d)
+				AND YEAR = (SELECT MIN(YEAR) FROM dfp WHERE ID_CIA = %d)
 			)
 		)
 	ORDER BY
-		DT_REFER;`, companyID, parsers.LucLiq, companyID)
+		YEAR;`, companyID, parsers.LucLiq, companyID)
 
 	rows, err := db.Query(selectProfits)
 	if err != nil {

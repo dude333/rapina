@@ -125,13 +125,13 @@ func populateTable(db *sql.DB, dataType, file string) (err error) {
 			// Prepare insert statement
 			insert = fmt.Sprintf(`INSERT OR IGNORE INTO %s (
 				ID, ID_CIA, CODE, YEAR, DATA_TYPE,
-				DT_REFER, VERSAO, GRUPO_DFP, 
+				VERSAO,
 				MOEDA, ESCALA_MOEDA, ESCALA_DRE,
 				ORDEM_EXERC, DT_INI_EXERC, DT_FIM_EXERC,
 				CD_CONTA, DS_CONTA, VL_CONTA
 			) VALUES (
 				?, ?, ?, ?, "%s",
-				?, ?, ?,
+				?,
 				?, ?, ?,
 				?, ?, ?,
 				?, ?, ?
@@ -224,7 +224,7 @@ func populateTable(db *sql.DB, dataType, file string) (err error) {
 //
 // Returns:
 // ID, ID_CIA, CODE, YEAR,
-// DT_REFER, VERSAO, GRUPO_DFP,
+// VERSAO,
 // MOEDA, ESCALA_MOEDA, ESCALA_DRE,
 // ORDEM_EXERC, DT_INI_EXERC, DT_FIM_EXERC,
 // CD_CONTA, DS_CONTA, VL_CONTA
@@ -272,16 +272,14 @@ func prepareFields(hash uint32, header map[string]int, fields []string, companie
 	}
 	companyID := c.id
 
-	// Output
+	// Output -- need to follow INSERT sequence
 	var f []interface{}
 	f = append(f, hash)                                                             // ID
 	f = append(f, companyID)                                                        // ID_CIA
 	f = append(f, acctCode(fields[header["CD_CONTA"]], fields[header["DS_CONTA"]])) // CODE
 	f = append(f, year)                                                             // YEAR
 
-	f = append(f, tim("DT_REFER"))
 	f = append(f, val("VERSAO"))
-	f = append(f, val("GRUPO_DFP"))
 	f = append(f, val("MOEDA"))
 	f = append(f, val("ESCALA_MOEDA"))
 	f = append(f, val("ESCALA_DRE"))

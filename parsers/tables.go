@@ -7,7 +7,7 @@ import (
 	"github.com/pkg/errors"
 )
 
-const currentDbVersion = 200202291
+const currentDbVersion = 20020229
 
 var createTableMap = map[string]string{
 	"dfp": `CREATE TABLE IF NOT EXISTS dfp
@@ -18,9 +18,7 @@ var createTableMap = map[string]string{
 		"YEAR" string,
 		"DATA_TYPE" string,
 
-		"DT_REFER" integer,
 		"VERSAO" integer,
-		"GRUPO_DFP" varchar(206),
 		"MOEDA" varchar(4),
 		"ESCALA_MOEDA" varchar(7),
 		"ESCALA_DRE" varchar(7),
@@ -171,7 +169,7 @@ func DropIndexes(db *sql.DB) (err error) {
 //
 func OptimizeReport(db *sql.DB) error {
 	indexes := []string{
-		"CREATE INDEX IF NOT EXISTS dfp_metrics ON dfp (CODE, ID_CIA, ORDEM_EXERC, DT_REFER, VL_CONTA);",
+		"CREATE INDEX IF NOT EXISTS dfp_metrics ON dfp (CODE, ID_CIA, ORDEM_EXERC, YEAR, VL_CONTA);",
 	}
 
 	for _, idx := range indexes {
