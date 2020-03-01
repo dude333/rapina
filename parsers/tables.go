@@ -30,6 +30,26 @@ var createTableMap = map[string]string{
 		"VL_CONTA" real
 	);`,
 
+	"itr": `CREATE TABLE IF NOT EXISTS itr
+	(
+		"ID" PRIMARY KEY,
+		"ID_CIA" integer,
+		"CODE" integer,
+		"YEAR" string,
+		"DATA_TYPE" string,
+
+		"VERSAO" integer,
+		"MOEDA" varchar(4),
+		"ESCALA_MOEDA" varchar(7),
+		"ESCALA_DRE" varchar(7),
+		"ORDEM_EXERC" varchar(9),
+		"DT_INI_EXERC" integer,
+		"DT_FIM_EXERC" integer,
+		"CD_CONTA" varchar(18),
+		"DS_CONTA" varchar(100),
+		"VL_CONTA" real
+	);`,
+
 	"codes": `CREATE TABLE IF NOT EXISTS codes
 	(
 		"CODE" INTEGER NOT NULL PRIMARY KEY,
@@ -62,6 +82,8 @@ func whatTable(dataType string) (table string, err error) {
 	switch dataType {
 	case "BPA", "BPP", "DRE", "DFC_MD", "DFC_MI", "DVA":
 		table = "dfp"
+	case "BPA_ITR", "BPP_ITR", "DRE_ITR", "DFC_MD_ITR", "DFC_MI_ITR", "DVA_ITR":
+		table = "itr"
 	case "CODES":
 		table = "codes"
 	case "MD5":
@@ -183,12 +205,21 @@ func OptimizeReport(db *sql.DB) error {
 }
 
 func createIndex(db *sql.DB, table string) error {
-	if table == "dfp" {
-		idx := "CREATE INDEX IF NOT EXISTS dfp_year ON dfp (YEAR, DATA_TYPE);"
+	idx := ""
+
+	switch table {
+	case "dfp":
+		idx = "CREATE INDEX IF NOT EXISTS dfp_year ON dfp (YEAR, DATA_TYPE);"
+	case "itr":
+		idx = "CREATE INDEX IF NOT EXISTS itr_year ON itr (YEAR, DATA_TYPE);"
+	}
+
+	if idx != "" {
 		_, err := db.Exec(idx)
 		if err != nil {
 			return errors.Wrap(err, "erro ao criar índice")
 		}
 	}
+
 	return nil
 }

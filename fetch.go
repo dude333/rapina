@@ -38,8 +38,12 @@ import (
 // Directory where the DB and downloaded files are stored
 const dataDir = ".data"
 
-// ErrFileNotFound error
-var ErrFileNotFound = errors.New("emit macho dwarf: elf header corrupted")
+var (
+	// ErrFileNotFound error
+	ErrFileNotFound = errors.New("file not found")
+	// ErrItemNotFound for string not found on []string
+	ErrItemNotFound = errors.New("item not found")
+)
 
 //
 // FetchCVM fetches all statements from a range
@@ -56,9 +60,27 @@ func FetchCVM() (err error) {
 	parsers.DropIndexes(db)
 	fmt.Println("\r[√")
 
+	now := time.Now().Year()
 	tries := 2
+OUTER_QTR:
+	for year := now; tries > 0 && year >= (now-1); year-- {
+		fmt.Printf("[>] %d ---------------------\n", year)
+		err := processQuarterlyReport(db, year)
+		if err == ErrFileNotFound {
+			fmt.Println("[x] Arquivo ITR não encontrado")
+			tries--
+			continue OUTER_QTR
+		} else if err != nil {
+			fmt.Printf("[x] Erro ao processar arquivo: %v\n", err)
+			tries--
+		} else {
+			tries = 2
+		}
+	}
+
+	tries = 2
 OUTER:
-	for year := time.Now().Year() - 1; tries > 0 && year >= 2013; year-- {
+	for year := now - 1; tries > 0 && year >= 2013; year-- {
 		fmt.Printf("[>] %d ---------------------\n", year)
 		for _, report := range []string{"BPA", "BPP", "DRE", "DFC_MD", "DFC_MI", "DVA"} {
 			err := processAnnualReport(db, report, year)
@@ -117,6 +139,43 @@ func processAnnualReport(db *sql.DB, dataType string, year int) error {
 }
 
 //
+// processQuarterlyReport download quarter files from CVM and store them on DB
+//
+func processQuarterlyReport(db *sql.DB, year int) error {
+
+	url := fmt.Sprintf("http://dados.cvm.gov.br/dados/CIA_ABERTA/DOC/ITR/DADOS/ITR_CIA_ABERTA_%d.zip", year)
+	zipfile := fmt.Sprintf("%s/itr_%d.zip", dataDir, year)
+
+	// Download files from CVM server
+	fmt.Print("[ ] Download do arquivo ITR")
+	files, err := fetchFiles(url, zipfile)
+	if err != nil {
+		return err
+	}
+
+	dataTypes := []string{"BPA", "BPP", "DRE", "DFC_MD", "DFC_MI", "DVA"}
+
+	for _, dt := range dataTypes {
+		reqFile := fmt.Sprintf("%s/ITR_CIA_ABERTA_%s_con_%d.csv", dataDir, dt, year)
+		files, err = removeItem(files, reqFile)
+		if err == ErrItemNotFound {
+			filesCleanup(files)
+			return fmt.Errorf("arquivo %s não encontrado", reqFile)
+		}
+
+		// Import file into DB (the trick is to add ITR to the data type so the
+		// ImportCSV loads that into the ITR table)
+		if err = parsers.ImportCsv(db, dt+"_ITR", reqFile); err != nil {
+			return err
+		}
+	}
+
+	filesCleanup(files) // remove remaining (unused) files
+
+	return nil
+}
+
+//
 // fetchFiles on CVM server
 //
 func fetchFiles(url, zipfile string) ([]string, error) {
@@ -131,11 +190,10 @@ func fetchFiles(url, zipfile string) ([]string, error) {
 
 	// Unzip and list files
 	files, err := Unzip(zipfile, dataDir)
+	os.Remove(zipfile)
 	if err != nil {
-		os.Remove(zipfile)
 		return nil, errors.Wrap(err, "could not unzip file")
 	}
-	files = append(files, zipfile)
 
 	return files, nil
 }
@@ -213,4 +271,19 @@ func find(a []string, x string) int {
 		}
 	}
 	return -1
+}
+
+//
+// removeItem removes 'item' from 'list' (changes the list order)
+//
+func removeItem(list []string, item string) ([]string, error) {
+	if len(list) == 0 {
+		return list, nil
+	}
+	idx := find(list, item)
+	if idx == -1 {
+		return list, ErrItemNotFound
+	}
+	list[idx] = list[len(list)-1]  // Replace it with the last one.
+	return list[:len(list)-1], nil // Chop off the last one.
 }
