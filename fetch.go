@@ -35,7 +35,11 @@ import (
 	"github.com/pkg/errors"
 )
 
+// Directory where the DB and downloaded files are stored
 const dataDir = ".data"
+
+// ErrFileNotFound error
+var ErrFileNotFound = errors.New("emit macho dwarf: elf header corrupted")
 
 //
 // FetchCVM fetches all statements from a range
@@ -57,14 +61,16 @@ OUTER:
 	for year := time.Now().Year() - 1; tries > 0 && year >= 2013; year-- {
 		fmt.Printf("[>] %d ---------------------\n", year)
 		for _, report := range []string{"BPA", "BPP", "DRE", "DFC_MD", "DFC_MI", "DVA"} {
-			notFound, err := processReport(db, report, year)
-			if notFound {
-				fmt.Println("[x] ---- Sem dados de", report)
+			err := processAnnualReport(db, report, year)
+			if err == ErrFileNotFound {
+				fmt.Printf("[x] ---- Arquivo %s não encontrado", report)
 				tries--
 				continue OUTER
 			} else if err != nil {
 				fmt.Printf("[x] Erro ao processar %s de %d: %v\n", report, year, err)
 				tries--
+			} else {
+				tries = 2
 			}
 		}
 	}
@@ -76,26 +82,68 @@ OUTER:
 	return
 }
 
-// processReport will get data from .zip files downloaded
+// processAnnualReport will get data from .zip files downloaded
 // directly from CVM and insert its data into the DB
-func processReport(db *sql.DB, dataType string, year int) (fileNotFound bool, err error) {
-	var file string
+func processAnnualReport(db *sql.DB, dataType string, year int) error {
 
-	if file, fileNotFound, err = fetchFile(dataType, year); err != nil {
-		return
+	dt := strings.ToLower(dataType)
+	url := fmt.Sprintf("http://dados.cvm.gov.br/dados/CIA_ABERTA/DOC/DFP/%s/DADOS/%s_cia_aberta_%d.zip", dataType, dt, year)
+	zipfile := fmt.Sprintf("%s/%s_%d.zip", dataDir, dt, year)
+	reqFile := fmt.Sprintf("%s/%s_cia_aberta_con_%d.csv", dataDir, dt, year)
+
+	// Download files from CVM server
+	fmt.Print("[ ] Download do arquivo ", dataType)
+	files, err := fetchFiles(url, zipfile)
+	if err != nil {
+		return err
 	}
 
-	if err = parsers.ImportCsv(db, dataType, file); err != nil {
-		return
+	// Keep 'reqFile' and remove all other files
+	idx := find(files, reqFile)
+	if idx == -1 {
+		filesCleanup(files)
+		return ErrFileNotFound
+	}
+	files[idx] = files[len(files)-1] // Replace it with the last one.
+	files = files[:len(files)-1]     // Chop off the last one.
+	filesCleanup(files)
+
+	// Import file into DB
+	if err = parsers.ImportCsv(db, dataType, reqFile); err != nil {
+		return err
 	}
 
-	return
+	return nil
+}
+
+//
+// fetchFiles on CVM server
+//
+func fetchFiles(url, zipfile string) ([]string, error) {
+
+	// Download file from CVM server
+	err := downloadFile(url, zipfile)
+	if err != nil {
+		fmt.Println("\r[x")
+		return nil, ErrFileNotFound
+	}
+	fmt.Println("\r[√")
+
+	// Unzip and list files
+	files, err := Unzip(zipfile, dataDir)
+	if err != nil {
+		os.Remove(zipfile)
+		return nil, errors.Wrap(err, "could not unzip file")
+	}
+	files = append(files, zipfile)
+
+	return files, nil
 }
 
 //
 // downloadFile source: https://stackoverflow.com/a/33853856/276311
 //
-func downloadFile(filepath string, url string) (err error) {
+func downloadFile(url, filepath string) (err error) {
 	// Create dir if necessary
 	basepath := path.Dir(filepath)
 	os.MkdirAll(basepath, os.ModePerm)
@@ -127,51 +175,6 @@ func downloadFile(filepath string, url string) (err error) {
 	}
 
 	return nil
-}
-
-//
-// fetchFile on CVM server
-//
-func fetchFile(dataType string, year int) (reqFile string, fileNotFound bool, err error) {
-	dt := strings.ToLower(dataType)
-	url := fmt.Sprintf("http://dados.cvm.gov.br/dados/CIA_ABERTA/DOC/DFP/%s/DADOS/%s_cia_aberta_%d.zip", dataType, dt, year)
-	zipfile := fmt.Sprintf("%s/%s_%d.zip", dataDir, dt, year)
-	reqFile = fmt.Sprintf("%s/%s_cia_aberta_con_%d.csv", dataDir, dt, year)
-
-	// Download file from CVM server
-	fmt.Print("[ ] Download do arquivo ", dataType)
-	err = downloadFile(zipfile, url)
-	if err != nil {
-		fileNotFound = true
-		fmt.Println("\r[x")
-		return
-	}
-	fmt.Println("\r[√")
-
-	// Unzip and list files
-	var files []string
-	files, err = Unzip(zipfile, dataDir)
-	if err != nil {
-		os.Remove(zipfile)
-		err = errors.Wrap(err, "could not unzip file")
-		return
-	}
-	files = append(files, zipfile)
-
-	// File pattern:
-	// xxx_cia_aberta_con_yyy.csv
-	idx := find(files, reqFile)
-	if idx == -1 {
-		filesCleanup(files)
-		err = errors.Errorf("file %s not found", reqFile)
-		return
-	}
-
-	files[idx] = files[len(files)-1] // Replace it with the last one.
-	files = files[:len(files)-1]     // Chop off the last one.
-	filesCleanup(files)
-
-	return
 }
 
 //

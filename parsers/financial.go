@@ -53,10 +53,6 @@ func ImportCsv(db *sql.DB, dataType string, file string) (err error) {
 		return
 	}
 
-	// Remove indexes to speed up insertion
-	// fmt.Println("[i] Apagando índices do bd para acelerarar processamento")
-	// dropIndexes(db)
-
 	err = populateTable(db, dataType, file)
 	if err == nil {
 		fmt.Print("\r[√")
@@ -170,7 +166,7 @@ func populateTable(db *sql.DB, dataType, file string) (err error) {
 					}
 					count, err := res.RowsAffected()
 					if err == nil && count > 0 {
-						fmt.Printf("\n[%d] registros de %s apagados para evitar duplicidade\n", count, year)
+						fmt.Printf("\n[√] %d registros removidos para evitar duplicidade\n", count)
 						fmt.Print("[ ] Processando arquivo ", dataType)
 					}
 				}
