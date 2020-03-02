@@ -88,7 +88,6 @@ func ListCompaniesProfits(db *sql.DB, rate float32) error {
 	}
 
 	yi, yf, err := timeRange(db)
-	yi-- // Considering penultimate period
 	if err != nil {
 		return fmt.Errorf("falha ao obter a faixa de datas (%v)", err)
 	}
