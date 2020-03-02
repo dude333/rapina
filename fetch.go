@@ -75,7 +75,7 @@ OUTER_QTR:
 
 	tries = 2
 OUTER:
-	for year := now - 1; tries > 0 && year >= 2013; year-- {
+	for year := now - 1; tries > 0 && year >= 2009; year-- {
 		fmt.Printf("[>] %d ---------------------\n", year)
 		for _, report := range []string{"BPA", "BPP", "DRE", "DFC_MD", "DFC_MI", "DVA"} {
 			err := processAnnualReport(db, report, year)
