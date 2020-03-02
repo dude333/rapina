@@ -82,7 +82,7 @@ func TestGetHash(t *testing.T) {
 		{"One More...12345!", 2258028052},
 	}
 	for _, x := range table {
-		h := GetHash(x.s)
+		h := Hash(x.s)
 		if h != x.h {
 			t.Errorf("Hash was incorrect, got: %d, want: %d.", h, x.h)
 		}
@@ -112,7 +112,6 @@ func Test_prepareFields(t *testing.T) {
 	companies["54321"] = company{1, "A"}
 
 	type args struct {
-		hash      uint32
 		header    map[string]int
 		fields    []string
 		companies map[string]company
@@ -125,7 +124,6 @@ func Test_prepareFields(t *testing.T) {
 		{
 			"dt_refer not found",
 			args{
-				5454,
 				map[string]int{"a": 0, "b": 1},
 				[]string{"a", "b"},
 				companies,
@@ -134,8 +132,7 @@ func Test_prepareFields(t *testing.T) {
 		}, {
 			"should work",
 			args{
-				393723,
-				map[string]int{"x": 0, "y": 1, "DT_REFER": 2, "CNPJ_CIA": 3},
+				map[string]int{"x": 0, "y": 1, "DT_FIM_EXERC": 2, "CNPJ_CIA": 3},
 				[]string{"X", "Y", "2020-02-25", "54321"},
 				companies,
 			},
@@ -143,17 +140,15 @@ func Test_prepareFields(t *testing.T) {
 		}, {
 			"cnpj not found",
 			args{
-				393724,
-				map[string]int{"x": 0, "y": 2, "DT_REFER": 1},
+				map[string]int{"x": 0, "y": 2, "DT_FIM_EXERC": 1},
 				[]string{"X", "2020-02-25", "Y"},
 				companies,
 			},
 			true,
 		}, {
-			"dt_refer not found",
+			"DT_FIM_EXERC not found",
 			args{
-				393724,
-				map[string]int{"x": 0, "y": 2, "DT_REFER": 1},
+				map[string]int{"x": 0, "y": 2, "DT_FIM_EXERC": 1},
 				[]string{"X", "202", "Y"},
 				companies,
 			},
@@ -162,7 +157,7 @@ func Test_prepareFields(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			_, err := prepareFields(tt.args.hash, tt.args.header, tt.args.fields, tt.args.companies)
+			_, err := prepareFields(tt.args.header, tt.args.fields, tt.args.companies)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("prepareFields() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -176,13 +171,13 @@ func BenchmarkPrepareFields(b *testing.B) {
 	companies["54321"] = company{1, "A"}
 
 	h := make(map[string]int)
-	h = map[string]int{"x": 0, "y": 1, "DT_REFER": 2, "CNPJ_CIA": 3}
+	h = map[string]int{"x": 0, "y": 1, "DT_FIM_EXERC": 2, "CNPJ_CIA": 3}
 
 	f := []string{"X", "Y", "2020-02-25", "54321"}
 
 	// run the prepareFields function b.N times
 	for n := 0; n < b.N; n++ {
-		_, err := prepareFields(4433555, h, f, companies)
+		_, err := prepareFields(h, f, companies)
 		if err != nil {
 			b.Errorf("error: %v", err)
 			return

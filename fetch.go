@@ -55,11 +55,6 @@ func FetchCVM() (err error) {
 		return err
 	}
 
-	// Remove indexes to speed up insertion
-	fmt.Print("[ ] Removendo índices do banco de dados")
-	parsers.DropIndexes(db)
-	fmt.Println("\r[√")
-
 	now := time.Now().Year()
 	tries := 2
 OUTER_QTR:
@@ -96,10 +91,6 @@ OUTER:
 			}
 		}
 	}
-
-	fmt.Print("[ ] Criando índices do banco de dados")
-	parsers.OptimizeReport(db)
-	fmt.Println("\r[√")
 
 	return
 }

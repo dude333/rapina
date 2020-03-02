@@ -43,12 +43,6 @@ func Report(db *sql.DB, _company string, filename, yamlFile string) (err error) 
 		yamlFile: yamlFile,
 	}
 
-	// Create DB indexes
-	err = p.OptimizeReport(db)
-	if err != nil {
-		return fmt.Errorf("erro ao criar índices do BD (%v)", err)
-	}
-
 	cid, err := cid(db, _company)
 	if err != nil {
 		return fmt.Errorf("empresa '%s' não encontrada no banco de dados", _company)
@@ -101,13 +95,12 @@ func Report(db *sql.DB, _company string, filename, yamlFile string) (err error) 
 	// Print accounts values ONE YEAR PER COLUMN, starting from C, row 2
 	var values map[uint32]float32
 	cols := "CDEFGHIJKLMONPQRSTUVWXYZ"
-	start := begin - 1
-	for y := start; y <= end; y++ {
-		if y-start >= len(cols) {
+	for y := begin; y <= end; y++ {
+		if y-begin >= len(cols) {
 			break
 		}
 
-		values, _ = r.accountsValues(cid, y, y == start)
+		values, _ = r.accountsValues(cid, y)
 
 		// Check if last year is empty
 		if y == end {
@@ -124,7 +117,7 @@ func Report(db *sql.DB, _company string, filename, yamlFile string) (err error) 
 			}
 		}
 
-		col := string(cols[y-start])
+		col := string(cols[y-begin])
 		cell := col + "1"
 		sheet.printTitle(cell, "["+strconv.Itoa(y)+"]") // Print year as title in row 1
 
@@ -159,8 +152,8 @@ func Report(db *sql.DB, _company string, filename, yamlFile string) (err error) 
 	//
 	// CODES | DESCRIPTION | Y1 | Y2 | Yn | sp | v1 | v2 | v3
 	//
-	wide := (end - begin) + 1
-	year := start
+	wide := (end - begin)
+	year := begin
 	top := 2
 	bottom := top
 	for col := 2; col <= 2+wide; col++ {
@@ -205,7 +198,7 @@ func Report(db *sql.DB, _company string, filename, yamlFile string) (err error) 
 	//
 	// sp | DESCRIPTION | Y1 | Y2 | Yn | sp | h1 | h2 | hn
 	//
-	wide = (end - start)
+	wide = (end - begin)
 	year = begin
 	top = lastStatementsRow + 2
 	bottom = lastMetricsRow
@@ -314,6 +307,8 @@ func (r report) sectorReport(sheet *Sheet, company string) (err error) {
 		fmt.Printf("\r[%s\n", ok)
 	}
 
+	sheet.setColWidth(0, 2)
+
 	return
 }
 
@@ -336,7 +331,6 @@ func (r *report) companySummary(sheet *Sheet, row, col *int, _company, sectorNam
 	if err != nil {
 		return
 	}
-	start := begin - 1
 
 	// Formats used in this report
 	sTitle := newFormat(DEFAULT, RIGHT, true).newStyle(sheet.xlsx)
@@ -387,12 +381,12 @@ func (r *report) companySummary(sheet *Sheet, row, col *int, _company, sectorNam
 
 	// Print values ONE YEAR PER COLUMN
 	var values map[uint32]float32
-	for y := start; y <= end; y++ {
+	for y := begin; y <= end; y++ {
 		if sectorAvg {
-			values, _ = r.accountsAverage(_company, y, y == start)
+			values, _ = r.accountsAverage(_company, y)
 			r.average = append(r.average, []float32{})
 		} else {
-			values, _ = r.accountsValues(cid, y, y == start)
+			values, _ = r.accountsValues(cid, y)
 		}
 
 		// Check if last year is empty
@@ -419,7 +413,7 @@ func (r *report) companySummary(sheet *Sheet, row, col *int, _company, sectorNam
 		// Print financial metrics
 		for i, metric := range metricsList(values) {
 			if sectorAvg {
-				r.average[y-start] = append(r.average[y-start], metric.val)
+				r.average[y-begin] = append(r.average[y-begin], metric.val)
 			}
 			// Description
 			if printDescr {
@@ -439,12 +433,12 @@ func (r *report) companySummary(sheet *Sheet, row, col *int, _company, sectorNam
 					{Type: "left", Color: "cccccc", Style: 1},
 				}
 				// Color the cell background according to its value compared with the average
-				if len(r.average) > 0 && len(r.average[y-start]) > 0 && len(r.average[y-start]) >= i {
+				if len(r.average) > 0 && len(r.average[y-begin]) > 0 && len(r.average[y-begin]) >= i {
 					f := formatFill{Type: "pattern", Pattern: 1}
-					if metric.val > r.average[y-start][i] {
+					if metric.val > r.average[y-begin][i] {
 						f.Color = []string{"c6efce"} // green
 						fVal.Fill = f
-					} else if metric.val < r.average[y-start][i] {
+					} else if metric.val < r.average[y-begin][i] {
 						f.Color = []string{"ffc7ce"} // red
 						fVal.Fill = f
 					}
@@ -468,7 +462,7 @@ func (r *report) companySummary(sheet *Sheet, row, col *int, _company, sectorNam
 
 	// CAGR (compound annual growth rate)
 	// CAGR (t0, tn) = (V(tn)/V(t0))^(1/(tn-t0-1))-1
-	wide := end - start
+	wide := end - begin
 	sheet.printTitle(axis(*col, rw), "CAGR")
 	for r := rw + 1; r <= bottom; r++ {
 		vt0 := axis(*col-wide-1, r)

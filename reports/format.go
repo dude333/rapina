@@ -126,7 +126,7 @@ func (f formatStyle) newStyle(e *excelize.File) (style int) {
 
 	if err == nil {
 		s := string(j)
-		k := parsers.GetHash(s)
+		k := parsers.Hash(s)
 
 		// Check if style already exists
 		id, ok := stylesMap[k]

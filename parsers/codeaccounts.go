@@ -84,5 +84,5 @@ func acctCode(cdAccount, dsAccount string) uint32 {
 		}
 	}
 
-	return GetHash(cdAccount + dsAccount)
+	return Hash(cdAccount + dsAccount)
 }

@@ -11,13 +11,13 @@ import (
 	"golang.org/x/text/unicode/norm"
 )
 
-// fnvHash is a global var set to speed up GetHash
+// fnvHash is a global var set to speed up Hash
 var fnvHash = fnv.New32a()
 
 //
-// GetHash returns the FNV-1 non-cryptographic hash
+// Hash returns the FNV-1 non-cryptographic hash
 //
-func GetHash(s string) uint32 {
+func Hash(s string) uint32 {
 	fnvHash.Write([]byte(s))
 	defer fnvHash.Reset()
 

@@ -25,11 +25,10 @@ func (r report) accountsItems(cid int) (items []accItems, err error) {
 	SELECT DISTINCT
 		CODE, CD_CONTA, DS_CONTA
 	FROM
-		dfp
+		dfp a
 	WHERE
 		ID_CIA = "%d"
-		AND ORDEM_EXERC LIKE "_LTIMO"
-
+		AND VERSAO = (SELECT MAX(VERSAO) FROM dfp WHERE ID_CIA = a.ID_CIA AND YEAR = a.YEAR)
 	ORDER BY
 		CD_CONTA, DS_CONTA
 	;`, cid)
@@ -64,55 +63,34 @@ type account struct {
 // accountsValues stores the values for each account into a map using a hash
 // of the account code and description as its key
 //
-func (r report) accountsValues(cid, year int, penult bool) (values map[uint32]float32, err error) {
-
-	period := "_LTIMO"
-	if penult {
-		period = "PEN_LTIMO"
-		year++
-	}
+func (r report) accountsValues(cid, year int) (map[uint32]float32, error) {
 
 	selectReport := fmt.Sprintf(`
 	SELECT
-		CODE,
-		NAME,
-		ORDEM_EXERC,
-		YEAR,
-		VL_CONTA
+		CODE, VL_CONTA
 	FROM
-		dfp
-	JOIN
-		companies ON dfp.ID_CIA=companies.ID
+		dfp a
 	WHERE
-		ID_CIA = "%d"
-		AND ORDEM_EXERC LIKE "%s"
+		ID_CIA = "%d" 
 		AND YEAR = "%d"
-	;`, cid, period, year)
-
-	values = make(map[uint32]float32)
-	st := account{}
+		AND VERSAO = (SELECT MAX(VERSAO) FROM dfp WHERE ID_CIA = a.ID_CIA AND YEAR = a.YEAR)
+	;`, cid, year)
 
 	rows, err := r.db.Query(selectReport)
 	if err != nil {
-		return
+		return nil, err
 	}
 	defer rows.Close()
 
-	var denomCia, orderExec string
-	var dtRefer int
+	values := make(map[uint32]float32)
 	for rows.Next() {
-		rows.Scan(
-			&st.code,
-			&denomCia,
-			&orderExec,
-			&dtRefer,
-			&st.vlConta,
-		)
-
-		values[st.code] = st.vlConta
+		var code uint32
+		var vlConta float32
+		rows.Scan(&code, &vlConta)
+		values[code] = vlConta
 	}
 
-	return
+	return values, err
 }
 
 //
@@ -120,24 +98,17 @@ func (r report) accountsValues(cid, year int, penult bool) (values map[uint32]fl
 // for each account into a map using a hash of the account code and
 // description as its key
 //
-func (r report) accountsAverage(company string, year int, penult bool) (values map[uint32]float32, err error) {
+func (r report) accountsAverage(company string, year int) (map[uint32]float32, error) {
 
 	companies, _, err := r.fromSector(company)
 	if len(companies) <= 1 || err != nil {
 		err = errors.Wrap(err, "erro ao ler arquivo de setores "+r.yamlFile)
-		return
+		return nil, err
 	}
 
 	if len(companies) == 0 {
 		err = errors.Errorf("erro ao procurar empresas")
-		return
-	}
-
-	// PERIOD (last or before last year)
-	period := "_LTIMO"
-	if penult {
-		period = "PEN_LTIMO"
-		year++
+		return nil, err
 	}
 
 	cids := make([]string, len(companies))
@@ -149,40 +120,35 @@ func (r report) accountsAverage(company string, year int, penult bool) (values m
 
 	selectReport := fmt.Sprintf(`
 	SELECT
-		CODE,
-		ORDEM_EXERC,
-		AVG(VL_CONTA) AS MD_CONTA
+		CODE, AVG(VL_CONTA)
 	FROM
-		dfp
+		dfp a
 	WHERE
-		ID_CIA IN ("%s")
-		AND ORDEM_EXERC LIKE "%s"
+		ID_CIA IN (%s)
 		AND YEAR = "%d"
+		AND VERSAO = (SELECT MAX(VERSAO) FROM dfp WHERE ID_CIA = a.ID_CIA AND YEAR = a.YEAR)
 	GROUP BY
-		CODE, ORDEM_EXERC;
-	`, strings.Join(cids, "\", \""), period, year)
-
-	values = make(map[uint32]float32)
-	st := account{}
+		CODE;
+	`, strings.Join(cids, ","), year)
 
 	rows, err := r.db.Query(selectReport)
 	if err != nil {
-		return
+		return nil, err
 	}
 	defer rows.Close()
 
-	var orderExec string
+	values := make(map[uint32]float32)
 	for rows.Next() {
+		var code uint32
+		var vlConta float32
 		rows.Scan(
-			&st.code,
-			&orderExec,
-			&st.vlConta,
+			&code,
+			&vlConta,
 		)
-
-		values[st.code] = st.vlConta
+		values[code] = vlConta
 	}
 
-	return
+	return values, nil
 }
 
 func (r report) fromSector(company string) (companies []string, sectorName string, err error) {
@@ -338,44 +304,35 @@ type profit struct {
 	profit float32
 }
 
-func companyProfits(db *sql.DB, companyID int) (profits []profit, err error) {
+func companyProfits(db *sql.DB, companyID int) ([]profit, error) {
 
 	selectProfits := fmt.Sprintf(`
 	SELECT
-		ORDEM_EXERC,
 		YEAR,
 		VL_CONTA
 	FROM
-		dfp
+		dfp a
 	WHERE
 		ID_CIA = "%d"
 		AND CODE = "%d"
-		AND (ORDEM_EXERC LIKE "_LTIMO"
-			OR (
-				ORDEM_EXERC LIKE "PEN_LTIMO"
-				AND YEAR = (SELECT MIN(YEAR) FROM dfp WHERE ID_CIA = %d)
-			)
-		)
+		AND VERSAO = (SELECT MAX(VERSAO) FROM dfp WHERE ID_CIA = a.ID_CIA AND YEAR = a.YEAR)
 	ORDER BY
-		YEAR;`, companyID, parsers.LucLiq, companyID)
+		YEAR;`, companyID, parsers.LucLiq)
 
 	rows, err := db.Query(selectProfits)
 	if err != nil {
 		err = errors.Wrap(err, "falha ao ler banco de dados")
-		return
+		return nil, err
 	}
 	defer rows.Close()
 
+	var profits []profit
 	for rows.Next() {
-		var period string
 		var year int
 		var val float32
-		rows.Scan(&period, &year, &val)
-		if period == "PENÚLTIMO" {
-			year--
-		}
+		rows.Scan(&year, &val)
 		profits = append(profits, profit{year, val})
 	}
 
-	return
+	return profits, nil
 }

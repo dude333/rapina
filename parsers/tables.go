@@ -7,7 +7,7 @@ import (
 	"github.com/pkg/errors"
 )
 
-const currentDbVersion = 20020229
+const currentDbVersion = 200301
 
 var createTableMap = map[string]string{
 	"dfp": `CREATE TABLE IF NOT EXISTS dfp
@@ -21,9 +21,6 @@ var createTableMap = map[string]string{
 		"VERSAO" integer,
 		"MOEDA" varchar(4),
 		"ESCALA_MOEDA" varchar(7),
-		"ESCALA_DRE" varchar(7),
-		"ORDEM_EXERC" varchar(9),
-		"DT_INI_EXERC" integer,
 		"DT_FIM_EXERC" integer,
 		"CD_CONTA" varchar(18),
 		"DS_CONTA" varchar(100),
@@ -41,9 +38,6 @@ var createTableMap = map[string]string{
 		"VERSAO" integer,
 		"MOEDA" varchar(4),
 		"ESCALA_MOEDA" varchar(7),
-		"ESCALA_DRE" varchar(7),
-		"ORDEM_EXERC" varchar(9),
-		"DT_INI_EXERC" integer,
 		"DT_FIM_EXERC" integer,
 		"CD_CONTA" varchar(18),
 		"DS_CONTA" varchar(100),
@@ -114,7 +108,7 @@ func createTable(db *sql.DB, dataType string) (err error) {
 		return errors.Wrap(err, "erro ao criar tabela "+table)
 	}
 
-	err = createIndex(db, table)
+	err = createIndexes(db, table)
 	if err != nil {
 		return errors.Wrap(err, "erro ao criar índice para table "+table)
 	}
@@ -165,56 +159,25 @@ func wipeDB(db *sql.DB, dataType string) (err error) {
 }
 
 //
-// DropIndexes created by CreateIndexes
+// createIndexes create indexes based on table name
 //
-func DropIndexes(db *sql.DB) (err error) {
-	indexes := []string{
-		"DROP INDEX IF EXISTS dfp_code_accounts;",
-		"DROP INDEX IF EXISTS dfp_code_accounts_ds;",
-		"DROP INDEX IF EXISTS dfp_metrics;",
-		"DROP INDEX IF EXISTS dfp_date;",
-		"DROP INDEX IF EXISTS dfp_cnpj;",
-	}
-
-	for _, idx := range indexes {
-		_, err = db.Exec(idx)
-		if err != nil {
-			return errors.Wrap(err, "erro ao apagar índice")
-		}
-	}
-
-	return nil
-}
-
-//
-// OptimizeReport creates an index for optimize Report.
-//
-func OptimizeReport(db *sql.DB) error {
-	indexes := []string{
-		"CREATE INDEX IF NOT EXISTS dfp_metrics ON dfp (CODE, ID_CIA, ORDEM_EXERC, YEAR, VL_CONTA);",
-	}
-
-	for _, idx := range indexes {
-		_, err := db.Exec(idx)
-		if err != nil {
-			return errors.Wrap(err, "erro ao criar índice")
-		}
-	}
-
-	return nil
-}
-
-func createIndex(db *sql.DB, table string) error {
-	idx := ""
+func createIndexes(db *sql.DB, table string) error {
+	indexes := []string{}
 
 	switch table {
 	case "dfp":
-		idx = "CREATE INDEX IF NOT EXISTS dfp_year ON dfp (YEAR, DATA_TYPE);"
+		indexes = []string{
+			"CREATE INDEX IF NOT EXISTS dfp_metrics ON dfp (CODE, ID_CIA, YEAR, VL_CONTA);",
+			"CREATE INDEX IF NOT EXISTS dfp_year_ver ON dfp (ID_CIA, YEAR, VERSAO);",
+		}
 	case "itr":
-		idx = "CREATE INDEX IF NOT EXISTS itr_year ON itr (YEAR, DATA_TYPE);"
+		indexes = []string{
+			"CREATE INDEX IF NOT EXISTS itr_metrics ON itr (CODE, ID_CIA, YEAR, VL_CONTA);",
+			"CREATE INDEX IF NOT EXISTS itr_year_ver ON itr (ID_CIA, YEAR, VERSAO);",
+		}
 	}
 
-	if idx != "" {
+	for _, idx := range indexes {
 		_, err := db.Exec(idx)
 		if err != nil {
 			return errors.Wrap(err, "erro ao criar índice")

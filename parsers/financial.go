@@ -98,11 +98,10 @@ func populateTable(db *sql.DB, dataType, file string) (err error) {
 		return r == ';'
 	}
 	header := make(map[string]int) // stores the header item position (e.g., DT_FIM_EXERC:9)
-	deleteTable := make(map[string]bool)
 	scanner := bufio.NewScanner(dec)
 	count := 0
 	insert := ""
-	var stmt, delStmt *sql.Stmt
+	var stmt *sql.Stmt
 
 	// Loop thru file, line by line
 	fmt.Print("[ ] Processando arquivo ", dataType)
@@ -122,14 +121,14 @@ func populateTable(db *sql.DB, dataType, file string) (err error) {
 			insert = fmt.Sprintf(`INSERT OR IGNORE INTO %s (
 				ID, ID_CIA, CODE, YEAR, DATA_TYPE,
 				VERSAO,
-				MOEDA, ESCALA_MOEDA, ESCALA_DRE,
-				ORDEM_EXERC, DT_INI_EXERC, DT_FIM_EXERC,
+				MOEDA, ESCALA_MOEDA, 
+				DT_FIM_EXERC,
 				CD_CONTA, DS_CONTA, VL_CONTA
 			) VALUES (
 				?, ?, ?, ?, "%s",
 				?,
-				?, ?, ?,
-				?, ?, ?,
+				?, ?,
+				?,
 				?, ?, ?
 				);`, table, dataType)
 			stmt, err = tx.Prepare(insert)
@@ -139,37 +138,10 @@ func populateTable(db *sql.DB, dataType, file string) (err error) {
 			}
 			defer stmt.Close()
 
-			// Prepare delete statement (to avoid duplicated data in case of updated data from CVM)
-			delete := fmt.Sprintf(`DELETE FROM %s WHERE YEAR = ? AND DATA_TYPE = "%s";`,
-				table, dataType)
-			delStmt, err = tx.Prepare(delete)
-			if err != nil {
-				err = errors.Wrapf(err, "erro ao preparar delete")
-				return
-			}
-			defer delStmt.Close()
 		} else { // VALUES
 
 			if len(fields) <= 12 {
 				continue
-			}
-
-			// DELETE
-			v, ok := header["DT_REFER"]
-			if ok && len(fields[v]) >= 4 {
-				year := fields[v][:4]
-				if _, ok := deleteTable[year+dataType]; !ok {
-					deleteTable[year+dataType] = true
-					res, err := delStmt.Exec(year)
-					if err != nil {
-						return errors.Wrap(err, "falha ao apagar registro")
-					}
-					count, err := res.RowsAffected()
-					if err == nil && count > 0 {
-						fmt.Printf("\n[√] %d registros removidos para evitar duplicidade\n", count)
-						fmt.Print("[ ] Processando arquivo ", dataType)
-					}
-				}
 			}
 
 			// UPDATE COMPANIES
@@ -180,8 +152,7 @@ func populateTable(db *sql.DB, dataType, file string) (err error) {
 			}
 
 			// INSERT
-			hash := GetHash(line)
-			f, err := prepareFields(hash, header, fields, companies)
+			f, err := prepareFields(header, fields, companies)
 			if err != nil {
 				return errors.Wrap(err, "falha ao preparar registro")
 			}
@@ -221,13 +192,13 @@ func populateTable(db *sql.DB, dataType, file string) (err error) {
 // Returns:
 // ID, ID_CIA, CODE, YEAR,
 // VERSAO,
-// MOEDA, ESCALA_MOEDA, ESCALA_DRE,
-// ORDEM_EXERC, DT_INI_EXERC, DT_FIM_EXERC,
+// MOEDA, ESCALA_MOEDA,
+// DT_FIM_EXERC,
 // CD_CONTA, DS_CONTA, VL_CONTA
 //
 // Tip: to convert Unix timestamp to date on sqlite: strftime('%Y-%m-%d', DT_REFER, 'unixepoch')
 //
-func prepareFields(hash uint32, header map[string]int, fields []string, companies map[string]company) ([]interface{}, error) {
+func prepareFields(header map[string]int, fields []string, companies map[string]company) ([]interface{}, error) {
 	// AUX FUNCTIONS
 	val := func(key string) string {
 		v, ok := header[key]
@@ -251,22 +222,25 @@ func prepareFields(hash uint32, header map[string]int, fields []string, companie
 	}
 
 	// REFERENCE DATE
-	v, ok := header["DT_REFER"]
+	v, ok := header["DT_FIM_EXERC"]
 	if !ok {
-		return nil, fmt.Errorf("DT_REFER não encontrado")
+		return nil, fmt.Errorf("DT_FIM_EXERC não encontrado")
 	}
-	if len(fields[v]) < 4 || tim("DT_REFER") == 0 {
-		return nil, fmt.Errorf("DT_REFER incorreto: %v", fields[v])
+	if len(fields[v]) < 4 || tim("DT_FIM_EXERC") == 0 {
+		return nil, fmt.Errorf("DT_FIM_EXERC incorreto: %v", fields[v])
 	}
 	year := fields[v][:4]
 
 	// CNPJ_CIA and DENOM_CIA are replaced by company id
-	cnpj := fields[header["CNPJ_CIA"]]
+	cnpj := val("CNPJ_CIA")
 	c, ok := companies[cnpj]
 	if !ok {
 		return nil, fmt.Errorf("CNPJ %s não encontrado", cnpj)
 	}
 	companyID := c.id
+
+	// Unique value to be used as PRIMARY KEY
+	hash := Hash(cnpj + val("GRUPO_DFP") + val("DT_FIM_EXERC") + val("VERSAO") + val("CD_CONTA") + val("VL_CONTA"))
 
 	// Output -- need to follow INSERT sequence
 	var f []interface{}
@@ -278,9 +252,6 @@ func prepareFields(hash uint32, header map[string]int, fields []string, companie
 	f = append(f, val("VERSAO"))
 	f = append(f, val("MOEDA"))
 	f = append(f, val("ESCALA_MOEDA"))
-	f = append(f, val("ESCALA_DRE"))
-	f = append(f, val("ORDEM_EXERC"))
-	f = append(f, tim("DT_INI_EXERC"))
 	f = append(f, tim("DT_FIM_EXERC"))
 	f = append(f, val("CD_CONTA"))
 	f = append(f, val("DS_CONTA"))
