@@ -46,9 +46,37 @@ Usado para obter apenas o resumo dos indicadores das empresas do mesmo setor.
 
 ## 3.2. list
 
-**Lista todas as empresas disponíveis.**
+**Listagens**
 
     ./rapina list
+
+### 3.2.1 Lista todas as empresas disponíveis
+
+```
+  -e, --empresas               Lista todas as empresas disponíveis
+```
+
+### 3.2.2 Lista as empresas do mesmo setor
+
+```
+  -s, --setor string           Lista todas as empresas do mesmo setor
+```
+
+Por exemplo, para listar todas as empras do mesmo setor do Itaú: `./rapina lista -s itau`
+
+O resultado mostra a lista das empresas do mesmo setor contidos no banco de dados e no arquivo **setores.yml**, que você pode editar caso queira realocar os setores das empresas.
+
+### 3.2.3 Lista todas as empresas disponíveis
+
+```
+  -l, --lucroLiquido número   Lista empresas com lucros lucros positivos e com a taxa de crescimento definida
+```
+
+Lista as empresas com lucros líquidos positivos e com uma taxa de crescimento definida em relação ao mês anterior. 
+Por exemplo:
+* Para listar as empresas com crescimento mínimo de 10% em relação ao ano anterior: `./rapina list -l 0.1`
+* Para listar as empresas com variação no lucro de pelo menos -5% em relação ao ano anterior: `./rapina list -l -0.05`
+
 
 ## 3.3. report
 
@@ -82,19 +110,18 @@ A planilha será salva em `/tmp/output`
 
 # 4. Como compilar
 
-Se quiser compilar seu próprio executável, primeiro [baixe e instale](https://golang.org/dl/) o compilador Go. Depois execute estes passos:
+Se quiser compilar seu próprio executável, primeiro [baixe e instale](https://golang.org/dl/) o compilador Go (v1.13 ou maior). Depois execute estes passos:
 
-1. `go get github.com/dude333/rapina`
-2. `cd $GOPATH/src/github.com/dude333/rapina`
-3. Change to the cli directory (`cd cli`)
-4. Compile using the Makefile (`make`). _To cross compile for Windows on Linux, use `make win`_.
+1. `git clone github.com/dude333/rapina`
+2. Change to the cli directory (`cd rapina/cli`)
+3. Compile using the Makefile (`make`). _To cross compile for Windows on Linux, use `make win`_.
 
 # 5. Contribua
 
-1. Faça um fork deste projeto
-2. `cd $GOPATH/src/github.com/your_username`
-3. `git clone https://github.com/your_username/rapina && cd rapina`
-4. `git checkout -b my-new-feature`
+1. Faça um fork deste projeto no [github.com](github.com/dude333/rapina)
+2. `git clone https://github.com/`*your_username*`/rapina && cd rapina`
+3. `git checkout -b `*my-new-feature*
+4. Faça as modificações
 5. `git add .`
 6. `git commit -m 'Add some feature'`
 7. `git push origin my-new-feature`
