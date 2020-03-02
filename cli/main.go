@@ -35,7 +35,7 @@ var (
 func main() {
 	fmt.Fprint(os.Stderr, "Rapina - Dados Financeiros de Empresas Brasileiras - ")
 	fmt.Fprintf(os.Stderr, "%s-%s\n", version, build)
-	fmt.Fprint(os.Stderr, "(2018) github.com/dude333/rapina\n\n")
+	fmt.Fprint(os.Stderr, "(2018-2020) github.com/dude333/rapina\n\n")
 
 	cmd.Execute()
 }

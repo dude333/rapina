@@ -1,6 +1,6 @@
 # 𝚛𝚊𝚙𝚒𝚗𝚊
 
-Download e processamento de dados financeiros de empresas brasileiras diretamente da [CVM](http://dados.cvm.gov.br/dados/CIA_ABERTA/DOC/DFP/).
+Download e processamento de dados<sup>[1](#disclaimer)</sup> financeiros de empresas brasileiras diretamente da [CVM](http://dados.cvm.gov.br/dados/CIA_ABERTA/DOC/DFP/).
 
 [![GitHub release](https://img.shields.io/github/tag/dude333/rapina.svg?label=latest)](https://github.com/dude333/rapina/releases)
 [![Travis](https://img.shields.io/travis/dude333/rapina/master.svg)](https://travis-ci.org/dude333/rapina)
@@ -148,3 +148,9 @@ Se quiser compilar seu próprio executável, primeiro [baixe e instale](https://
 # 8. License
 
 MIT
+
+
+
+`---`
+<br />
+<a name="disclaimer">1</a>: *Os dados são fornecidos "no estado em que se encontram" e somente para fins informativos, não para fins comerciais ou de consultoria.*
