@@ -502,7 +502,7 @@ func metricsList(v map[uint32]float32) (metrics []metric) {
 		{"Lucro Líquido", v[p.LucLiq], NUMBER},
 		{"", 0, EMPTY},
 
-		{"Marg. EBITDA", zeroIfNeg(safeDiv(v[p.EBIT], v[p.Vendas])), PERCENT},
+		{"Marg. EBITDA", zeroIfNeg(safeDiv(EBITDA, v[p.Vendas])), PERCENT},
 		{"Marg. EBIT", zeroIfNeg(safeDiv(v[p.EBIT], v[p.Vendas])), PERCENT},
 		{"Marg. Líq.", zeroIfNeg(safeDiv(v[p.LucLiq], v[p.Vendas])), PERCENT},
 		{"ROE", roe, PERCENT},
