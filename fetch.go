@@ -147,12 +147,13 @@ func processQuarterlyReport(db *sql.DB, year int) error {
 	dataTypes := []string{"BPA", "BPP", "DRE", "DFC_MD", "DFC_MI", "DVA"}
 
 	for _, dt := range dataTypes {
-		reqFile := fmt.Sprintf("%s/ITR_CIA_ABERTA_%s_con_%d.csv", dataDir, dt, year)
-		files, err = removeItem(files, reqFile)
+		pattern := fmt.Sprintf("%s/ITR_CIA_ABERTA_%s_con_%d.csv", dataDir, dt, year)
+		reqFile, err := findFile(files, pattern)
 		if err == ErrItemNotFound {
 			filesCleanup(files)
 			return fmt.Errorf("arquivo %s não encontrado", reqFile)
 		}
+		files, _ = removeItem(files, reqFile)
 
 		// Import file into DB (the trick is to add ITR to the data type so the
 		// ImportCSV loads that into the ITR table)
@@ -277,4 +278,18 @@ func removeItem(list []string, item string) ([]string, error) {
 	}
 	list[idx] = list[len(list)-1]  // Replace it with the last one.
 	return list[:len(list)-1], nil // Chop off the last one.
+}
+
+//
+// findFile finds an item on list that matches pattern (case insensitive)
+//
+func findFile(list []string, pattern string) (string, error) {
+
+	for i := range list {
+		if strings.EqualFold(list[i], pattern) {
+			return list[i], nil
+		}
+	}
+
+	return "", ErrItemNotFound
 }
