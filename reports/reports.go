@@ -78,14 +78,7 @@ func Report(db *sql.DB, _company string, filename, yamlFile string) (err error) 
 
 		// Check if last year is empty
 		if y == end {
-			zeroed := true
-			for _, acct := range accounts {
-				if values[acct.code] != 0.0 {
-					zeroed = false
-					break
-				}
-			}
-			if zeroed {
+			if sum(values) == 0 {
 				end--
 				break
 			}
@@ -575,4 +568,13 @@ func printCodesAndDescription(sheet *Sheet, accounts []accItems) ([]bool, int, i
 	lastMetricsRow := row - 1
 
 	return baseItems, lastStatementsRow, lastMetricsRow
+}
+
+// sum returns a float32 with the sum of all values from a map
+func sum(values map[uint32]float32) float32 {
+	var sum float32
+	for _, v := range values {
+		sum += v
+	}
+	return sum
 }
