@@ -51,46 +51,20 @@ func Report(db *sql.DB, _company string, filename, yamlFile string) (err error) 
 	e := newExcel()
 	sheet, _ := e.newSheet(_company)
 
-	var lastStatementsRow, lastMetricsRow int
-
 	// Company name
 	sheet.mergeCell("A1", "B1")
 	sheet.print("A1", &[]string{_company}, LEFT, true)
 
 	// ACCOUNT NUMBERING AND DESCRIPTION (COLS A AND B) ===============\/
-
-	// Print accounts codes and descriptions in columns A and B
-	// starting on row 2. Adjust space related to the group, e.g.:
-	// 3.02 ABC <== print in bold if base item and stores the row position in baseItems[]
-	//   3.02.01 ABC
 	accounts, _ := r.accountsItems(cid)
-	row := 2
-	baseItems := make([]bool, len(accounts)+row)
-	for _, it := range accounts {
-		var sp string
-		sp, baseItems[row] = ident(it.cdConta)
-		cell := "A" + strconv.Itoa(row)
-		sheet.print(cell, &[]string{sp + it.cdConta, sp + it.dsConta}, LEFT, baseItems[row])
-		row++
-	}
-	lastStatementsRow = row - 1
-	row += 2
-	// Metrics descriptions
-	for _, metric := range metricsList(nil) {
-		if metric.descr != "" {
-			cell := "B" + strconv.Itoa(row)
-			sheet.print(cell, &[]string{metric.descr}, RIGHT, false)
-		}
-		row++
-	}
-	lastMetricsRow = row - 1
+	baseItems, lastStatementsRow, lastMetricsRow := printCodesAndDescription(sheet, accounts)
+
+	// 	VALUES (COLS C, D, E...) / PER YEAR ===========================\/
 
 	begin, end, err := timeRange(r.db)
 	if err != nil {
 		return
 	}
-
-	// 	VALUES (COLS C, D, E...) / PER YEAR ===========================\/
 
 	// Print accounts values ONE YEAR PER COLUMN, starting from C, row 2
 	var values map[uint32]float32
@@ -121,7 +95,7 @@ func Report(db *sql.DB, _company string, filename, yamlFile string) (err error) 
 		cell := col + "1"
 		sheet.printTitle(cell, "["+strconv.Itoa(y)+"]") // Print year as title in row 1
 
-		row = 2
+		row := 2
 		for _, acct := range accounts {
 			cell := col + strconv.Itoa(row)
 			sheet.printValue(cell, values[acct.code], NUMBER, baseItems[row])
@@ -567,4 +541,38 @@ func ident(str string) (spaces string, baseItem bool) {
 	}
 
 	return
+}
+
+// printCodesAndDescription prints accounts codes and descriptions on
+// columns A and B, starting on row 2. Adjust space related to the group, e.g.:
+//  3.02 ABC <= print in bold if base item and stores the row position in baseItems[]
+//    3.02.01 ABC
+//
+// Returns:
+//  - []bool indicates if a row is a base item,
+//  - the row of the last statement,
+//  - the row of the last metric item.
+func printCodesAndDescription(sheet *Sheet, accounts []accItems) ([]bool, int, int) {
+	row := 2
+	baseItems := make([]bool, len(accounts)+row)
+	for _, it := range accounts {
+		var sp string
+		sp, baseItems[row] = ident(it.cdConta)
+		cell := "A" + strconv.Itoa(row)
+		sheet.print(cell, &[]string{sp + it.cdConta, sp + it.dsConta}, LEFT, baseItems[row])
+		row++
+	}
+	lastStatementsRow := row - 1
+	row += 2
+	// Metrics descriptions
+	for _, metric := range metricsList(nil) {
+		if metric.descr != "" {
+			cell := "B" + strconv.Itoa(row)
+			sheet.print(cell, &[]string{metric.descr}, RIGHT, false)
+		}
+		row++
+	}
+	lastMetricsRow := row - 1
+
+	return baseItems, lastStatementsRow, lastMetricsRow
 }
