@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/dude333/rapina/parsers"
 	"github.com/pkg/errors"
@@ -65,16 +66,17 @@ type account struct {
 //
 func (r report) accountsValues(cid, year int) (map[uint32]float32, error) {
 
-	selectReport := fmt.Sprintf(`
-	SELECT
-		CODE, VL_CONTA
-	FROM
-		dfp a
-	WHERE
-		ID_CIA = "%d" 
-		AND YEAR = "%d"
-		AND VERSAO = (SELECT MAX(VERSAO) FROM dfp WHERE ID_CIA = a.ID_CIA AND YEAR = a.YEAR)
-	;`, cid, year)
+	currYear, err := strconv.Atoi(time.Now().Format("2006"))
+
+	selectReport := ""
+	if year != currYear || err != nil {
+		selectReport = dfp(cid, year)
+	} else {
+		selectReport, err = itr(r.db, cid)
+		if err != nil {
+			return nil, err
+		}
+	}
 
 	rows, err := r.db.Query(selectReport)
 	if err != nil {
@@ -91,6 +93,65 @@ func (r report) accountsValues(cid, year int) (map[uint32]float32, error) {
 	}
 
 	return values, err
+}
+
+func dfp(cid, year int) string {
+	return fmt.Sprintf(`
+	SELECT
+		CODE, VL_CONTA
+	FROM
+		dfp a
+	WHERE
+		ID_CIA = "%d" 
+		AND YEAR = "%d"
+		AND VERSAO = (SELECT MAX(VERSAO) FROM dfp WHERE ID_CIA = a.ID_CIA AND YEAR = a.YEAR)
+	;`, cid, year)
+}
+
+func itrQuarters(db *sql.DB, cid int) (int, error) {
+	validate := fmt.Sprintf(`
+	SELECT 
+		COUNT(DISTINCT DATE(DT_FIM_EXERC, 'UNIXEPOCH')) 
+	FROM 
+		itr i 
+	WHERE 
+		ID_CIA = "%d" 
+		AND DT_FIM_EXERC > STRFTIME('%%s', DATE('NOW','-1 YEAR'))
+		AND VERSAO = (SELECT MAX(VERSAO) FROM itr WHERE ID_CIA = i.ID_CIA AND YEAR = i.YEAR)
+	;`, cid)
+
+	row := db.QueryRow(validate)
+	count := 0
+	err := row.Scan(&count)
+	if err != nil {
+		return 0, err
+	}
+
+	return count, nil
+}
+
+func itr(db *sql.DB, cid int) (string, error) {
+
+	count, err := itrQuarters(db, cid)
+	if err != nil {
+		return "", err
+	}
+	if count != 4 {
+		return "", fmt.Errorf("should have 4 quarters, but found %d", count)
+	}
+
+	return fmt.Sprintf(`
+	SELECT
+		CODE, SUM(VL_CONTA)
+	FROM
+		itr i
+	WHERE
+		ID_CIA = "%d" 
+		AND DT_FIM_EXERC > STRFTIME('%%s', DATE('NOW','-1 YEAR'))
+		AND VERSAO = (SELECT MAX(VERSAO) FROM itr WHERE ID_CIA = i.ID_CIA AND YEAR = i.YEAR)
+	GROUP BY
+		CODE
+	;`, cid), nil
 }
 
 //
@@ -247,29 +308,34 @@ func (r report) isCompany(company string) bool {
 //
 // timeRange returns the begin=min(year) and end=max(year)
 //
-func timeRange(db *sql.DB) (begin, end int, err error) {
+func timeRange(db *sql.DB) (int, int, error) {
 
 	selectYears := `
 	SELECT
 		MIN(CAST(YEAR AS INTEGER)),
 		MAX(CAST(YEAR AS INTEGER))
 	FROM dfp;`
-
-	rows, err := db.Query(selectYears)
+	begin := 0
+	end := 0
+	err := db.QueryRow(selectYears).Scan(&begin, &end)
 	if err != nil {
-		err = errors.Wrap(err, "falha ao ler banco de dados")
-		return
+		return 0, 0, err
 	}
-	defer rows.Close()
 
-	for rows.Next() {
-		rows.Scan(&begin, &end)
+	selectItrYears := `
+	SELECT
+		MAX(CAST(YEAR AS INTEGER))
+	FROM itr;`
+	end2 := 0
+	err = db.QueryRow(selectItrYears).Scan(&end2)
+	if err == nil && end2 > end {
+		end = end2
 	}
 
 	// Check year
 	if begin < 1900 || begin > 2100 || end < 1900 || end > 2100 {
 		err = errors.Wrap(err, "ano inválido")
-		return
+		return 0, 0, err
 	}
 	if begin > end {
 		aux := end
@@ -277,7 +343,7 @@ func timeRange(db *sql.DB) (begin, end int, err error) {
 		begin = aux
 	}
 
-	return
+	return begin, end, nil
 }
 
 func removeDuplicates(elements []string) []string { // change string to int here if required

@@ -183,7 +183,7 @@ func (s *Sheet) mergeCell(a, b string) {
 // autoWidth adjust the cols width
 //
 func (s *Sheet) autoWidth() {
-	const cols string = "ABCDEFGHIJKLMONPQRSTUVWXYZ"
+	const cols string = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
 	setColWidth := s.xlsx.SetColWidth
 	setColWidth(s.name, "A", "A", 16)
 	setColWidth(s.name, "B", "B", 48)
@@ -202,8 +202,8 @@ func (s *Sheet) autoWidth() {
 	// AB2DE5GHI => 5-2+5 = 8
 	// AB2DEF6HIJK => 6-2+6 = 10
 	// AB2DEFG7IJKLM => 7-2+7 = 12
-	setColWidth(s.name, "C", string(cols[spaced-1]), 9.5)                       // Account values
-	setColWidth(s.name, string(cols[spaced]), string(cols[(spaced*2)-1]), 4.64) // Vertical Analysis values
+	setColWidth(s.name, "C", string(cols[spaced-1]), 9.5) // Account values
+	setColWidth(s.name, string(cols[spaced]), "AC", 4.64) // Vertical Analysis values
 }
 
 func (s *Sheet) setColWidth(col int, width float64) {

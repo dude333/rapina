@@ -37,7 +37,7 @@ type report struct {
 //
 // Report of company data from DB to Excel
 //
-func Report(db *sql.DB, _company string, filename, yamlFile string) (err error) {
+func Report(db *sql.DB, _company string, filename, yamlFile string) error {
 	r := report{
 		db:       db,
 		yamlFile: yamlFile,
@@ -57,53 +57,47 @@ func Report(db *sql.DB, _company string, filename, yamlFile string) (err error) 
 
 	// ACCOUNT NUMBERING AND DESCRIPTION (COLS A AND B) ===============\/
 	accounts, _ := r.accountsItems(cid)
-	baseItems, lastStatementsRow, lastMetricsRow := printCodesAndDescription(sheet, accounts)
+	baseItems, lastStatementsRow, lastMetricsRow := printCodesAndDescriptions(sheet, accounts, 'A', 2)
 
 	// 	VALUES (COLS C, D, E...) / PER YEAR ===========================\/
 
 	begin, end, err := timeRange(r.db)
 	if err != nil {
-		return
+		return err
 	}
-
-	// Print accounts values ONE YEAR PER COLUMN, starting from C, row 2
 	var values map[uint32]float32
-	cols := "CDEFGHIJKLMONPQRSTUVWXYZ"
+	cols := "CDEFGHIJKLMNOPQRSTUVWXYZ"
+
+	// LOOP THROUGH YEARS =============================================\/
 	for y := begin; y <= end; y++ {
 		if y-begin >= len(cols) {
 			break
 		}
 
-		values, _ = r.accountsValues(cid, y)
-
-		// Check if last year is empty
-		if y == end {
-			if sum(values) == 0 {
-				end--
-				break
-			}
-		}
-
+		// Title
+		row := 2
 		col := string(cols[y-begin])
 		cell := col + "1"
-		sheet.printTitle(cell, "["+strconv.Itoa(y)+"]") // Print year as title in row 1
+		title := "[" + strconv.Itoa(y) + "]"
+		sheet.printTitle(cell, title) // Print year as title in row 1
 
-		row := 2
+		// ACCOUNT VALUES (COLS C, D, E...) / YEAR ====================\/
+		values, err = r.accountsValues(cid, y)
+		if err != nil || sum(values) == 0 {
+			continue
+		}
 		for _, acct := range accounts {
 			cell := col + strconv.Itoa(row)
 			sheet.printValue(cell, values[acct.code], NUMBER, baseItems[row])
 			row++
 		}
 
-		// FINANCIAL METRICS (COLS C, D, E...) / YEAR ===================\/
-
-		// Print financial metrics
+		// FINANCIAL METRICS (COLS C, D, E...) / YEAR =================\/
 		row++
-		cell = fmt.Sprintf("%s%d", col, row)
-		sheet.printTitle(cell, "["+strconv.Itoa(y)+"]") // Print year as title
+		cell = col + strconv.Itoa(row)
+		sheet.printTitle(cell, title) // Print year as title
 		row++
-
-		// Print report in the sequence defined in financialMetricsList()
+		// Print report in the sequence defined on metricsList()
 		for _, metric := range metricsList(values) {
 			if metric.format != EMPTY {
 				cell := col + strconv.Itoa(row)
@@ -216,7 +210,7 @@ func Report(db *sql.DB, _company string, filename, yamlFile string) (err error) 
 		fmt.Printf("[√] Dados salvos em %s\n", filename)
 	}
 
-	return
+	return err
 }
 
 //
@@ -536,8 +530,9 @@ func ident(str string) (spaces string, baseItem bool) {
 	return
 }
 
-// printCodesAndDescription prints accounts codes and descriptions on
-// columns A and B, starting on row 2. Adjust space related to the group, e.g.:
+// printCodesAndDescription prints 'accounts' codes and descriptions on
+// columns 'col' and 'col+1' (A <= col <= Z), starting on row 2.
+// Adjust space related to the group, e.g.:
 //  3.02 ABC <= print in bold if base item and stores the row position in baseItems[]
 //    3.02.01 ABC
 //
@@ -545,22 +540,22 @@ func ident(str string) (spaces string, baseItem bool) {
 //  - []bool indicates if a row is a base item,
 //  - the row of the last statement,
 //  - the row of the last metric item.
-func printCodesAndDescription(sheet *Sheet, accounts []accItems) ([]bool, int, int) {
-	row := 2
+func printCodesAndDescriptions(sheet *Sheet, accounts []accItems, col rune, row int) ([]bool, int, int) {
 	baseItems := make([]bool, len(accounts)+row)
 	for _, it := range accounts {
 		var sp string
 		sp, baseItems[row] = ident(it.cdConta)
-		cell := "A" + strconv.Itoa(row)
+		cell := string(col) + strconv.Itoa(row)
 		sheet.print(cell, &[]string{sp + it.cdConta, sp + it.dsConta}, LEFT, baseItems[row])
 		row++
 	}
 	lastStatementsRow := row - 1
 	row += 2
+	col++
 	// Metrics descriptions
 	for _, metric := range metricsList(nil) {
 		if metric.descr != "" {
-			cell := "B" + strconv.Itoa(row)
+			cell := string(col) + strconv.Itoa(row)
 			sheet.print(cell, &[]string{metric.descr}, RIGHT, false)
 		}
 		row++
