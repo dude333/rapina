@@ -7,6 +7,7 @@ import (
 	"os/signal"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/360EntSecGroup-Skylar/excelize"
 	p "github.com/dude333/rapina/parsers"
@@ -51,6 +52,8 @@ func Report(db *sql.DB, _company string, filename, yamlFile string) error {
 	e := newExcel()
 	sheet, _ := e.newSheet(_company)
 
+	currYear, _ := strconv.Atoi(time.Now().Format("2006"))
+
 	// Company name
 	sheet.mergeCell("A1", "B1")
 	sheet.print("A1", &[]string{_company}, LEFT, true)
@@ -79,13 +82,18 @@ func Report(db *sql.DB, _company string, filename, yamlFile string) error {
 		col := string(cols[y-begin])
 		cell := col + "1"
 		title := "[" + strconv.Itoa(y) + "]"
-		sheet.printTitle(cell, title) // Print year as title in row 1
+		if currYear == y {
+			title = "[TTM/" + strconv.Itoa(y) + "]"
+		}
 
 		// ACCOUNT VALUES (COLS C, D, E...) / YEAR ====================\/
-		values, err = r.accountsValues(cid, y)
-		if err != nil || sum(values) == 0 {
-			continue
+		values, _ = r.accountsValues(cid, y)
+		// Skip last year if empty
+		if y == end && sum(values) == 0 {
+			end--
+			break
 		}
+		sheet.printTitle(cell, title) // Print year as title on row 1
 		for _, acct := range accounts {
 			cell := col + strconv.Itoa(row)
 			sheet.printValue(cell, values[acct.code], NUMBER, baseItems[row])
@@ -350,19 +358,10 @@ func (r *report) companySummary(sheet *Sheet, row, col *int, _company, sectorNam
 			values, _ = r.accountsValues(cid, y)
 		}
 
-		// Check if last year is empty
-		if y == end {
-			zeroed := true
-			for _, val := range values {
-				if val != 0.0 {
-					zeroed = false
-					break
-				}
-			}
-			if zeroed {
-				end--
-				break
-			}
+		// Skip last year if empty
+		if y == end && sum(values) == 0 {
+			end--
+			break
 		}
 
 		*row = rw
