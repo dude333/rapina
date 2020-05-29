@@ -173,7 +173,7 @@ func createIndexes(db *sql.DB, table string) error {
 	case "itr":
 		indexes = []string{
 			"CREATE INDEX IF NOT EXISTS itr_metrics ON itr (CODE, ID_CIA, YEAR, VL_CONTA);",
-			"CREATE INDEX IF NOT EXISTS itr_year_ver ON itr (ID_CIA, YEAR, VERSAO);",
+			"CREATE INDEX IF NOT EXISTS itr_quarter_ver ON itr (ID_CIA, DT_FIM_EXERC, VERSAO);",
 		}
 	}
 

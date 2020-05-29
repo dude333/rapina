@@ -126,7 +126,7 @@ func itrNumQuarters(db *sql.DB, cid int) (int, error) {
 		WHERE
 			ID_CIA = $1
 			AND YEAR >= strftime('%Y', 'now', '-1 year')
-			AND VERSAO = (SELECT MAX(VERSAO) FROM itr WHERE ID_CIA = i.ID_CIA AND YEAR = i.YEAR)
+			AND VERSAO = (SELECT MAX(VERSAO) FROM itr WHERE ID_CIA = i.ID_CIA AND DT_FIM_EXERC = i.DT_FIM_EXERC)
 	);`
 
 	row := db.QueryRow(validate, cid)
@@ -171,7 +171,7 @@ func ttm(db *sql.DB, cid int) (map[uint32]float32, error) {
 	WHERE
 		ID_CIA = $1
 		AND YEAR >= strftime('%Y', 'now', '-1 year')
-		AND VERSAO = (SELECT MAX(VERSAO) FROM itr WHERE ID_CIA = i.ID_CIA AND YEAR = i.YEAR)
+		AND VERSAO = (SELECT MAX(VERSAO) FROM itr WHERE ID_CIA = i.ID_CIA AND DT_FIM_EXERC = i.DT_FIM_EXERC)
 	GROUP BY
 		DT_FIM_EXERC, CODE, CD_CONTA
 		
