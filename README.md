@@ -8,23 +8,11 @@ Download e processamento de dados<sup>[1](#disclaimer)</sup> financeiros de empr
 
 Este programa baixa e processa os arquivos CSV do site da CVM e os armazena em um banco de dados local (sqlite), onde são extraídos os dados **consolidados** do balanço patrimonial, fluxo de caixa, DRE (demonstração de resultado), DVA (demonstração de valor adicionado).
 
-São coletados vários arquivos CSV, um para cada tipo para cada ano, desde 2010. Estes arquivos contém informações do ano corrente e também do ano anterior, dessa forma foi possível extrair também os dados de 2009.
+São coletados vários arquivos CSV desde 2010. Cada um destes arquivos contém informações do ano corrente e também do ano anterior, dessa forma foi possível extrair também os dados de 2009.
 
-A partir destes dados são criados os relatórios por empresa, com um comparativo das empresas do mesmo setor. A classificação dos setores é baixada do site da Bovespa e armazenada no arquivo setores.yml (no formato [YAML](https://medium.com/@akio.miyake/introdu%C3%A7%C3%A3o-b%C3%A1sica-ao-yaml-para-ansiosos-2ac4f91a4443)), que pode ser editado para se adequar aos seus critérios, caso necessário.
+Com base nestes dados, são criados os relatórios por empresa, com um comparativo de outras empresas do mesmo setor. A classificação dos setores é baixada do site da Bovespa e armazenada no arquivo setores.yml (no formato [YAML](https://medium.com/@akio.miyake/introdu%C3%A7%C3%A3o-b%C3%A1sica-ao-yaml-para-ansiosos-2ac4f91a4443)), que pode ser editado para se adequar aos seus critérios, caso necessário.
 
-[`🚧` *release não liberado ainda*] Para o cálculo do TTM (Twelve Trailling Months) foi usado o seguinte método, considerando que os dados apresentados no DRE trimestral (ITR) é cumulativo (os dados do trimestre apresentado contém os resultados desde o início do ano):
-
-| Trimestre | Valor          | TTM                           | TTM equiv.  |
-| :-------: | :-----:        | :----:                        | :-------:   |
-| 1T        | **A**          |                               |             |
-| 2T        | A+**B**        |                               |             |
-| 3T        | A+B+**C**      |                               |             |
-| 4T        | A+B+C+**D**    |                               |             |
-| *1T'*     | ***A'***       | *A'*+(A+B+C+D)-A = *A'*+B+C+D | *1T'*+4T-1T |
-| *2T'*     | *A'*+***B'***  | (*A'*+*B'*)+(A+B+C+D)-(A+B) = *A'*+*B'*+C+D  | *2T'*+4T-2T |
-| *3T'*     | *A'*+*B'*+***C'***| (*A'*+*B'*+*C'*)+(A+B+C+D)-(A+B+C) = *A'*+*B'*+*C'*+D | *3T'*+4T-3T |
-
-
+A partir do release v0.11.0, passou-se a usar os dados trimestrais para compor os valores do ano corrente, usando-se para isso os últimos 4 trimestre ([TTM](#ttm-calc)), ou seja, a soma dos dados trimestrais do ano corrente com alguns do ano anterior, mantendo-se assim uma mesma base de comparação com os anos anteriores. 
 
 
 # 1. Instalação
@@ -166,7 +154,23 @@ Se quiser compilar seu próprio executável, primeiro [baixe e instale](https://
 
 [![asciicast](https://asciinema.org/a/jhmHxzgROtc8EBh3tkSwYTaa9.svg)](https://asciinema.org/a/jhmHxzgROtc8EBh3tkSwYTaa9?autoplay=1&loop=1)
 
-# 8. License
+# 8. Cálculo do TTM<a name="ttm-calc"></a>
+
+Para o cálculo do TTM (Twelve Trailling Months) foi usado o seguinte método, considerando que os dados apresentados no DRE trimestral (ITR) é cumulativo (os dados do trimestre apresentado contém os resultados desde o início do ano):
+
+| Trimestre | Valor          | TTM                           | TTM equiv.  |
+| :-------: | :-----:        | :----:                        | :-------:   |
+| 1T        | **A**          |                               |             |
+| 2T        | A+**B**        |                               |             |
+| 3T        | A+B+**C**      |                               |             |
+| 4T        | A+B+C+**D**    |                               |             |
+| *1T'*     | ***A'***       | *A'*+(A+B+C+D)-A = *A'*+B+C+D | *1T'*+4T-1T |
+| *2T'*     | *A'*+***B'***  | (*A'*+*B'*)+(A+B+C+D)-(A+B) = *A'*+*B'*+C+D  | *2T'*+4T-2T |
+| *3T'*     | *A'*+*B'*+***C'***| (*A'*+*B'*+*C'*)+(A+B+C+D)-(A+B+C) = *A'*+*B'*+*C'*+D | *3T'*+4T-3T |
+
+
+
+# 9. License
 
 MIT
 
