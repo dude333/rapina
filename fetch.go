@@ -27,6 +27,7 @@ import (
 	"net/http"
 	"os"
 	"path"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -147,7 +148,7 @@ func processQuarterlyReport(db *sql.DB, year int) error {
 	dataTypes := []string{"BPA", "BPP", "DRE", "DFC_MD", "DFC_MI", "DVA"}
 
 	for _, dt := range dataTypes {
-		pattern := fmt.Sprintf("%s/ITR_CIA_ABERTA_%s_con_%d.csv", dataDir, dt, year)
+		pattern := fmt.Sprintf("ITR_CIA_ABERTA_%s_con_%d.csv", dt, year)
 		reqFile, err := findFile(files, pattern)
 		if err == ErrItemNotFound {
 			filesCleanup(files)
@@ -286,7 +287,8 @@ func removeItem(list []string, item string) ([]string, error) {
 func findFile(list []string, pattern string) (string, error) {
 
 	for i := range list {
-		if strings.EqualFold(list[i], pattern) {
+		f := filepath.Base(list[i])
+		if strings.EqualFold(f, pattern) {
 			return list[i], nil
 		}
 	}
