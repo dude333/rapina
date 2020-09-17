@@ -78,18 +78,16 @@ OUTER_QTR:
 OUTER:
 	for year := now - 1; tries > 0 && year >= 2009; year-- {
 		fmt.Printf("[>] %d ---------------------\n", year)
-		for _, report := range []string{"BPA", "BPP", "DRE", "DFC_MD", "DFC_MI", "DVA"} {
-			err := processAnnualReport(db, report, year)
-			if err == ErrFileNotFound {
-				fmt.Printf("[x] ---- Arquivo %s não encontrado", report)
-				tries--
-				continue OUTER
-			} else if err != nil {
-				fmt.Printf("[x] Erro ao processar %s de %d: %v\n", report, year, err)
-				tries--
-			} else {
-				tries = 2
-			}
+		err := processAnnualReport(db, year)
+		if err == ErrFileNotFound {
+			fmt.Printf("[x] ---- Arquivo DFP não encontrado")
+			tries--
+			continue OUTER
+		} else if err != nil {
+			fmt.Printf("[x] Erro ao processar arquivo de %d: %v\n", year, err)
+			tries--
+		} else {
+			tries = 2
 		}
 	}
 
@@ -98,34 +96,36 @@ OUTER:
 
 // processAnnualReport will get data from .zip files downloaded
 // directly from CVM and insert its data into the DB
-func processAnnualReport(db *sql.DB, dataType string, year int) error {
+func processAnnualReport(db *sql.DB, year int) error {
 
-	dt := strings.ToLower(dataType)
-	url := fmt.Sprintf("http://dados.cvm.gov.br/dados/CIA_ABERTA/DOC/DFP/%s/DADOS/%s_cia_aberta_%d.zip", dataType, dt, year)
-	zipfile := fmt.Sprintf("%s/%s_%d.zip", dataDir, dt, year)
-	reqFile := fmt.Sprintf("%s/%s_cia_aberta_con_%d.csv", dataDir, dt, year)
+	url := fmt.Sprintf("http://dados.cvm.gov.br/dados/CIA_ABERTA/DOC/DFP/DADOS/dfp_cia_aberta_%d.zip", year)
+	zipfile := fmt.Sprintf("%s/dfp_%d.zip", dataDir, year)
 
 	// Download files from CVM server
-	fmt.Print("[ ] Download do arquivo ", dataType)
+	fmt.Print("[ ] Download do arquivo DFP")
 	files, err := fetchFiles(url, zipfile)
 	if err != nil {
 		return err
 	}
 
-	// Keep 'reqFile' and remove all other files
-	idx := find(files, reqFile)
-	if idx == -1 {
-		filesCleanup(files)
-		return ErrFileNotFound
-	}
-	files[idx] = files[len(files)-1] // Replace it with the last one.
-	files = files[:len(files)-1]     // Chop off the last one.
-	filesCleanup(files)
+	dataTypes := []string{"BPA", "BPP", "DRE", "DFC_MD", "DFC_MI", "DVA"}
 
-	// Import file into DB
-	if err = parsers.ImportCsv(db, dataType, reqFile); err != nil {
-		return err
+	for _, dt := range dataTypes {
+		pattern := fmt.Sprintf("dfp_cia_aberta_%s_con_%d.csv", dt, year)
+		reqFile, err := findFile(files, pattern)
+		if err == ErrItemNotFound {
+			filesCleanup(files)
+			return fmt.Errorf("arquivo %s não encontrado", reqFile)
+		}
+		files, _ = removeItem(files, reqFile)
+
+		// Import file into DB
+		if err = parsers.ImportCsv(db, dt, reqFile); err != nil {
+			return err
+		}
 	}
+
+	filesCleanup(files) // remove remaining (unused) files
 
 	return nil
 }
