@@ -132,7 +132,9 @@ func overwritePrompt(filename string) bool {
 		fmt.Printf("\n[?] Deseja sobrescrever o arquivo \"%s\"? (s/N) ", filename)
 		reader := bufio.NewReader(os.Stdin)
 		prompt, _ := reader.ReadString('\n')
-		if !strings.EqualFold(prompt, "s\n") && !strings.EqualFold(prompt, "sim\n") {
+
+		if !strings.EqualFold(prompt, "s\n") && !strings.EqualFold(prompt, "sim\n") &&
+			!strings.EqualFold(prompt, "s\r\n") && !strings.EqualFold(prompt, "sim\r\n") {
 			return false
 		}
 	}
