@@ -16,6 +16,10 @@ import (
 	"golang.org/x/text/transform"
 )
 
+var (
+	ErrAccumITR = fmt.Errorf("accumulated quarterly results")
+)
+
 //
 // ImportCsv start the data import process, including the database creation
 // if necessary
@@ -152,7 +156,10 @@ func populateTable(db *sql.DB, dataType, file string) (err error) {
 			}
 
 			// INSERT
-			f, err := prepareFields(header, fields, companies)
+			f, err := prepareFields(table, header, fields, companies)
+			if err == ErrAccumITR {
+				continue // ignore accumulated ITR data
+			}
 			if err != nil {
 				return errors.Wrap(err, "falha ao preparar registro")
 			}
@@ -198,7 +205,7 @@ func populateTable(db *sql.DB, dataType, file string) (err error) {
 //
 // Tip: to convert Unix timestamp to date on sqlite: strftime('%Y-%m-%d', DT_REFER, 'unixepoch')
 //
-func prepareFields(header map[string]int, fields []string, companies map[string]company) ([]interface{}, error) {
+func prepareFields(table string, header map[string]int, fields []string, companies map[string]company) ([]interface{}, error) {
 	// AUX FUNCTIONS
 	val := func(key string) string {
 		v, ok := header[key]
@@ -228,6 +235,15 @@ func prepareFields(header map[string]int, fields []string, companies map[string]
 	}
 	if len(fields[v]) < 4 || tim("DT_FIM_EXERC") == 0 {
 		return nil, fmt.Errorf("DT_FIM_EXERC incorreto: %v", fields[v])
+	}
+	// Check if quarterly data contains data from 90 days
+	if table == "itr" {
+		t1 := tim("DT_INI_EXERC")
+		t2 := tim("DT_FIM_EXERC")
+		days := (t2 - t1) / 60 / 60 / 24
+		if days < 80 || days > 100 {
+			return nil, ErrAccumITR
+		}
 	}
 	year := fields[v][:4]
 
