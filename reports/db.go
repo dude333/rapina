@@ -140,43 +140,113 @@ func itrNumQuarters(db *sql.DB, cid int) (int, error) {
 }
 
 //
-// ttm (twelve trailling months)
+// lastBalance returns a hash with the '[code] = value' from the balance sheet
+// with the newest date available on the dfp or itr tables.
 //
-func ttm(db *sql.DB, cid int) (map[uint32]float32, error) {
-	count, err := itrNumQuarters(db, cid)
+func lastBalance(db *sql.DB, cid int) (map[uint32]float32, error) {
+	selectBalance := `
+		SELECT MAX(DT), CODE, TOTAL FROM (
+
+			SELECT 
+				date(DT_FIM_EXERC, 'unixepoch') DT, CODE, SUM(VL_CONTA) TOTAL
+			FROM dfp d
+			WHERE 
+				ID_CIA = $1
+				AND VERSAO = (SELECT MAX(VERSAO) FROM dfp WHERE ID_CIA = d.ID_CIA AND YEAR = d.YEAR)
+				AND CAST(substr(CD_CONTA, 1, 1) as decimal) <= 2
+			GROUP BY
+				DT_FIM_EXERC, CODE, CD_CONTA
+				
+			UNION
+
+			SELECT 
+				date(DT_FIM_EXERC, 'unixepoch') DT, CODE, SUM(VL_CONTA) TOTAL
+			FROM itr i
+			WHERE 
+				ID_CIA = $1
+				AND VERSAO = (SELECT MAX(VERSAO) FROM itr WHERE ID_CIA = i.ID_CIA AND DT_FIM_EXERC = i.DT_FIM_EXERC)
+				AND CAST(substr(CD_CONTA, 1, 1) as decimal) <= 2
+			GROUP BY
+				DT_FIM_EXERC, CODE, CD_CONTA
+			
+		) 
+		GROUP BY CODE
+		ORDER BY CODE;
+	`
+
+	rows, err := db.Query(selectBalance, cid)
 	if err != nil {
 		return nil, err
 	}
-	if count < 5 {
-		return nil, fmt.Errorf("should have at least 5 quarters, but found only %d", count)
+	defer rows.Close()
+
+	balance := make(map[uint32]float32)
+	var maxDt string
+	var code uint32
+	var vlConta float32
+
+	for rows.Next() {
+		rows.Scan(&maxDt, &code, &vlConta)
+		balance[code] = vlConta
 	}
 
+	return balance, nil
+}
+
+//
+// ttm (twelve trailling months) returns a hash with the '[code] = value'
+// with the last year dfp value subtracted of the sum of last quarters from
+// last year, but > 1 year ago, and then sums it with the current year's
+// quarters.
+//
+func ttm(db *sql.DB, cid int) (map[uint32]float32, error) {
 	selectQuarters := `
-	SELECT 
-		date(DT_FIM_EXERC, 'unixepoch') as DT, CODE, substr(CD_CONTA, 1, 1), SUM(VL_CONTA) 
-	FROM dfp d 
-	WHERE 
-		ID_CIA = $1
-		AND YEAR = strftime('%Y', 'now', '-1 year')
-		AND VERSAO = (SELECT MAX(VERSAO) FROM dfp WHERE ID_CIA = d.ID_CIA AND YEAR = d.YEAR)
-	GROUP BY
-		DT_FIM_EXERC, CODE, CD_CONTA
+		SELECT CODE, SUM(TOTAL) TOTAL FROM (
+			SELECT CODE, SUM(TOTAL) TOTAL, COUNT(*) N FROM (	
+				SELECT 
+					CODE, SUM(VL_CONTA) TOTAL
+				FROM dfp d 
+				WHERE 
+					ID_CIA = $1
+					AND YEAR = strftime('%Y', 'now', '-1 year')
+					AND VERSAO = (SELECT MAX(VERSAO) FROM dfp WHERE ID_CIA = d.ID_CIA AND YEAR = d.YEAR)	
+					AND CAST(substr(CD_CONTA, 1, 1) as decimal) > 2 -- IGNORE BALANCE SHEETS	
+				GROUP BY
+					CODE, CD_CONTA
 
-	UNION
+				UNION
 
-	SELECT
-		date(DT_FIM_EXERC, 'unixepoch') as DT, CODE, substr(CD_CONTA, 1, 1), SUM(VL_CONTA)
-	FROM
-		itr i
-	WHERE
-		ID_CIA = $1
-		AND YEAR >= strftime('%Y', 'now', '-1 year')
-		AND VERSAO = (SELECT MAX(VERSAO) FROM itr WHERE ID_CIA = i.ID_CIA AND DT_FIM_EXERC = i.DT_FIM_EXERC)
-	GROUP BY
-		DT_FIM_EXERC, CODE, CD_CONTA
-		
-	ORDER BY
-		DT;
+				SELECT 
+					CODE, -1 * SUM(VL_CONTA) TOTAL 
+				FROM itr i
+				WHERE 
+					ID_CIA = $1
+					AND YEAR = strftime('%Y', 'now', '-1 year')
+					AND VERSAO = (SELECT MAX(VERSAO) FROM itr WHERE ID_CIA = i.ID_CIA AND DT_FIM_EXERC = i.DT_FIM_EXERC)
+					AND CAST(substr(CD_CONTA, 1, 1) as decimal) > 2 -- IGNORE BALANCE SHEETS
+				GROUP BY
+					CODE, CD_CONTA
+			)
+			GROUP BY CODE
+
+			UNION
+
+			SELECT
+				CODE, SUM(VL_CONTA), COUNT(*) N
+			FROM
+				itr i
+			WHERE
+				ID_CIA = $1
+				AND date(DT_FIM_EXERC, 'unixepoch') > date('now', '-1 year')
+				AND VERSAO = (SELECT MAX(VERSAO) FROM itr WHERE ID_CIA = i.ID_CIA AND DT_FIM_EXERC = i.DT_FIM_EXERC)
+				AND CAST(substr(CD_CONTA, 1, 1) as decimal) > 2 -- IGNORE BALANCE SHEETS
+			GROUP BY
+				CODE
+		)		
+		GROUP BY
+			CODE
+		HAVING 
+			SUM(N) >= 5;
 	`
 
 	rows, err := db.Query(selectQuarters, cid)
@@ -186,72 +256,22 @@ func ttm(db *sql.DB, cid int) (map[uint32]float32, error) {
 	defer rows.Close()
 
 	ttm := make(map[uint32]float32)
-	values := make(map[uint32]float32)
-	quarters := make([]map[uint32]float32, 0, count)
-	lastDate := "x"
-	date := "x"
 	var code uint32
-	var cdConta int
 	var vlConta float32
 	for rows.Next() {
-		if lastDate != date {
-			quarters = append(quarters, values)
-			values = make(map[uint32]float32)
-			lastDate = date
-		}
-
-		rows.Scan(&date, &code, &cdConta, &vlConta)
-
-		if lastDate == "x" {
-			lastDate = date
-		}
-
-		// No need to calc TTM for Balance Sheet (cdConta 1 and 2)
-		if cdConta > 2 {
-			values[code] = vlConta
-		} else {
-			ttm[code] = vlConta
-		}
+		rows.Scan(&code, &vlConta)
+		ttm[code] = vlConta
 	}
-	quarters = append(quarters, values)
 
-	q, err := itrDiff(quarters)
+	bal, err := lastBalance(db, cid)
 	if err != nil {
 		return nil, err
 	}
-	for k := range q {
-		ttm[k] = q[k]
+	for k, v := range bal {
+		ttm[k] = v
 	}
 
 	return ttm, nil
-}
-
-// itrDiff returns a map with the TTM (12 trailling month) accumulated values
-// for each code using the logic below (as the quarted data on DB contains
-// actually the YTD accumulated value).
-//  [0] 1T = A
-//  [1] 2T = A + B
-//  [2] 3T = A + B + C
-//  [3] 4T = A + B + C + D
-//  [4] 1T'TTM = 1T' + 4T - 1T = [4] + [3] - [0]
-//  [5] 2T'TTM = 2T' + 4T - 2T = [5] + [3] - [1]
-//  [6] 3T'TTM = 3T' + 4T - 3T = [6] + [3] - [2]
-//                              [n] + [3] - [n-4]
-func itrDiff(quarters []map[uint32]float32) (map[uint32]float32, error) {
-	n := len(quarters) - 1
-	if n < 4 {
-		return nil, fmt.Errorf("missing quarters")
-	}
-	if n > 6 {
-		return nil, fmt.Errorf("too many quarters")
-	}
-
-	values := make(map[uint32]float32)
-	for code := range quarters[n] {
-		values[code] = quarters[n][code] + quarters[3][code] - quarters[n-4][code]
-	}
-
-	return values, nil
 }
 
 //
