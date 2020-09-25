@@ -156,7 +156,7 @@ func populateTable(db *sql.DB, dataType, file string) (err error) {
 			}
 
 			// INSERT
-			f, err := prepareFields(table, header, fields, companies)
+			f, err := prepareFields(dataType, header, fields, companies)
 			if err == ErrAccumITR {
 				continue // ignore accumulated ITR data
 			}
@@ -205,7 +205,7 @@ func populateTable(db *sql.DB, dataType, file string) (err error) {
 //
 // Tip: to convert Unix timestamp to date on sqlite: strftime('%Y-%m-%d', DT_REFER, 'unixepoch')
 //
-func prepareFields(table string, header map[string]int, fields []string, companies map[string]company) ([]interface{}, error) {
+func prepareFields(dataType string, header map[string]int, fields []string, companies map[string]company) ([]interface{}, error) {
 	// AUX FUNCTIONS
 	val := func(key string) string {
 		v, ok := header[key]
@@ -236,8 +236,8 @@ func prepareFields(table string, header map[string]int, fields []string, compani
 	if len(fields[v]) < 4 || tim("DT_FIM_EXERC") == 0 {
 		return nil, fmt.Errorf("DT_FIM_EXERC incorreto: %v", fields[v])
 	}
-	// Check if quarterly data contains data from 90 days
-	if table == "itr" {
+	// Check if quarterly data contains data from 90 days, except for "BPA_ITR" and "BPP_ITR"
+	if dataType != "BPA_ITR" && dataType != "BPP_ITR" && strings.HasSuffix(dataType, "_ITR") {
 		t1 := tim("DT_INI_EXERC")
 		t2 := tim("DT_FIM_EXERC")
 		days := (t2 - t1) / 60 / 60 / 24

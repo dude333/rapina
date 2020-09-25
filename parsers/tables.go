@@ -7,7 +7,7 @@ import (
 	"github.com/pkg/errors"
 )
 
-const currentDbVersion = 200919
+const currentDbVersion = 200923
 
 var createTableMap = map[string]string{
 	"dfp": `CREATE TABLE IF NOT EXISTS dfp
