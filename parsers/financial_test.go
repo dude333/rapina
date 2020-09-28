@@ -112,6 +112,7 @@ func Test_prepareFields(t *testing.T) {
 	companies["54321"] = company{1, "A"}
 
 	type args struct {
+		dataType  string
 		header    map[string]int
 		fields    []string
 		companies map[string]company
@@ -124,6 +125,7 @@ func Test_prepareFields(t *testing.T) {
 		{
 			"dt_refer not found",
 			args{
+				"BPA",
 				map[string]int{"a": 0, "b": 1},
 				[]string{"a", "b"},
 				companies,
@@ -132,6 +134,7 @@ func Test_prepareFields(t *testing.T) {
 		}, {
 			"should work",
 			args{
+				"BPA",
 				map[string]int{"x": 0, "y": 1, "DT_FIM_EXERC": 2, "CNPJ_CIA": 3},
 				[]string{"X", "Y", "2020-02-25", "54321"},
 				companies,
@@ -140,6 +143,7 @@ func Test_prepareFields(t *testing.T) {
 		}, {
 			"cnpj not found",
 			args{
+				"BPA",
 				map[string]int{"x": 0, "y": 2, "DT_FIM_EXERC": 1},
 				[]string{"X", "2020-02-25", "Y"},
 				companies,
@@ -148,16 +152,44 @@ func Test_prepareFields(t *testing.T) {
 		}, {
 			"DT_FIM_EXERC not found",
 			args{
+				"BPA",
 				map[string]int{"x": 0, "y": 2, "DT_FIM_EXERC": 1},
 				[]string{"X", "202", "Y"},
 				companies,
 			},
 			true,
+		}, {
+			"itr should work",
+			args{
+				"BPA_ITR",
+				map[string]int{"x": 0, "y": 1, "DT_INI_EXERC": 2, "DT_FIM_EXERC": 3, "CNPJ_CIA": 4},
+				[]string{"X", "Y", "2020-01-01", "2020-06-30", "54321"},
+				companies,
+			},
+			false,
+		}, {
+			"itr should fail",
+			args{
+				"DRE_ITR",
+				map[string]int{"x": 0, "y": 1, "DT_INI_EXERC": 2, "DT_FIM_EXERC": 3, "CNPJ_CIA": 4},
+				[]string{"X", "Y", "2020-01-01", "2020-06-30", "54321"},
+				companies,
+			},
+			true,
+		}, {
+			"itr should pass",
+			args{
+				"DRE_ITR",
+				map[string]int{"x": 0, "y": 1, "DT_INI_EXERC": 2, "DT_FIM_EXERC": 3, "CNPJ_CIA": 4},
+				[]string{"X", "Y", "2020-01-01", "2020-03-30", "54321"},
+				companies,
+			},
+			false,
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			_, err := prepareFields(tt.args.header, tt.args.fields, tt.args.companies)
+			_, err := prepareFields(tt.args.dataType, tt.args.header, tt.args.fields, tt.args.companies)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("prepareFields() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -177,7 +209,7 @@ func BenchmarkPrepareFields(b *testing.B) {
 
 	// run the prepareFields function b.N times
 	for n := 0; n < b.N; n++ {
-		_, err := prepareFields(h, f, companies)
+		_, err := prepareFields("BPA", h, f, companies)
 		if err != nil {
 			b.Errorf("error: %v", err)
 			return
