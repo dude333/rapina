@@ -7,7 +7,6 @@ import (
 	"os/signal"
 	"strconv"
 	"strings"
-	"time"
 
 	"github.com/360EntSecGroup-Skylar/excelize"
 	p "github.com/dude333/rapina/parsers"
@@ -33,6 +32,9 @@ type report struct {
 
 	// average metric values/year. Index 0: year, index 1: metric
 	average [][]float32
+
+	// the latest recorded year on DB
+	lastYear int
 }
 
 //
@@ -52,7 +54,7 @@ func Report(db *sql.DB, _company string, filename, yamlFile string) error {
 	e := newExcel()
 	sheet, _ := e.newSheet(_company)
 
-	currYear, _ := strconv.Atoi(time.Now().Format("2006"))
+	currYear, _ := r.currYear()
 
 	// Company name
 	sheet.mergeCell("A1", "B1")

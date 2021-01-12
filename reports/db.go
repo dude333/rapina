@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
-	"time"
 
 	"github.com/dude333/rapina/parsers"
 	"github.com/pkg/errors"
@@ -65,13 +64,38 @@ type account struct {
 // of the account code and description as its key
 //
 func (r report) accountsValues(cid, year int) (map[uint32]float32, error) {
-	currYear, err := strconv.Atoi(time.Now().Format("2006"))
+	currYear, err := r.currYear()
 
 	if currYear != year || err != nil {
 		return dfp(r.db, cid, year)
 	}
 
 	return ttm(r.db, cid)
+}
+
+//
+// currYear considers the current year as the latest year recorded on the DB.
+//
+func (r report) currYear() (int, error) {
+	if r.lastYear > 2000 {
+		return r.lastYear, nil
+	}
+
+	selectCurrYear := `
+	SELECT MAX(YEAR) FROM (
+		SELECT CAST(YEAR AS INTEGER) YEAR FROM dfp
+		UNION ALL
+		SELECT CAST(YEAR AS INTEGER) YEAR FROM itr
+	);
+	`
+
+	currYear := 0
+	err := r.db.QueryRow(selectCurrYear).Scan(&currYear)
+	if err == nil {
+		r.lastYear = currYear
+	}
+
+	return currYear, err
 }
 
 func dfp(db *sql.DB, cid, year int) (map[uint32]float32, error) {
