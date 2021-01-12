@@ -50,7 +50,7 @@ func acctCode(cdAccount, dsAccount string) uint32 {
 	accounts := []account{
 		// BPA
 		{"", "Caixa e Equivalentes de Caixa", Caixa},
-		{"", "Aplicações Financeiras", AplicFinanceiras},
+		{"1.01.02", "Aplicações Financeiras", AplicFinanceiras},
 		{"1.01.04", "", Estoque}, // or "Títulos e Créditos a Receber" for security companies
 
 		// BPP
