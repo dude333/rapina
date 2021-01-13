@@ -64,38 +64,44 @@ type account struct {
 // of the account code and description as its key
 //
 func (r report) accountsValues(cid, year int) (map[uint32]float32, error) {
-	currYear, err := r.currYear()
+	lastYear, isITR, err := r.lastYear()
 
-	if currYear != year || err != nil {
-		return dfp(r.db, cid, year)
+	if err == nil && year == lastYear && isITR {
+		return ttm(r.db, cid)
 	}
 
-	return ttm(r.db, cid)
+	return dfp(r.db, cid, year)
 }
 
 //
-// currYear considers the current year as the latest year recorded on the DB.
+// lastYear considers the current year as the latest year recorded on the DB.
+// returns the last date, if it's to use the ITR table (instead of the DFP)
+// and the error, if any.
 //
-func (r report) currYear() (int, error) {
-	if r.lastYear > 2000 {
-		return r.lastYear, nil
+func (r report) lastYear() (int, bool, error) {
+	if r.cid == 0 {
+		return 0, false, fmt.Errorf("customer ID not set")
 	}
 
-	selectCurrYear := `
-	SELECT MAX(YEAR) FROM (
-		SELECT CAST(YEAR AS INTEGER) YEAR FROM dfp
-		UNION ALL
-		SELECT CAST(YEAR AS INTEGER) YEAR FROM itr
-	);
-	`
-
-	currYear := 0
-	err := r.db.QueryRow(selectCurrYear).Scan(&currYear)
-	if err == nil {
-		r.lastYear = currYear
+	selectDfpLastYear := `SELECT MAX(CAST(YEAR AS INTEGER)) YEAR FROM dfp WHERE ID_CIA = ?;`
+	dfp := 0
+	err := r.db.QueryRow(selectDfpLastYear, r.cid).Scan(&dfp)
+	if err != nil {
+		return 0, false, err
 	}
 
-	return currYear, err
+	selectItrLastYear := `SELECT MAX(CAST(YEAR AS INTEGER)) YEAR FROM itr WHERE ID_CIA = ?;`
+	itr := 0
+	err = r.db.QueryRow(selectItrLastYear, r.cid).Scan(&itr)
+	if err != nil {
+		return 0, false, err
+	}
+
+	if itr > dfp {
+		return itr, true, nil // Use ITR
+	}
+
+	return dfp, false, nil // Use DFP
 }
 
 func dfp(db *sql.DB, cid, year int) (map[uint32]float32, error) {

@@ -33,28 +33,27 @@ type report struct {
 	// average metric values/year. Index 0: year, index 1: metric
 	average [][]float32
 
-	// the latest recorded year on DB
-	lastYear int
+	// customer ID
+	cid int
 }
 
 //
 // Report of company data from DB to Excel
 //
 func Report(db *sql.DB, _company string, filename, yamlFile string) error {
-	r := report{
-		db:       db,
-		yamlFile: yamlFile,
-	}
-
 	cid, err := cid(db, _company)
 	if err != nil {
 		return fmt.Errorf("empresa '%s' não encontrada no banco de dados", _company)
 	}
 
+	r := report{
+		db:       db,
+		yamlFile: yamlFile,
+		cid:      cid,
+	}
+
 	e := newExcel()
 	sheet, _ := e.newSheet(_company)
-
-	currYear, _ := r.currYear()
 
 	// Company name
 	sheet.mergeCell("A1", "B1")
@@ -84,7 +83,9 @@ func Report(db *sql.DB, _company string, filename, yamlFile string) error {
 		col := string(cols[y-begin])
 		cell := col + "1"
 		title := "[" + strconv.Itoa(y) + "]"
-		if currYear == y {
+
+		lastYear, isTTM, err := r.lastYear()
+		if lastYear == y && isTTM && err == nil {
 			title = "[TTM/" + strconv.Itoa(y) + "]"
 		}
 
