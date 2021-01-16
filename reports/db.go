@@ -64,35 +64,35 @@ type account struct {
 // of the account code and description as its key
 //
 func (r report) accountsValues(cid, year int) (map[uint32]float32, error) {
-	lastYear, isITR, err := r.lastYear()
+	lastYear, isITR, err := r.lastYear(cid)
 
 	if err == nil && year == lastYear && isITR {
-		return ttm(r.db, cid)
+		return r.ttm(cid)
 	}
 
-	return dfp(r.db, cid, year)
+	return r.dfp(cid, year)
 }
 
 //
 // lastYear considers the current year as the latest year recorded on the DB.
-// returns the last date, if it's to use the ITR table (instead of the DFP)
+// Returns this lastest year, if it's to use the ITR table (instead of the DFP),
 // and the error, if any.
 //
-func (r report) lastYear() (int, bool, error) {
-	if r.cid == 0 {
+func (r report) lastYear(cid int) (int, bool, error) {
+	if cid == 0 {
 		return 0, false, fmt.Errorf("customer ID not set")
 	}
 
 	selectDfpLastYear := `SELECT MAX(CAST(YEAR AS INTEGER)) YEAR FROM dfp WHERE ID_CIA = ?;`
 	dfp := 0
-	err := r.db.QueryRow(selectDfpLastYear, r.cid).Scan(&dfp)
+	err := r.db.QueryRow(selectDfpLastYear, cid).Scan(&dfp)
 	if err != nil {
 		return 0, false, err
 	}
 
 	selectItrLastYear := `SELECT MAX(CAST(YEAR AS INTEGER)) YEAR FROM itr WHERE ID_CIA = ?;`
 	itr := 0
-	err = r.db.QueryRow(selectItrLastYear, r.cid).Scan(&itr)
+	err = r.db.QueryRow(selectItrLastYear, cid).Scan(&itr)
 	if err != nil {
 		return 0, false, err
 	}
@@ -104,7 +104,50 @@ func (r report) lastYear() (int, bool, error) {
 	return dfp, false, nil // Use DFP
 }
 
-func dfp(db *sql.DB, cid, year int) (map[uint32]float32, error) {
+//
+// lastYearRange returns the 1st and last day from last year stored on the DB
+// for this company id. Return dates in unix epoch format.
+//
+func (r report) lastYearRange(cid int) (int, int, error) {
+	if cid == 0 {
+		return 0, 0, fmt.Errorf("customer ID not set")
+	}
+
+	s := `
+		SELECT DISTINCT DT_FIM_EXERC
+		FROM dfp
+		WHERE ID_CIA = ?
+		ORDER BY DT_FIM_EXERC DESC
+		LIMIT 2;
+  `
+	rows, err := r.db.Query(s, cid)
+	if err != nil {
+		return 0, 0, err
+	}
+	defer rows.Close()
+
+	var dateRange [2]int // [0] = last day, [1] = first day
+	i := 0
+
+	for rows.Next() {
+		rows.Scan(&dateRange[i])
+		i++
+		if i >= len(dateRange) {
+			break
+		}
+	}
+
+	for _, v := range dateRange {
+		if v == 0 {
+			return 0, 0, fmt.Errorf("range not found")
+		}
+	}
+
+	// return the first and last day of the year
+	return dateRange[1], dateRange[0], nil
+}
+
+func (r report) dfp(cid, year int) (map[uint32]float32, error) {
 	selectReport := `
 	SELECT
 		CODE, VL_CONTA
@@ -116,7 +159,7 @@ func dfp(db *sql.DB, cid, year int) (map[uint32]float32, error) {
 		AND VERSAO = (SELECT MAX(VERSAO) FROM dfp WHERE ID_CIA = a.ID_CIA AND YEAR = a.YEAR)
 	;`
 
-	rows, err := db.Query(selectReport, cid, year)
+	rows, err := r.db.Query(selectReport, cid, year)
 	if err != nil {
 		return nil, err
 	}
@@ -229,16 +272,21 @@ func lastBalance(db *sql.DB, cid int) (map[uint32]float32, error) {
 // last year, but > 1 year ago, and then sums it with the current year's
 // quarters.
 //
-func ttm(db *sql.DB, cid int) (map[uint32]float32, error) {
+func (r report) ttm(cid int) (map[uint32]float32, error) {
+	di, df, err := r.lastYearRange(cid)
+	if err != nil {
+		return nil, err
+	}
+
 	selectQuarters := `
 		SELECT CODE, SUM(TOTAL) TOTAL FROM (
-			SELECT CODE, SUM(TOTAL) TOTAL, COUNT(*) N FROM (	
+			SELECT CODE, SUM(TOTAL) TOTAL FROM (	
 				SELECT 
 					CODE, SUM(VL_CONTA) TOTAL
 				FROM dfp d 
 				WHERE 
 					ID_CIA = $1
-					AND YEAR = strftime('%Y', 'now', '-1 year')
+					AND DT_FIM_EXERC > $2 AND DT_FIM_EXERC <= $3
 					AND VERSAO = (SELECT MAX(VERSAO) FROM dfp WHERE ID_CIA = d.ID_CIA AND YEAR = d.YEAR)	
 					AND CAST(substr(CD_CONTA, 1, 1) as decimal) > 2 -- IGNORE BALANCE SHEETS	
 				GROUP BY
@@ -251,7 +299,7 @@ func ttm(db *sql.DB, cid int) (map[uint32]float32, error) {
 				FROM itr i
 				WHERE 
 					ID_CIA = $1
-					AND YEAR = strftime('%Y', 'now', '-1 year')
+					AND DT_FIM_EXERC > $2 AND DT_FIM_EXERC <= $3
 					AND VERSAO = (SELECT MAX(VERSAO) FROM itr WHERE ID_CIA = i.ID_CIA AND DT_FIM_EXERC = i.DT_FIM_EXERC)
 					AND CAST(substr(CD_CONTA, 1, 1) as decimal) > 2 -- IGNORE BALANCE SHEETS
 				GROUP BY
@@ -262,24 +310,22 @@ func ttm(db *sql.DB, cid int) (map[uint32]float32, error) {
 			UNION
 
 			SELECT
-				CODE, SUM(VL_CONTA), COUNT(*) N
+				CODE, SUM(VL_CONTA)
 			FROM
 				itr i
 			WHERE
 				ID_CIA = $1
-				AND date(DT_FIM_EXERC, 'unixepoch') > date('now', '-1 year')
+				AND DT_FIM_EXERC > $3
 				AND VERSAO = (SELECT MAX(VERSAO) FROM itr WHERE ID_CIA = i.ID_CIA AND DT_FIM_EXERC = i.DT_FIM_EXERC)
 				AND CAST(substr(CD_CONTA, 1, 1) as decimal) > 2 -- IGNORE BALANCE SHEETS
 			GROUP BY
 				CODE
-		)		
+		)
 		GROUP BY
-			CODE
-		HAVING 
-			SUM(N) >= 5;
+			CODE;
 	`
 
-	rows, err := db.Query(selectQuarters, cid)
+	rows, err := r.db.Query(selectQuarters, cid, di, df)
 	if err != nil {
 		return nil, err
 	}
@@ -293,7 +339,7 @@ func ttm(db *sql.DB, cid int) (map[uint32]float32, error) {
 		ttm[code] = vlConta
 	}
 
-	bal, err := lastBalance(db, cid)
+	bal, err := lastBalance(r.db, cid)
 	if err != nil {
 		return nil, err
 	}

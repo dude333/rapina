@@ -32,9 +32,6 @@ type report struct {
 
 	// average metric values/year. Index 0: year, index 1: metric
 	average [][]float32
-
-	// customer ID
-	cid int
 }
 
 //
@@ -49,7 +46,6 @@ func Report(db *sql.DB, _company string, filename, yamlFile string) error {
 	r := report{
 		db:       db,
 		yamlFile: yamlFile,
-		cid:      cid,
 	}
 
 	e := newExcel()
@@ -84,7 +80,7 @@ func Report(db *sql.DB, _company string, filename, yamlFile string) error {
 		cell := col + "1"
 		title := "[" + strconv.Itoa(y) + "]"
 
-		lastYear, isTTM, err := r.lastYear()
+		lastYear, isTTM, err := r.lastYear(cid)
 		if lastYear == y && isTTM && err == nil {
 			title = "[TTM/" + strconv.Itoa(y) + "]"
 		}
