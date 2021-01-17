@@ -212,42 +212,55 @@ func itrNumQuarters(db *sql.DB, cid int) (int, error) {
 	return count, nil
 }
 
+func (r report) lastDate(cid int) (int, string, error) {
+	rowDfp := r.db.QueryRow("SELECT MAX(DT_FIM_EXERC) FROM dfp WHERE ID_CIA = ? LIMIT 1;", cid)
+	maxDfp := 0
+	err := rowDfp.Scan(&maxDfp)
+	if err != nil {
+		return 0, "", err
+	}
+
+	rowItr := r.db.QueryRow("SELECT MAX(DT_FIM_EXERC) FROM itr WHERE ID_CIA = ? LIMIT 1;", cid)
+	maxItr := 0
+	err = rowItr.Scan(&maxItr)
+	if err != nil {
+		return 0, "", err
+	}
+
+	if maxDfp >= maxItr {
+		return maxDfp, "dfp", nil
+	}
+
+	return maxItr, "itr", nil
+}
+
 //
 // lastBalance returns a hash with the '[code] = value' from the balance sheet
 // with the newest date available on the dfp or itr tables.
 //
-func lastBalance(db *sql.DB, cid int) (map[uint32]float32, error) {
-	selectBalance := `
-		SELECT MAX(DT), CODE, TOTAL FROM (
+func (r report) lastBalance(cid int) (map[uint32]float32, error) {
+	d, table, err := r.lastDate(cid)
+	if err != nil {
+		return nil, err
+	}
+	if table != "dfp" && table != "itr" {
+		return nil, fmt.Errorf("table %s is not allowed", table)
+	}
 
-			SELECT 
-				date(DT_FIM_EXERC, 'unixepoch') DT, CODE, SUM(VL_CONTA) TOTAL
-			FROM dfp d
-			WHERE 
-				ID_CIA = $1
-				AND VERSAO = (SELECT MAX(VERSAO) FROM dfp WHERE ID_CIA = d.ID_CIA AND YEAR = d.YEAR)
-				AND CAST(substr(CD_CONTA, 1, 1) as decimal) <= 2
-			GROUP BY
-				DT_FIM_EXERC, CODE, CD_CONTA
-				
-			UNION
+	selectBalance := fmt.Sprintf(`
+		SELECT 
+			date(DT_FIM_EXERC, 'unixepoch') DT, CODE, SUM(VL_CONTA) TOTAL
+		FROM %s t
+		WHERE 
+			ID_CIA = $1
+			AND DT_FIM_EXERC = $2
+			AND VERSAO = (SELECT MAX(VERSAO) FROM %s WHERE ID_CIA = t.ID_CIA AND DT_FIM_EXERC = t.DT_FIM_EXERC)
+			AND CAST(substr(CD_CONTA, 1, 1) as decimal) <= 2
+		GROUP BY
+			DT_FIM_EXERC, CODE, CD_CONTA;
+	`, table, table)
 
-			SELECT 
-				date(DT_FIM_EXERC, 'unixepoch') DT, CODE, SUM(VL_CONTA) TOTAL
-			FROM itr i
-			WHERE 
-				ID_CIA = $1
-				AND VERSAO = (SELECT MAX(VERSAO) FROM itr WHERE ID_CIA = i.ID_CIA AND DT_FIM_EXERC = i.DT_FIM_EXERC)
-				AND CAST(substr(CD_CONTA, 1, 1) as decimal) <= 2
-			GROUP BY
-				DT_FIM_EXERC, CODE, CD_CONTA
-			
-		) 
-		GROUP BY CODE
-		ORDER BY CODE;
-	`
-
-	rows, err := db.Query(selectBalance, cid)
+	rows, err := r.db.Query(selectBalance, cid, d)
 	if err != nil {
 		return nil, err
 	}
@@ -339,7 +352,7 @@ func (r report) ttm(cid int) (map[uint32]float32, error) {
 		ttm[code] = vlConta
 	}
 
-	bal, err := lastBalance(r.db, cid)
+	bal, err := r.lastBalance(cid)
 	if err != nil {
 		return nil, err
 	}

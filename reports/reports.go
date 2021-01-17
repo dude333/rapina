@@ -86,7 +86,11 @@ func Report(db *sql.DB, _company string, filename, yamlFile string) error {
 		}
 
 		// ACCOUNT VALUES (COLS C, D, E...) / YEAR ====================\/
-		values, _ = r.accountsValues(cid, y)
+		values, err = r.accountsValues(cid, y)
+		if err != nil {
+			fmt.Println("[x]", err)
+			continue
+		}
 		// Skip last year if empty
 		if y == end && sum(values) == 0 {
 			end--
@@ -348,13 +352,18 @@ func (r *report) companySummary(sheet *Sheet, row, col *int, _company, sectorNam
 	}
 
 	// Print values ONE YEAR PER COLUMN
-	var values map[uint32]float32
 	for y := begin; y <= end; y++ {
+		var values map[uint32]float32
+		var err error
 		if sectorAvg {
-			values, _ = r.accountsAverage(_company, y)
+			values, err = r.accountsAverage(_company, y)
 			r.average = append(r.average, []float32{})
 		} else {
-			values, _ = r.accountsValues(cid, y)
+			values, err = r.accountsValues(cid, y)
+		}
+		if err != nil {
+			fmt.Println("[x]", err)
+			return false, err
 		}
 
 		// Skip last year if empty
