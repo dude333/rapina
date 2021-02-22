@@ -17,6 +17,7 @@ import (
 )
 
 var (
+	// ErrAccumITR error for accumulatd quarterly results
 	ErrAccumITR = fmt.Errorf("accumulated quarterly results")
 )
 
@@ -57,7 +58,11 @@ func ImportCsv(db *sql.DB, dataType string, file string) (err error) {
 		return
 	}
 
-	err = populateTable(db, dataType, file)
+	if dataType == "FRE" {
+		err = populateFRE(db, file)
+	} else {
+		err = populateTable(db, dataType, file)
+	}
 	if err == nil {
 		fmt.Print("\r[√")
 		storeFile(db, file)
@@ -144,7 +149,7 @@ func populateTable(db *sql.DB, dataType, file string) (err error) {
 
 		} else { // VALUES
 
-			if len(fields) <= 12 {
+			if len(fields) <= 14 {
 				continue
 			}
 

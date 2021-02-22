@@ -59,6 +59,7 @@ func FetchCVM() error {
 	now := time.Now().Year()
 	try(processQuarterlyReport, db, "Arquivo ITR não encontrado", now, now-1, 2)
 	try(processAnnualReport, db, "Arquivo DFP não encontrado", now-1, 2009, 2)
+	try(processFREReport, db, "Arquivo FRE não encontrado", now-1, 2009, 2)
 
 	return nil
 }
@@ -155,6 +156,43 @@ func processQuarterlyReport(db *sql.DB, year int) error {
 		if err = parsers.ImportCsv(db, dt+"_ITR", reqFile); err != nil {
 			return err
 		}
+	}
+
+	filesCleanup(files) // remove remaining (unused) files
+
+	return nil
+}
+
+//
+// processFREReport download FRE (Reference Form) files from CVM and store
+// them on DB.
+//
+func processFREReport(db *sql.DB, year int) error {
+	url := fmt.Sprintf("http://dados.cvm.gov.br/dados/CIA_ABERTA/DOC/FRE/DADOS/fre_cia_aberta_%d.zip", year)
+	zipfile := fmt.Sprintf("%s/fre_%d.zip", dataDir, year)
+
+	// Download files from CVM server
+	fmt.Print("[ ] Download do arquivo FRE")
+	files, err := fetchFiles(url, zipfile)
+	if err != nil {
+		return err
+	}
+
+	patterns := []string{"fre_cia_aberta_distribuicao_capital_%d.csv"}
+
+	for _, p := range patterns {
+		pattern := fmt.Sprintf(p, year)
+		reqFile, err := findFile(files, pattern)
+		if err == ErrItemNotFound {
+			filesCleanup(files)
+			return fmt.Errorf("arquivo %s não encontrado", reqFile)
+		}
+		files, _ = removeItem(files, reqFile)
+
+		if err = parsers.ImportCsv(db, "FRE", reqFile); err != nil {
+			return err
+		}
+
 	}
 
 	filesCleanup(files) // remove remaining (unused) files

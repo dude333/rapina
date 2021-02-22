@@ -7,7 +7,7 @@ import (
 	"github.com/pkg/errors"
 )
 
-const currentDbVersion = 201113
+const currentDbVersion = 210225
 
 var createTableMap = map[string]string{
 	"dfp": `CREATE TABLE IF NOT EXISTS dfp
@@ -44,6 +44,17 @@ var createTableMap = map[string]string{
 		"VL_CONTA" real
 	);`,
 
+	"fre": `CREATE TABLE IF NOT EXISTS fre
+	(
+		"ID" PRIMARY KEY,
+		"ID_CIA" integer,
+		"YEAR" string,
+
+		"Versao" integer,
+		"Quantidade_Total_Acoes_Circulacao" integer,
+		"Percentual_Total_Acoes_Circulacao" real
+	);`,
+
 	"codes": `CREATE TABLE IF NOT EXISTS codes
 	(
 		"CODE" INTEGER NOT NULL PRIMARY KEY,
@@ -78,6 +89,8 @@ func whatTable(dataType string) (table string, err error) {
 		table = "dfp"
 	case "BPA_ITR", "BPP_ITR", "DRE_ITR", "DFC_MD_ITR", "DFC_MI_ITR", "DVA_ITR":
 		table = "itr"
+	case "FRE":
+		table = "fre"
 	case "CODES":
 		table = "codes"
 	case "MD5":
