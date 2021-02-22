@@ -50,48 +50,42 @@ var (
 // FetchCVM fetches all statements from a range
 // of years
 //
-func FetchCVM() (err error) {
+func FetchCVM() error {
 	db, err := openDatabase()
 	if err != nil {
 		return err
 	}
 
 	now := time.Now().Year()
-	tries := 2
-OUTER_QTR:
-	for year := now; tries > 0 && year >= (now-1); year-- {
-		fmt.Printf("[>] %d ---------------------\n", year)
-		err := processQuarterlyReport(db, year)
-		if err == ErrFileNotFound {
-			fmt.Println("[x] Arquivo ITR não encontrado")
-			tries--
-			continue OUTER_QTR
-		} else if err != nil {
-			fmt.Printf("[x] Erro ao processar arquivo: %v\n", err)
-			tries--
-		} else {
-			tries = 2
-		}
-	}
+	try(processQuarterlyReport, db, "Arquivo ITR não encontrado", now, now-1, 2)
+	try(processAnnualReport, db, "Arquivo DFP não encontrado", now-1, 2009, 2)
 
-	tries = 2
-OUTER:
-	for year := now - 1; tries > 0 && year >= 2009; year-- {
+	return nil
+}
+
+type fn func(*sql.DB, int) error
+
+// try to run the function 'f' 'n' times, in case there are network errors.
+func try(f fn, db *sql.DB, errMsg string, now, limit, n int) error {
+	tries := n
+	var err error
+
+	for year := now; tries > 0 && year >= limit; year-- {
 		fmt.Printf("[>] %d ---------------------\n", year)
-		err := processAnnualReport(db, year)
+		err = f(db, year)
 		if err == ErrFileNotFound {
-			fmt.Printf("[x] ---- Arquivo DFP não encontrado")
+			fmt.Printf("[x] %s\n", errMsg)
 			tries--
-			continue OUTER
+			continue
 		} else if err != nil {
 			fmt.Printf("[x] Erro ao processar arquivo de %d: %v\n", year, err)
 			tries--
 		} else {
-			tries = 2
+			tries = n
 		}
 	}
 
-	return
+	return err
 }
 
 // processAnnualReport will get data from .zip files downloaded
