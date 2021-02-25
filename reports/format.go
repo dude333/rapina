@@ -15,6 +15,7 @@ const (
 	DEFAULT = iota + 1
 
 	// Number format
+	GENERAL
 	NUMBER
 	INDEX
 	PERCENT

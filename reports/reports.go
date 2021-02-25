@@ -496,6 +496,11 @@ func metricsList(v map[uint32]float32) (metrics []metric) {
 
 		{"Proventos", proventos, NUMBER},
 		{"Payout", zeroIfNeg(safeDiv(proventos, v[p.LucLiq])), PERCENT},
+
+		{"", 0, EMPTY},
+
+		{"Total de Ações", safeDiv(v[p.Shares], v[p.FreeFloat]/100), GENERAL},
+		{"Free Float", v[p.FreeFloat] / 100, PERCENT},
 	}
 }
 
