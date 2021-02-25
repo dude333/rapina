@@ -66,11 +66,15 @@ type account struct {
 func (r report) accountsValues(cid, year int) (map[uint32]float32, error) {
 	lastYear, isITR, err := r.lastYear(cid)
 
+	values := make(map[uint32]float32)
+
 	if err == nil && year == lastYear && isITR {
-		return r.ttm(cid)
+		err = r.ttm(cid, values)
+		return values, err
 	}
 
-	return r.dfp(cid, year)
+	err = r.dfp(cid, year, values)
+	return values, err
 }
 
 //
@@ -147,7 +151,7 @@ func (r report) lastYearRange(cid int) (int, int, error) {
 	return dateRange[1], dateRange[0], nil
 }
 
-func (r report) dfp(cid, year int) (map[uint32]float32, error) {
+func (r report) dfp(cid, year int, _values map[uint32]float32) error {
 	selectReport := `
 	SELECT
 		CODE, VL_CONTA
@@ -161,19 +165,18 @@ func (r report) dfp(cid, year int) (map[uint32]float32, error) {
 
 	rows, err := r.db.Query(selectReport, cid, year)
 	if err != nil {
-		return nil, err
+		return err
 	}
 	defer rows.Close()
 
-	values := make(map[uint32]float32)
 	for rows.Next() {
 		var code uint32
 		var vlConta float32
 		rows.Scan(&code, &vlConta)
-		values[code] = vlConta
+		_values[code] = vlConta
 	}
 
-	return values, nil
+	return nil
 }
 
 //
@@ -285,10 +288,10 @@ func (r report) lastBalance(cid int) (map[uint32]float32, error) {
 // last year, but > 1 year ago, and then sums it with the current year's
 // quarters.
 //
-func (r report) ttm(cid int) (map[uint32]float32, error) {
+func (r report) ttm(cid int, _values map[uint32]float32) error {
 	di, df, err := r.lastYearRange(cid)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
 	selectQuarters := `
@@ -340,27 +343,26 @@ func (r report) ttm(cid int) (map[uint32]float32, error) {
 
 	rows, err := r.db.Query(selectQuarters, cid, di, df)
 	if err != nil {
-		return nil, err
+		return err
 	}
 	defer rows.Close()
 
-	ttm := make(map[uint32]float32)
 	var code uint32
 	var vlConta float32
 	for rows.Next() {
 		rows.Scan(&code, &vlConta)
-		ttm[code] = vlConta
+		_values[code] = vlConta
 	}
 
 	bal, err := r.lastBalance(cid)
 	if err != nil {
-		return nil, err
+		return err
 	}
 	for k, v := range bal {
-		ttm[k] = v
+		_values[k] = v
 	}
 
-	return ttm, nil
+	return nil
 }
 
 //
