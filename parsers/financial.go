@@ -149,7 +149,7 @@ func populateTable(db *sql.DB, dataType, file string) (err error) {
 
 		} else { // VALUES
 
-			if len(fields) <= 14 {
+			if len(fields) <= 12 {
 				continue
 			}
 
