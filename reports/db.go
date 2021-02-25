@@ -68,6 +68,8 @@ func (r report) accountsValues(cid, year int) (map[uint32]float32, error) {
 
 	values := make(map[uint32]float32)
 
+	r.shares(cid, year, values)
+
 	if err == nil && year == lastYear && isITR {
 		err = r.ttm(cid, values)
 		return values, err
@@ -361,6 +363,35 @@ func (r report) ttm(cid int, _values map[uint32]float32) error {
 	for k, v := range bal {
 		_values[k] = v
 	}
+
+	return nil
+}
+
+//
+// shares set the 'values' map with the number of shares and the free float of
+// a given conpany in a given year.
+//
+func (r report) shares(cid int, year int, values map[uint32]float32) error {
+	selectFRE := `
+		SELECT 
+			Quantidade_Total_Acoes_Circulacao, Percentual_Total_Acoes_Circulacao
+		FROM fre f
+		WHERE
+			ID_CIA = $1
+			AND YEAR = $2
+			AND Versao = (SELECT MAX(Versao) FROM fre WHERE ID_CIA = f.ID_CIA AND YEAR = f.YEAR);
+	`
+
+	row := r.db.QueryRow(selectFRE, cid, year)
+	var shares int
+	var freeFloat float32
+	err := row.Scan(&shares, &freeFloat)
+	if err != nil && err != sql.ErrNoRows {
+		return err
+	}
+
+	values[parsers.Shares] = float32(shares)
+	values[parsers.FreeFloat] = freeFloat
 
 	return nil
 }

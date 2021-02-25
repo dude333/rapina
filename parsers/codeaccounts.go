@@ -31,6 +31,10 @@ const (
 	Deprec
 	JurosCapProp
 	Dividendos
+
+	// Values stored on table 'fre'
+	Shares
+	FreeFloat
 )
 
 // account code, description and bookkeeping code
