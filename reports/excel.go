@@ -161,7 +161,7 @@ func jsonStyle(size, format int, bold bool) ([]byte, error) {
 	case PERCENT:
 		m["custom_number_format"] = "0%;-0%;- "
 	case INDEX:
-		m["custom_number_format"] = "0.0;-0.0;-"
+		m["custom_number_format"] = "0.00;-0.00;-"
 	case NUMBER:
 		m["custom_number_format"] = "_-* #,##0,_-;_-* (#,##0,);_-* \"-\"_-;_-@_-"
 	case RIGHT:

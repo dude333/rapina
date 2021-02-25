@@ -90,7 +90,7 @@ func newFormat(format int, position int, bold bool) (f *formatStyle) {
 	case PERCENT:
 		custom = "0%;-0%;- "
 	case INDEX:
-		custom = "0.0;-0.0;-"
+		custom = "0.00;-0.00;-"
 	case NUMBER:
 		custom = "_-* #,##0,_-;_-* (#,##0,);_-* \"-\"_-;_-@_-"
 	}
