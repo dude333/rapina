@@ -465,8 +465,9 @@ func metricsList(v map[uint32]float32) (metrics []metric) {
 
 		{"Receita Líquida", v[p.Vendas], NUMBER},
 		{"EBITDA", EBITDA, NUMBER},
-		{"D&A", v[p.Deprec], NUMBER},
 		{"EBIT", v[p.EBIT], NUMBER},
+		{"Resultado Financeiro", v[p.ResulFinanc], NUMBER},
+		{"Operações Descontinuadas", v[p.ResulOpDescont], NUMBER},
 		{"Lucro Líquido", v[p.LucLiq], NUMBER},
 		{"", 0, EMPTY},
 
@@ -490,7 +491,7 @@ func metricsList(v map[uint32]float32) (metrics []metric) {
 		{"FCI", v[p.FCI], NUMBER},
 		{"FCF", v[p.FCF], NUMBER},
 		{"FCT", v[p.FCO] + v[p.FCI] + v[p.FCF], NUMBER},
-		{"FCL", v[p.FCO] + v[p.FCI], NUMBER},
+		{"FCL (FCO+FCI)", v[p.FCO] + v[p.FCI], NUMBER},
 
 		{"", 0, EMPTY},
 

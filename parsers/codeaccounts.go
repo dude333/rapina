@@ -20,6 +20,8 @@ const (
 	CustoVendas
 	DespesasOp
 	EBIT
+	ResulFinanc
+	ResulOpDescont
 	LucLiq
 
 	// DFC
@@ -67,6 +69,12 @@ func acctCode(cdAccount, dsAccount string) uint32 {
 		{"3.02", "", CustoVendas},
 		{"3.04", "", DespesasOp},
 		{"", "Resultado Antes do Resultado Financeiro e dos Tributos", EBIT},
+		{"3.06", "Resultado Financeiro", ResulFinanc},
+		{"3.07", "Resultado Financeiro", ResulFinanc},
+		{"3.08", "Resultado Financeiro", ResulFinanc},
+		{"3.10", "Resultado Líquido de Operações Descontinuadas", ResulOpDescont},
+		{"3.11", "Resultado Líquido de Operações Descontinuadas", ResulOpDescont},
+		{"3.12", "Resultado Líquido de Operações Descontinuadas", ResulOpDescont},
 		{"", "Lucro/Prejuízo Consolidado do Período", LucLiq},
 
 		// DFC
