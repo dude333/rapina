@@ -163,7 +163,7 @@ func ListCompaniesProfits(db *sql.DB, rate float32) error {
 
 	} // next c
 
-	fmt.Printf("\nEmpresas com lucros positivos e inicial maior que o final, com variação mínima de %0.0f%% de um ano para o outro.\n\n", rate*100)
+	fmt.Printf("\nEmpresas com lucros crescentes e variação mínima de %0.0f%% de um ano para o outro.\n\n", rate*100)
 
 	return nil
 }
