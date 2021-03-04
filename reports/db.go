@@ -80,16 +80,38 @@ func (r report) accountsValues(cid, year int) (map[uint32]float32, error) {
 	}
 
 	if err == nil {
+		var v float32 = 0
+
 		// Inventory average
-		values[parsers.EstoqueMedio] = values[parsers.Estoque]
-		inv, err := r.value(cid, year-1, parsers.Estoque)
-		if err == nil && inv > 0 {
-			values[parsers.EstoqueMedio] += inv
-			values[parsers.EstoqueMedio] /= 2
+		v, err := r.value(cid, year-1, parsers.Estoque)
+		if err == nil {
+			values[parsers.EstoqueMedio] = avg(values[parsers.Estoque], v)
+		}
+
+		// Equity average
+		v, err = r.value(cid, year-1, parsers.Equity)
+		if err == nil {
+			values[parsers.EquityAvg] = avg(values[parsers.Equity], v)
 		}
 	}
 
 	return values, err
+}
+
+// avg returns the average, ignoring numbers <= 0.
+func avg(nums ...float32) float32 {
+	var total float32 = 0
+	var n float32 = 0
+	for _, num := range nums {
+		if num > 0 {
+			total += num
+			n++
+		}
+	}
+	if n <= 0 {
+		return 0
+	}
+	return total / n
 }
 
 //
@@ -490,7 +512,6 @@ func (r report) accountsAverage(company string, year int) (map[uint32]float32, e
 	}
 
 	values[parsers.EstoqueMedio], err = r.movingAvg(cids, year, parsers.Estoque)
-	fmt.Printf("[d] estoque medio %f, err %v\n", values[parsers.EstoqueMedio], err)
 
 	return values, nil
 }

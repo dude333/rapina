@@ -38,6 +38,9 @@ const (
 	// Values stored on table 'fre'
 	Shares
 	FreeFloat
+
+	// Financial ratios
+	EquityAvg
 )
 
 // account code, description and bookkeeping code

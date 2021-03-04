@@ -455,8 +455,8 @@ func metricsList(v map[uint32]float32) (metrics []metric) {
 	proventos := v[p.Dividendos] + v[p.JurosCapProp]
 
 	var roe float32
-	if v[p.LucLiq] > 0 && v[p.Equity] > 0 {
-		roe = zeroIfNeg(safeDiv(v[p.LucLiq], v[p.Equity]))
+	if v[p.LucLiq] > 0 && v[p.EquityAvg] > 0 {
+		roe = zeroIfNeg(safeDiv(v[p.LucLiq], v[p.EquityAvg]))
 	}
 
 	return []metric{
