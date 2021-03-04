@@ -11,6 +11,7 @@ const (
 	Caixa
 	AplicFinanceiras
 	Estoque
+	EstoqueMedio
 	Equity
 	DividaCirc
 	DividaNCirc

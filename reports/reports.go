@@ -502,6 +502,10 @@ func metricsList(v map[uint32]float32) (metrics []metric) {
 
 		{"Total de Ações", safeDiv(v[p.Shares], v[p.FreeFloat]/100), GENERAL},
 		{"Free Float", v[p.FreeFloat] / 100, PERCENT},
+
+		{"", 0, EMPTY},
+
+		{"Giro de Estoque (dias)", safeDiv(v[p.EstoqueMedio], -v[p.CustoVendas]/365), INDEX},
 	}
 }
 

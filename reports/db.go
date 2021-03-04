@@ -64,18 +64,31 @@ type account struct {
 // of the account code and description as its key
 //
 func (r report) accountsValues(cid, year int) (map[uint32]float32, error) {
-	lastYear, isITR, err := r.lastYear(cid)
-
+	var err error
 	values := make(map[uint32]float32)
 
 	r.shares(cid, year, values)
 
-	if err == nil && year == lastYear && isITR {
+	lastYear, isITR, err := r.lastYear(cid)
+	if err != nil {
+		return nil, err
+	}
+	if year == lastYear && isITR {
 		err = r.ttm(cid, values)
-		return values, err
+	} else {
+		err = r.dfp(cid, year, values)
 	}
 
-	err = r.dfp(cid, year, values)
+	if err == nil {
+		// Inventory average
+		values[parsers.EstoqueMedio] = values[parsers.Estoque]
+		inv, err := r.value(cid, year-1, parsers.Estoque)
+		if err == nil && inv > 0 {
+			values[parsers.EstoqueMedio] += inv
+			values[parsers.EstoqueMedio] /= 2
+		}
+	}
+
 	return values, err
 }
 
@@ -397,6 +410,31 @@ func (r report) shares(cid int, year int, values map[uint32]float32) error {
 }
 
 //
+// value returns the account value for company id 'cid', 'year' and code.
+//
+func (r report) value(cid, year int, code uint32) (float32, error) {
+	selectInventory := `
+	SELECT
+		VL_CONTA
+	FROM
+		dfp a
+	WHERE
+		ID_CIA = $1 
+		AND YEAR = $2
+		AND CODE = $3
+		AND VERSAO = (SELECT MAX(VERSAO) FROM dfp WHERE ID_CIA = a.ID_CIA AND YEAR = a.YEAR)
+	;`
+
+	val := float32(0)
+	err := r.db.QueryRow(selectInventory, cid, year, code).Scan(&val)
+	if err != nil && err != sql.ErrNoRows {
+		return 0, err
+	}
+
+	return val, nil
+}
+
+//
 // accountsAverage stores the average of all companies of the same sector
 // for each account into a map using a hash of the account code and
 // description as its key
@@ -451,7 +489,38 @@ func (r report) accountsAverage(company string, year int) (map[uint32]float32, e
 		values[code] = vlConta
 	}
 
+	values[parsers.EstoqueMedio], err = r.movingAvg(cids, year, parsers.Estoque)
+	fmt.Printf("[d] estoque medio %f, err %v\n", values[parsers.EstoqueMedio], err)
+
 	return values, nil
+}
+
+// movingAvg returns the moving average of account 'code' between year and
+// last year for all companies listed on 'cids'.
+func (r report) movingAvg(cids []string, year int, code uint32) (float32, error) {
+	s := fmt.Sprintf(`
+		SELECT  
+			(SELECT AVG(VL_CONTA) FROM dfp d2 
+			WHERE d1.ID_CIA = d2.ID_CIA AND d2.CODE = d1.CODE 
+			AND d2.YEAR >= (d1.YEAR - 1) AND d2.YEAR <= d1.YEAR
+			AND VERSAO = (SELECT MAX(VERSAO) FROM dfp WHERE ID_CIA = d2.ID_CIA AND YEAR = d2.YEAR)
+			) AS MAVG
+		FROM dfp d1
+		WHERE ID_CIA IN (%s) 
+		AND YEAR = $1
+		AND CODE = $2
+		AND VERSAO = (SELECT MAX(VERSAO) FROM dfp WHERE ID_CIA = d1.ID_CIA AND YEAR = d1.YEAR)
+		GROUP BY YEAR; 
+	`, strings.Join(cids, ","))
+
+	mavg := float32(0)
+
+	err := r.db.QueryRow(s, year, code).Scan(&mavg)
+	if err != nil && err != sql.ErrNoRows {
+		return 0, err
+	}
+
+	return mavg, nil
 }
 
 func (r report) fromSector(company string) (companies []string, sectorName string, err error) {
