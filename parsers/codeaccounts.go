@@ -11,8 +11,15 @@ const (
 	Caixa
 	AplicFinanceiras
 	Estoque
-	EstoqueMedio
 	Equity
+	ContasARecebCirc
+	ContasARecebNCirc
+	AtivoCirc
+	AtivoNCirc
+	AtivoTotal
+	PassivoCirc
+	PassivoNCirc
+	PassivoTotal
 	DividaCirc
 	DividaNCirc
 
@@ -40,6 +47,7 @@ const (
 	FreeFloat
 
 	// Financial ratios
+	EstoqueMedio
 	EquityAvg
 )
 
@@ -59,11 +67,21 @@ func acctCode(cdAccount, dsAccount string) uint32 {
 
 	accounts := []account{
 		// BPA
+		{"1", "Ativo Total", AtivoTotal},
+		{"1.01", "Ativo Circulante", AtivoCirc},
+		{"1.02", "Ativo Não Circulante", AtivoNCirc},
 		{"", "Caixa e Equivalentes de Caixa", Caixa},
 		{"1.01.02", "Aplicações Financeiras", AplicFinanceiras},
 		{"1.01.04", "", Estoque}, // or "Títulos e Créditos a Receber" for security companies
+		{"1.01.02", "Aplicações Financeiras", AplicFinanceiras},
+		{"1.01.03", "Contas a Receber", ContasARecebCirc},
+		{"1.02.01.03", "Contas a Receber", ContasARecebNCirc},
+		{"1.02.01.04", "Contas a Receber", ContasARecebNCirc},
 
 		// BPP
+		{"2", "Passivo Total", PassivoTotal},
+		{"2.01", "Passivo Circulante", PassivoCirc},
+		{"2.02", "Passivo Não Circulante", PassivoNCirc},
 		{"", "Patrimônio Líquido Consolidado", Equity},
 		{"2.01.04", "Empréstimos e Financiamentos", DividaCirc},
 		{"2.02.01", "Empréstimos e Financiamentos", DividaNCirc},

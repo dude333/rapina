@@ -505,7 +505,14 @@ func metricsList(v map[uint32]float32) (metrics []metric) {
 
 		{"", 0, EMPTY},
 
-		{"Giro de Estoque (dias)", safeDiv(v[p.EstoqueMedio], -v[p.CustoVendas]/365), INDEX},
+		{"Liquidez Corrente", safeDiv(v[p.AtivoCirc], v[p.PassivoCirc]), INDEX},
+		{"Liquidez Seco", safeDiv(v[p.AtivoCirc]-v[p.Estoque], v[p.PassivoCirc]), INDEX},
+		{"Giro de Estoque (dias)", safeDiv(v[p.EstoqueMedio], -v[p.CustoVendas]/360), INDEX},
+		{"Prazo Médio de Recebimento (dias)", safeDiv(v[p.ContasARecebCirc]+v[p.ContasARecebNCirc], v[p.Vendas]/360), INDEX},
+		{"Giro dos Ativos", safeDiv(v[p.Vendas], v[p.AtivoTotal]), INDEX},
+		{"Poder de Ganho Básico (PGB)", safeDiv(EBITDA, v[p.AtivoTotal]), PERCENT},
+		{"ROA", safeDiv(v[p.LucLiq], v[p.AtivoTotal]), PERCENT},
+		{"ROE", roe, PERCENT},
 	}
 }
 
