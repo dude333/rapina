@@ -64,7 +64,6 @@ type account struct {
 // of the account code and description as its key
 //
 func (r report) accountsValues(cid, year int) (map[uint32]float32, error) {
-	var err error
 	values := make(map[uint32]float32)
 
 	r.shares(cid, year, values)
@@ -78,21 +77,27 @@ func (r report) accountsValues(cid, year int) (map[uint32]float32, error) {
 	} else {
 		err = r.dfp(cid, year, values)
 	}
+	if err != nil {
+		return values, err
+	}
 
+	// Financial scale
+	table := "dfp"
+	if isITR {
+		table = "itr"
+	}
+	values[parsers.Escala] = r.scale(cid, year, table)
+
+	var v float32
+	// Inventory average
+	v, err = r.value(cid, year-1, parsers.Estoque)
 	if err == nil {
-		var v float32 = 0
-
-		// Inventory average
-		v, err := r.value(cid, year-1, parsers.Estoque)
-		if err == nil {
-			values[parsers.EstoqueMedio] = avg(values[parsers.Estoque], v)
-		}
-
-		// Equity average
-		v, err = r.value(cid, year-1, parsers.Equity)
-		if err == nil {
-			values[parsers.EquityAvg] = avg(values[parsers.Equity], v)
-		}
+		values[parsers.EstoqueMedio] = avg(values[parsers.Estoque], v)
+	}
+	// Equity average
+	v, err = r.value(cid, year-1, parsers.Equity)
+	if err == nil {
+		values[parsers.EquityAvg] = avg(values[parsers.Equity], v)
 	}
 
 	return values, err
@@ -652,6 +657,32 @@ func cid(db *sql.DB, company string) (int, error) {
 		return 0, err
 	}
 	return cid, nil
+}
+
+//
+// scale returns the financial scale used on the values (unit or thousands).
+//
+func (r report) scale(cid, year int, table string) float32 {
+	s := fmt.Sprintf(
+		`SELECT ESCALA_MOEDA FROM %s WHERE ID_CIA = $1 AND YEAR = $2 limit 1;`,
+		table,
+	)
+	var scale string
+	err := r.db.QueryRow(s, cid, year).Scan(&scale)
+	if err != nil {
+		return 1000
+	}
+
+	switch scale {
+	case "UNIDADE":
+		return 1
+	case "MIL":
+		return 1000
+	case "MILHAO":
+		return 1000000
+	}
+
+	return 1000
 }
 
 //

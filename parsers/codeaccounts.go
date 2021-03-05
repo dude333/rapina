@@ -49,6 +49,9 @@ const (
 	// Financial ratios
 	EstoqueMedio
 	EquityAvg
+
+	// Financial scale (unit, thousand)
+	Escala
 )
 
 // account code, description and bookkeeping code
