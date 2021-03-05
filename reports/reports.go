@@ -37,23 +37,23 @@ type report struct {
 //
 // Report of company data from DB to Excel
 //
-func Report(db *sql.DB, _company string, filename, yamlFile string) error {
-	cid, err := cid(db, _company)
+func Report(p Parms) error {
+	cid, err := cid(p.DB, p.Company)
 	if err != nil {
-		return fmt.Errorf("empresa '%s' não encontrada no banco de dados", _company)
+		return fmt.Errorf("empresa '%s' não encontrada no banco de dados", p.Company)
 	}
 
 	r := report{
-		db:       db,
-		yamlFile: yamlFile,
+		db:       p.DB,
+		yamlFile: p.YamlFile,
 	}
 
 	e := newExcel()
-	sheet, _ := e.newSheet(_company)
+	sheet, _ := e.newSheet(p.Company)
 
 	// Company name
 	sheet.mergeCell("A1", "B1")
-	sheet.print("A1", &[]string{_company}, LEFT, true)
+	sheet.print("A1", &[]string{p.Company}, LEFT, true)
 
 	// ACCOUNT NUMBERING AND DESCRIPTION (COLS A AND B) ===============\/
 	accounts, _ := r.accountsItems(cid)
@@ -213,12 +213,12 @@ func Report(db *sql.DB, _company string, filename, yamlFile string) error {
 			excelize.ShowGridLines(false),
 			excelize.ZoomScale(80),
 		)
-		r.sectorReport(sheet2, _company)
+		r.sectorReport(sheet2, p.Company)
 	}
 
-	err = e.saveAndCloseExcel(filename)
+	err = e.saveAndCloseExcel(p.Filename)
 	if err == nil {
-		fmt.Printf("[√] Dados salvos em %s\n", filename)
+		fmt.Printf("[√] Dados salvos em %s\n", p.Filename)
 	}
 
 	return err

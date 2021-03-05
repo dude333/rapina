@@ -18,23 +18,29 @@ const outputDir = "reports"
 //
 // Report a company from DB to Excel
 //
-func Report(company string, path, yamlFile string) (err error) {
+func Report(p Parms) (err error) {
 
 	db, err := openDatabase()
 	if err != nil {
 		return errors.Wrap(err, "fail to open db")
 	}
 
-	if path == "" {
-		path = outputDir
+	if p.OutputDir == "" {
+		p.OutputDir = outputDir
 	}
 
-	file, err := filename(path, company)
+	file, err := filename(p.OutputDir, p.Company)
 	if err != nil {
 		return err
 	}
 
-	return reports.Report(db, company, file, yamlFile)
+	parms := reports.Parms{
+		DB:       db,
+		Company:  p.Company,
+		Filename: file,
+		YamlFile: p.YamlFile,
+	}
+	return reports.Report(parms)
 }
 
 //
