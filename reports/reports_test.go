@@ -74,8 +74,9 @@ func TestMetricsList(t *testing.T) {
 		0,
 		v[p.Vendas],
 		v[p.EBIT] - v[p.Deprec], // EBITDA
-		v[p.Deprec],
 		v[p.EBIT],
+		v[p.ResulFinanc],
+		v[p.ResulOpDescont],
 		v[p.LucLiq],
 		0,
 	}
