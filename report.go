@@ -6,7 +6,6 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/dude333/rapina/parsers"
 	"github.com/dude333/rapina/reports"
 	"github.com/lithammer/fuzzysearch/fuzzy"
 	"github.com/manifoldco/promptui"
@@ -110,26 +109,24 @@ func SelectCompany(company string, scriptMode bool) string {
 		return ""
 	}
 
-	com, err := reports.ListCompanies(db)
+	companies, err := reports.ListCompanies(db)
 	if err != nil {
 		fmt.Println("[x]", err)
 		return ""
 	}
 
-	company = parsers.RemoveDiacritics(company)
-
 	// Do a fuzzy match on the company name against
 	// all companies listed on the DB
 	matches := make([]string, 0, 10)
-	for _, c := range com {
-		if fuzzy.MatchFold(company, parsers.RemoveDiacritics(c)) {
+	for _, c := range companies {
+		if fuzzy.MatchNormalizedFold(company, c) {
 			matches = append(matches, c)
 		}
 	}
 
 	// Script mode
 	if len(matches) >= 1 && scriptMode {
-		rank := fuzzy.RankFindFold(company, matches)
+		rank := fuzzy.RankFindNormalizedFold(company, matches)
 		if len(rank) <= 0 {
 			return ""
 		}
