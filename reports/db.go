@@ -418,15 +418,44 @@ func (r report) shares(cid int, year int, values map[uint32]float32) error {
 	`
 
 	row := r.db.QueryRow(selectFRE, cid, year)
-	var shares int
+	var shares float32
 	var freeFloat float32
 	err := row.Scan(&shares, &freeFloat)
 	if err != nil && err != sql.ErrNoRows {
 		return err
 	}
 
-	values[parsers.Shares] = float32(shares)
+	values[parsers.Shares] = shares
 	values[parsers.FreeFloat] = freeFloat
+
+	return nil
+}
+
+//
+// sharesAvg set the 'values' map with the average number of shares and
+// the free float of a given conpany in a given year.
+//
+func (r report) sharesAvg(cids []string, year int, values map[uint32]float32) error {
+	selectFRE := fmt.Sprintf(`
+		SELECT 
+			AVG(Quantidade_Total_Acoes_Circulacao), AVG(Percentual_Total_Acoes_Circulacao)
+		FROM fre f
+		WHERE
+			ID_CIA IN (%s)
+			AND YEAR = $1
+			AND Versao = (SELECT MAX(Versao) FROM fre WHERE ID_CIA = f.ID_CIA AND YEAR = f.YEAR);
+	`, strings.Join(cids, ","))
+
+	row := r.db.QueryRow(selectFRE, year)
+	var sharesAvg float32
+	var freeFloatAvg float32
+	err := row.Scan(&sharesAvg, &freeFloatAvg)
+	if err != nil && err != sql.ErrNoRows {
+		return err
+	}
+
+	values[parsers.Shares] = sharesAvg
+	values[parsers.FreeFloat] = freeFloatAvg
 
 	return nil
 }
@@ -512,6 +541,9 @@ func (r report) accountsAverage(company string, year int) (map[uint32]float32, e
 	}
 
 	values[parsers.EstoqueMedio], err = r.movingAvg(cids, year, parsers.Estoque)
+	values[parsers.EquityAvg], err = r.movingAvg(cids, year, parsers.Equity)
+
+	r.sharesAvg(cids, year, values)
 
 	return values, nil
 }

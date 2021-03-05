@@ -29,6 +29,9 @@ import (
 
 // Flags
 var scriptMode bool
+var all bool
+var showShares bool
+var extraRatios bool
 var outputDir string
 
 // reportCmd represents the report command
@@ -46,6 +49,9 @@ func init() {
 	rootCmd.AddCommand(reportCmd)
 
 	reportCmd.Flags().BoolVarP(&scriptMode, "scriptMode", "s", false, "Para modo script (escolhe a empresa com nome mais próximo)")
+	reportCmd.Flags().BoolVarP(&all, "all", "a", false, "Mostra todos os indicadores")
+	reportCmd.Flags().BoolVarP(&showShares, "showShares", "f", false, "Mostra o número de ações e free float")
+	reportCmd.Flags().BoolVarP(&extraRatios, "extraRatios", "x", false, "Reporte de índices extras")
 	reportCmd.Flags().StringVarP(&outputDir, "outputDir", "d", "", "Diretório onde o relatório será salvo")
 }
 
@@ -57,10 +63,18 @@ func report(company string) {
 	}
 	fmt.Println()
 	fmt.Printf("[√] Criando relatório para %s ========\n", company)
+
+	if all {
+		extraRatios = true
+		showShares = true
+	}
+
 	parms := rapina.Parms{
-		Company:   company,
-		OutputDir: outputDir,
-		YamlFile:  yamlFile,
+		Company:     company,
+		OutputDir:   outputDir,
+		YamlFile:    yamlFile,
+		ExtraRatios: extraRatios,
+		ShowShares:  showShares,
 	}
 	err := rapina.Report(parms)
 	if err != nil {

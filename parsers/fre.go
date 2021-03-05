@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"fmt"
 	"os"
+	"strconv"
 	"strings"
 
 	"github.com/pkg/errors"
@@ -161,6 +162,26 @@ func prepareFREFields(header map[string]int, fields []string, companies map[stri
 	}
 	companyID := c.id
 
+	// Free float
+	ff := val("Percentual_Total_Acoes_Circulacao")
+	var freeFloat float32
+	if ff != "" {
+		if f, err := strconv.ParseFloat(ff, 32); err == nil {
+			freeFloat = float32(f / 100)
+		}
+	}
+
+	// Total shares considering the free float
+	shares := val("Quantidade_Total_Acoes_Circulacao")
+	var totalShares float32
+	if shares != "" {
+		if f, err := strconv.ParseFloat(shares, 32); err == nil {
+			if freeFloat > 0 {
+				totalShares = float32(f) / freeFloat
+			}
+		}
+	}
+
 	// Unique value to be used as PRIMARY KEY
 	hash := Hash(cnpj + val("Data_Referencia") + val("Versao") + val("ID_Documento") + val("Quantidade_Total_Acoes_Circulacao"))
 
@@ -171,8 +192,8 @@ func prepareFREFields(header map[string]int, fields []string, companies map[stri
 	f = append(f, year)      // YEAR
 
 	f = append(f, val("Versao"))
-	f = append(f, val("Quantidade_Total_Acoes_Circulacao"))
-	f = append(f, val("Percentual_Total_Acoes_Circulacao"))
+	f = append(f, totalShares)
+	f = append(f, freeFloat)
 
 	return f, nil
 }

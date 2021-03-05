@@ -15,11 +15,18 @@ import (
 
 const sectorAverage = "MÉDIA DO SETOR"
 
+const (
+	grpAccts int = iota + 100
+	grpShares
+	grpExtra
+)
+
 // metric parameters
 type metric struct {
 	descr  string
 	val    float32
 	format int // mapped by constants NUMBER, INDEX, PERCENT
+	group  int // mapped by constants grpX
 }
 
 // report parameters used in most functions
@@ -32,6 +39,9 @@ type report struct {
 
 	// average metric values/year. Index 0: year, index 1: metric
 	average [][]float32
+
+	// groups that will be printed on the output xlsx
+	groups map[int]bool
 }
 
 //
@@ -43,10 +53,15 @@ func Report(p Parms) error {
 		return fmt.Errorf("empresa '%s' não encontrada no banco de dados", p.Company)
 	}
 
+	// Initialize report object
 	r := report{
 		db:       p.DB,
 		yamlFile: p.YamlFile,
 	}
+	r.groups = make(map[int]bool, 3)
+	r.groups[grpAccts] = true
+	r.groups[grpShares] = p.ShowShares
+	r.groups[grpExtra] = p.ExtraRatios
 
 	e := newExcel()
 	sheet, _ := e.newSheet(p.Company)
@@ -57,7 +72,7 @@ func Report(p Parms) error {
 
 	// ACCOUNT NUMBERING AND DESCRIPTION (COLS A AND B) ===============\/
 	accounts, _ := r.accountsItems(cid)
-	baseItems, lastStatementsRow, lastMetricsRow := printCodesAndDescriptions(sheet, accounts, 'A', 2)
+	baseItems, lastStatementsRow, lastMetricsRow := r.printCodesAndDescriptions(sheet, accounts, 'A', 2)
 
 	// 	VALUES (COLS C, D, E...) / PER YEAR ===========================\/
 
@@ -110,6 +125,9 @@ func Report(p Parms) error {
 		row++
 		// Print report in the sequence defined on metricsList()
 		for _, metric := range metricsList(values) {
+			if !r.groups[metric.group] {
+				continue
+			}
 			if metric.format != EMPTY {
 				cell := col + strconv.Itoa(row)
 				sheet.printValue(cell, metric.val, metric.format, false)
@@ -379,7 +397,11 @@ func (r *report) companySummary(sheet *Sheet, row, col *int, _company, sectorNam
 		*row++
 
 		// Print financial metrics
-		for i, metric := range metricsList(values) {
+		i := 0
+		for _, metric := range metricsList(values) {
+			if !r.groups[metric.group] {
+				continue
+			}
 			if sectorAvg {
 				r.average[y-begin] = append(r.average[y-begin], metric.val)
 			}
@@ -416,6 +438,7 @@ func (r *report) companySummary(sheet *Sheet, row, col *int, _company, sectorNam
 				sheet.printCell(*row, *col, metric.val, stl)
 			}
 			*row++
+			i++
 		}
 
 		if printDescr {
@@ -460,59 +483,59 @@ func metricsList(v map[uint32]float32) (metrics []metric) {
 	}
 
 	return []metric{
-		{"Patrimônio Líquido", v[p.Equity], NUMBER},
-		{"", 0, EMPTY},
+		{"Patrimônio Líquido", v[p.Equity], NUMBER, grpAccts},
+		{"", 0, EMPTY, grpAccts},
 
-		{"Receita Líquida", v[p.Vendas], NUMBER},
-		{"EBITDA", EBITDA, NUMBER},
-		{"EBIT", v[p.EBIT], NUMBER},
-		{"Resultado Financeiro", v[p.ResulFinanc], NUMBER},
-		{"Operações Descontinuadas", v[p.ResulOpDescont], NUMBER},
-		{"Lucro Líquido", v[p.LucLiq], NUMBER},
-		{"", 0, EMPTY},
+		{"Receita Líquida", v[p.Vendas], NUMBER, grpAccts},
+		{"EBITDA", EBITDA, NUMBER, grpAccts},
+		{"EBIT", v[p.EBIT], NUMBER, grpAccts},
+		{"Resultado Financeiro", v[p.ResulFinanc], NUMBER, grpAccts},
+		{"Operações Descontinuadas", v[p.ResulOpDescont], NUMBER, grpAccts},
+		{"Lucro Líquido", v[p.LucLiq], NUMBER, grpAccts},
+		{"", 0, EMPTY, grpAccts},
 
-		{"LPA", safeDiv(v[p.LucLiq], safeDiv(v[p.Shares], v[p.FreeFloat])) * 10, INDEX},
-		{"", 0, EMPTY},
+		{"LPA", safeDiv(v[p.LucLiq], v[p.Shares]), INDEX, grpAccts},
+		{"", 0, EMPTY, grpAccts},
 
-		{"Marg. EBITDA", zeroIfNeg(safeDiv(EBITDA, v[p.Vendas])), PERCENT},
-		{"Marg. EBIT", zeroIfNeg(safeDiv(v[p.EBIT], v[p.Vendas])), PERCENT},
-		{"Marg. Líq.", zeroIfNeg(safeDiv(v[p.LucLiq], v[p.Vendas])), PERCENT},
-		{"ROE", roe, PERCENT},
-		{"", 0, EMPTY},
+		{"Marg. EBITDA", zeroIfNeg(safeDiv(EBITDA, v[p.Vendas])), PERCENT, grpAccts},
+		{"Marg. EBIT", zeroIfNeg(safeDiv(v[p.EBIT], v[p.Vendas])), PERCENT, grpAccts},
+		{"Marg. Líq.", zeroIfNeg(safeDiv(v[p.LucLiq], v[p.Vendas])), PERCENT, grpAccts},
+		{"ROE", roe, PERCENT, grpAccts},
+		{"", 0, EMPTY, grpAccts},
 
-		{"Caixa", caixa, NUMBER},
-		{"Dívida Bruta", dividaBruta, NUMBER},
-		{"Dívida Líq.", dividaLiquida, NUMBER},
-		{"Dív. Bru./PL", zeroIfNeg(safeDiv(dividaBruta, v[p.Equity])), PERCENT},
-		{"Dív.Líq./EBITDA", zeroIfNeg(safeDiv(dividaLiquida, EBITDA)), INDEX},
-		{"", 0, EMPTY},
+		{"Caixa", caixa, NUMBER, grpAccts},
+		{"Dívida Bruta", dividaBruta, NUMBER, grpAccts},
+		{"Dívida Líq.", dividaLiquida, NUMBER, grpAccts},
+		{"Dív. Bru./PL", zeroIfNeg(safeDiv(dividaBruta, v[p.Equity])), PERCENT, grpAccts},
+		{"Dív.Líq./EBITDA", zeroIfNeg(safeDiv(dividaLiquida, EBITDA)), INDEX, grpAccts},
+		{"", 0, EMPTY, grpAccts},
 
-		{"FCO", v[p.FCO], NUMBER},
-		{"FCI", v[p.FCI], NUMBER},
-		{"FCF", v[p.FCF], NUMBER},
-		{"FCT", v[p.FCO] + v[p.FCI] + v[p.FCF], NUMBER},
-		{"FCL (FCO+FCI)", v[p.FCO] + v[p.FCI], NUMBER},
+		{"FCO", v[p.FCO], NUMBER, grpAccts},
+		{"FCI", v[p.FCI], NUMBER, grpAccts},
+		{"FCF", v[p.FCF], NUMBER, grpAccts},
+		{"FCT", v[p.FCO] + v[p.FCI] + v[p.FCF], NUMBER, grpAccts},
+		{"FCL (FCO+FCI)", v[p.FCO] + v[p.FCI], NUMBER, grpAccts},
 
-		{"", 0, EMPTY},
+		{"", 0, EMPTY, grpAccts},
 
-		{"Proventos", proventos, NUMBER},
-		{"Payout", zeroIfNeg(safeDiv(proventos, v[p.LucLiq])), PERCENT},
+		{"Proventos", proventos, NUMBER, grpAccts},
+		{"Payout", zeroIfNeg(safeDiv(proventos, v[p.LucLiq])), PERCENT, grpAccts},
 
-		{"", 0, EMPTY},
+		{"", 0, EMPTY, grpAccts},
 
-		{"Total de Ações", safeDiv(v[p.Shares], v[p.FreeFloat]/100), GENERAL},
-		{"Free Float", v[p.FreeFloat] / 100, PERCENT},
+		{"Total de Ações", v[p.Shares], GENERAL, grpShares},
+		{"Free Float", v[p.FreeFloat], PERCENT, grpShares},
 
-		{"", 0, EMPTY},
+		{"", 0, EMPTY, grpShares},
 
-		{"Liquidez Corrente", safeDiv(v[p.AtivoCirc], v[p.PassivoCirc]), INDEX},
-		{"Liquidez Seco", safeDiv(v[p.AtivoCirc]-v[p.Estoque], v[p.PassivoCirc]), INDEX},
-		{"Giro de Estoque (dias)", safeDiv(v[p.EstoqueMedio], -v[p.CustoVendas]/360), INDEX},
-		{"Prazo Médio de Recebimento (dias)", safeDiv(v[p.ContasARecebCirc]+v[p.ContasARecebNCirc], v[p.Vendas]/360), INDEX},
-		{"Giro dos Ativos", safeDiv(v[p.Vendas], v[p.AtivoTotal]), INDEX},
-		{"Poder de Ganho Básico (PGB)", safeDiv(EBITDA, v[p.AtivoTotal]), PERCENT},
-		{"ROA", safeDiv(v[p.LucLiq], v[p.AtivoTotal]), PERCENT},
-		{"ROE", roe, PERCENT},
+		{"Liquidez Corrente", safeDiv(v[p.AtivoCirc], v[p.PassivoCirc]), INDEX, grpExtra},
+		{"Liquidez Seco", safeDiv(v[p.AtivoCirc]-v[p.Estoque], v[p.PassivoCirc]), INDEX, grpExtra},
+		{"Giro de Estoque (dias)", safeDiv(v[p.EstoqueMedio], -v[p.CustoVendas]/360), INDEX, grpExtra},
+		{"Prazo Médio de Recebimento (dias)", safeDiv(v[p.ContasARecebCirc]+v[p.ContasARecebNCirc], v[p.Vendas]/360), INDEX, grpExtra},
+		{"Giro dos Ativos", safeDiv(v[p.Vendas], v[p.AtivoTotal]), INDEX, grpExtra},
+		{"Poder de Ganho Básico (PGB)", safeDiv(EBITDA, v[p.AtivoTotal]), PERCENT, grpExtra},
+		{"ROA", safeDiv(v[p.LucLiq], v[p.AtivoTotal]), PERCENT, grpExtra},
+		{"ROE", roe, PERCENT, grpExtra},
 	}
 }
 
@@ -567,7 +590,7 @@ func ident(str string) (spaces string, baseItem bool) {
 //  - []bool indicates if a row is a base item,
 //  - the row of the last statement,
 //  - the row of the last metric item.
-func printCodesAndDescriptions(sheet *Sheet, accounts []accItems, col rune, row int) ([]bool, int, int) {
+func (r report) printCodesAndDescriptions(sheet *Sheet, accounts []accItems, col rune, row int) ([]bool, int, int) {
 	baseItems := make([]bool, len(accounts)+row)
 	for _, it := range accounts {
 		var sp string
@@ -581,6 +604,9 @@ func printCodesAndDescriptions(sheet *Sheet, accounts []accItems, col rune, row 
 	col++
 	// Metrics descriptions
 	for _, metric := range metricsList(nil) {
+		if !r.groups[metric.group] {
+			continue
+		}
 		if metric.descr != "" {
 			cell := string(col) + strconv.Itoa(row)
 			sheet.print(cell, &[]string{metric.descr}, RIGHT, false)
