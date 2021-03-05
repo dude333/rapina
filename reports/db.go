@@ -124,18 +124,24 @@ func (r report) lastYear(cid int) (int, bool, error) {
 		return 0, false, fmt.Errorf("customer ID not set")
 	}
 
+	numErr := 0
+
 	selectDfpLastYear := `SELECT MAX(CAST(YEAR AS INTEGER)) YEAR FROM dfp WHERE ID_CIA = ?;`
 	dfp := 0
 	err := r.db.QueryRow(selectDfpLastYear, cid).Scan(&dfp)
 	if err != nil {
-		return 0, false, err
+		numErr++
 	}
 
 	selectItrLastYear := `SELECT MAX(CAST(YEAR AS INTEGER)) YEAR FROM itr WHERE ID_CIA = ?;`
 	itr := 0
 	err = r.db.QueryRow(selectItrLastYear, cid).Scan(&itr)
 	if err != nil {
-		return 0, false, err
+		numErr++
+	}
+
+	if numErr == 2 {
+		return 0, false, sql.ErrNoRows
 	}
 
 	if itr > dfp {
