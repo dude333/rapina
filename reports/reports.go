@@ -380,7 +380,7 @@ func (r *report) companySummary(sheet *Sheet, row, col *int, _company, sectorNam
 			values, err = r.accountsValues(cid, y)
 		}
 		if err != nil {
-			fmt.Println("[x]", err)
+			fmt.Printf(" -- %v", err)
 			return false, err
 		}
 
