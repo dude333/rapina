@@ -19,7 +19,7 @@ const (
 	grpAccts int = iota + 100
 	grpShares
 	grpExtra
-	grpSector
+	grpFleuriet
 )
 
 // metric parameters
@@ -61,9 +61,9 @@ func Report(p Parms) error {
 	}
 	r.groups = make(map[int]bool, 3)
 	r.groups[grpAccts] = true
-	r.groups[grpShares] = p.ShowShares
-	r.groups[grpExtra] = p.ExtraRatios
-	r.groups[grpSector] = !p.OmitSector
+	r.groups[grpShares] = p.Reports["ShowShares"]
+	r.groups[grpExtra] = p.Reports["ExtraRatios"]
+	r.groups[grpFleuriet] = p.Reports["Fleuriet"]
 
 	e := newExcel()
 	sheet, _ := e.newSheet(p.Company)
@@ -222,7 +222,7 @@ func Report(p Parms) error {
 	sheet.autoWidth()
 
 	// SECTOR REPORT
-	if !p.OmitSector {
+	if p.Reports["Sector"] {
 		sheet2, err := e.newSheet("SETOR")
 		if err == nil {
 			sheet2.xlsx.SetSheetViewOptions(sheet2.name, 0,
@@ -480,6 +480,9 @@ func metricsList(v map[uint32]float32) (metrics []metric) {
 	if v[p.LucLiq] > 0 && v[p.EquityAvg] > 0 {
 		roe = zeroIfNeg(safeDiv(v[p.LucLiq], v[p.EquityAvg]))
 	}
+	var cdg float32 = v[p.PassivoNCirc] + v[p.Equity] - v[p.AtivoNCirc]
+	var ncg float32 = v[p.AtivoCirc] - v[p.Caixa] -
+		(v[p.PassivoCirc] - v[p.Dividendos] - v[p.DividaCirc] - v[p.DividaNCirc])
 
 	return []metric{
 		{"Patrimônio Líquido", v[p.Equity], NUMBER, grpAccts},
@@ -514,27 +517,32 @@ func metricsList(v map[uint32]float32) (metrics []metric) {
 		{"FCF", v[p.FCF], NUMBER, grpAccts},
 		{"FCT", v[p.FCO] + v[p.FCI] + v[p.FCF], NUMBER, grpAccts},
 		{"FCL (FCO+FCI)", v[p.FCO] + v[p.FCI], NUMBER, grpAccts},
-
 		{"", 0, EMPTY, grpAccts},
 
 		{"Proventos", proventos, NUMBER, grpAccts},
 		{"Payout", zeroIfNeg(safeDiv(proventos, v[p.LucLiq])), PERCENT, grpAccts},
-
 		{"", 0, EMPTY, grpAccts},
 
 		{"Total de Ações", v[p.Shares], GENERAL, grpShares},
 		{"Free Float", v[p.FreeFloat], PERCENT, grpShares},
-
 		{"", 0, EMPTY, grpShares},
 
 		{"Liquidez Corrente", safeDiv(v[p.AtivoCirc], v[p.PassivoCirc]), INDEX, grpExtra},
 		{"Liquidez Seco", safeDiv(v[p.AtivoCirc]-v[p.Estoque], v[p.PassivoCirc]), INDEX, grpExtra},
+		{"Giro dos Ativos", safeDiv(v[p.Vendas], v[p.AtivoTotal]), INDEX, grpExtra},
+		{"", 0, EMPTY, grpExtra},
 		{"Giro de Estoque (dias)", safeDiv(v[p.EstoqueMedio], -v[p.CustoVendas]/360), INDEX, grpExtra},
 		{"Prazo Médio de Recebimento (dias)", safeDiv(v[p.ContasARecebCirc]+v[p.ContasARecebNCirc], v[p.Vendas]/360), INDEX, grpExtra},
-		{"Giro dos Ativos", safeDiv(v[p.Vendas], v[p.AtivoTotal]), INDEX, grpExtra},
+		{"", 0, EMPTY, grpExtra},
 		{"Poder de Ganho Básico (PGB)", safeDiv(EBITDA, v[p.AtivoTotal]), PERCENT, grpExtra},
 		{"ROA", safeDiv(v[p.LucLiq], v[p.AtivoTotal]), PERCENT, grpExtra},
 		{"ROE", roe, PERCENT, grpExtra},
+		{"", 0, EMPTY, grpExtra},
+
+		{"-- Modelo Fleuriet --", 0, EMPTY, grpFleuriet},
+		{"Capital de Giro (CDG)", cdg, NUMBER, grpFleuriet},
+		{"Necessidade de Capital de Giro (NCG)", ncg, NUMBER, grpFleuriet},
+		{"Saldo de Tesouraria (T)", cdg - ncg, NUMBER, grpFleuriet},
 	}
 }
 

@@ -34,13 +34,11 @@ func Report(p Parms) (err error) {
 	}
 
 	parms := reports.Parms{
-		DB:          db,
-		Company:     p.Company,
-		Filename:    file,
-		YamlFile:    p.YamlFile,
-		ExtraRatios: p.ExtraRatios,
-		ShowShares:  p.ShowShares,
-		OmitSector:  p.OmitSector,
+		DB:       db,
+		Company:  p.Company,
+		Filename: file,
+		YamlFile: p.YamlFile,
+		Reports:  p.Reports,
 	}
 	return reports.Report(parms)
 }

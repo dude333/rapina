@@ -12,10 +12,9 @@ type Parms struct {
 	Filename string
 	// YamlFile: file with the companies' sectors
 	YamlFile string
-	// ExtraRatios: enables some extra financial ratios on report
-	ExtraRatios bool
-	// ShowShares: shows the number of shares and free float on report
-	ShowShares bool
-	// OmitSector: omits the sector report
-	OmitSector bool
+	// Reports is a map with the reports and reports items to be printed:
+	// - ExtraRatios: enables some extra financial ratios on report
+	// - ShowShares: shows the number of shares and free float on report
+	// - Sector: creates a sheet with the sector report
+	Reports map[string]bool
 }

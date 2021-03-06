@@ -32,6 +32,7 @@ var scriptMode bool
 var all bool
 var showShares bool
 var extraRatios bool
+var fleuriet bool
 var omitSector bool
 var outputDir string
 
@@ -53,6 +54,7 @@ func init() {
 	reportCmd.Flags().BoolVarP(&all, "all", "a", false, "Mostra todos os indicadores")
 	reportCmd.Flags().BoolVarP(&showShares, "showShares", "f", false, "Mostra o número de ações e free float")
 	reportCmd.Flags().BoolVarP(&extraRatios, "extraRatios", "x", false, "Reporte de índices extras")
+	reportCmd.Flags().BoolVarP(&fleuriet, "fleuriet", "F", false, "Capital de giro no modelo Fleuriet")
 	reportCmd.Flags().BoolVarP(&omitSector, "omitSector", "o", false, "Omite o relatório das empresas do mesmo setor")
 	reportCmd.Flags().StringVarP(&outputDir, "outputDir", "d", "", "Diretório onde o relatório será salvo")
 }
@@ -69,15 +71,20 @@ func report(company string) {
 	if all {
 		extraRatios = true
 		showShares = true
+		fleuriet = true
 	}
 
+	r := make(map[string]bool)
+	r["ExtraRatios"] = extraRatios
+	r["ShowShares"] = showShares
+	r["Fleuriet"] = fleuriet
+	r["Sector"] = !omitSector
+
 	parms := rapina.Parms{
-		Company:     company,
-		OutputDir:   outputDir,
-		YamlFile:    yamlFile,
-		ExtraRatios: extraRatios,
-		ShowShares:  showShares,
-		OmitSector:  omitSector,
+		Company:   company,
+		OutputDir: outputDir,
+		YamlFile:  yamlFile,
+		Reports:   r,
 	}
 	err := rapina.Report(parms)
 	if err != nil {
