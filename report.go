@@ -40,6 +40,7 @@ func Report(p Parms) (err error) {
 		YamlFile:    p.YamlFile,
 		ExtraRatios: p.ExtraRatios,
 		ShowShares:  p.ShowShares,
+		OmitSector:  p.OmitSector,
 	}
 	return reports.Report(parms)
 }

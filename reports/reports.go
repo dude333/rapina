@@ -19,6 +19,7 @@ const (
 	grpAccts int = iota + 100
 	grpShares
 	grpExtra
+	grpSector
 )
 
 // metric parameters
@@ -62,6 +63,7 @@ func Report(p Parms) error {
 	r.groups[grpAccts] = true
 	r.groups[grpShares] = p.ShowShares
 	r.groups[grpExtra] = p.ExtraRatios
+	r.groups[grpSector] = !p.OmitSector
 
 	e := newExcel()
 	sheet, _ := e.newSheet(p.Company)
@@ -220,13 +222,15 @@ func Report(p Parms) error {
 	sheet.autoWidth()
 
 	// SECTOR REPORT
-	sheet2, err := e.newSheet("SETOR")
-	if err == nil {
-		sheet2.xlsx.SetSheetViewOptions(sheet2.name, 0,
-			excelize.ShowGridLines(false),
-			excelize.ZoomScale(80),
-		)
-		r.sectorReport(sheet2, p.Company)
+	if !p.OmitSector {
+		sheet2, err := e.newSheet("SETOR")
+		if err == nil {
+			sheet2.xlsx.SetSheetViewOptions(sheet2.name, 0,
+				excelize.ShowGridLines(false),
+				excelize.ZoomScale(80),
+			)
+			r.sectorReport(sheet2, p.Company)
+		}
 	}
 
 	err = e.saveAndCloseExcel(p.Filename)

@@ -32,6 +32,7 @@ var scriptMode bool
 var all bool
 var showShares bool
 var extraRatios bool
+var omitSector bool
 var outputDir string
 
 // reportCmd represents the report command
@@ -52,6 +53,7 @@ func init() {
 	reportCmd.Flags().BoolVarP(&all, "all", "a", false, "Mostra todos os indicadores")
 	reportCmd.Flags().BoolVarP(&showShares, "showShares", "f", false, "Mostra o número de ações e free float")
 	reportCmd.Flags().BoolVarP(&extraRatios, "extraRatios", "x", false, "Reporte de índices extras")
+	reportCmd.Flags().BoolVarP(&omitSector, "omitSector", "o", false, "Omite o relatório das empresas do mesmo setor")
 	reportCmd.Flags().StringVarP(&outputDir, "outputDir", "d", "", "Diretório onde o relatório será salvo")
 }
 
@@ -75,6 +77,7 @@ func report(company string) {
 		YamlFile:    yamlFile,
 		ExtraRatios: extraRatios,
 		ShowShares:  showShares,
+		OmitSector:  omitSector,
 	}
 	err := rapina.Report(parms)
 	if err != nil {
