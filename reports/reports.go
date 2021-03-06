@@ -81,17 +81,12 @@ func Report(p Parms) error {
 		return err
 	}
 	var values map[uint32]float32
-	cols := "CDEFGHIJKLMNOPQRSTUVWXYZ"
 
 	// LOOP THROUGH YEARS =============================================\/
 	for y := begin; y <= end; y++ {
-		if y-begin >= len(cols) {
-			break
-		}
-
 		// Title
 		row := 2
-		col := string(cols[y-begin])
+		col := colLetter(2 + y - begin) // start on col 'C'
 		cell := col + "1"
 		title := "[" + strconv.Itoa(y) + "]"
 
@@ -193,9 +188,9 @@ func Report(p Parms) error {
 	top = lastStatementsRow + 2
 	bottom = lastMetricsRow
 	for col := 0; col <= wide-1; col++ {
+		year++
 		vCol := (2 + wide + 2) + col                              // Column where the horizontal analysis will be printed
 		sheet.printTitle(axis(vCol, top), "'"+strconv.Itoa(year)) // Print year
-		year++
 		for row := top + 1; row <= bottom; row++ {
 			vt0 := axis(col+2, row)
 			vtn := axis(col+3, row)

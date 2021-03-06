@@ -227,3 +227,10 @@ func cell2axis(cell string) (col, row int) {
 
 	return
 }
+
+//
+// colLetter transforms '2' into 'B'
+//
+func colLetter(col int) string {
+	return excelize.ToAlphaString(col)
+}

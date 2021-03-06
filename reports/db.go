@@ -66,8 +66,6 @@ type account struct {
 func (r report) accountsValues(cid, year int) (map[uint32]float32, error) {
 	values := make(map[uint32]float32)
 
-	r.shares(cid, year, values)
-
 	lastYear, isITR, err := r.lastYear(cid)
 	if err != nil {
 		return nil, err
@@ -87,6 +85,9 @@ func (r report) accountsValues(cid, year int) (map[uint32]float32, error) {
 		table = "itr"
 	}
 	values[parsers.Escala] = r.scale(cid, year, table)
+
+	// Shares and free float
+	r.shares(cid, year, values)
 
 	var v float32
 	// Inventory average
