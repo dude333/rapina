@@ -497,6 +497,7 @@ func metricsList(v map[uint32]float32) (metrics []metric) {
 		{"", 0, EMPTY, grpAccts},
 
 		{"LPA", safeDiv(v[p.LucLiq]*v[p.Escala], v[p.Shares]), INDEX, grpAccts},
+		{"VPA", safeDiv(v[p.Equity]*v[p.Escala], v[p.Shares]), INDEX, grpAccts},
 		{"", 0, EMPTY, grpAccts},
 
 		{"Marg. EBITDA", zeroIfNeg(safeDiv(EBITDA, v[p.Vendas])), PERCENT, grpAccts},
