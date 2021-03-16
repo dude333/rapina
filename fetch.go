@@ -32,6 +32,7 @@ import (
 	"time"
 
 	"github.com/dude333/rapina/parsers"
+	"github.com/dustin/go-humanize"
 	_ "github.com/mattn/go-sqlite3" // requires CGO_ENABLED=1 and gcc
 	"github.com/pkg/errors"
 )
@@ -97,7 +98,7 @@ func processAnnualReport(db *sql.DB, year int) error {
 	zipfile := fmt.Sprintf("%s/dfp_%d.zip", dataDir, year)
 
 	// Download files from CVM server
-	fmt.Print("[ ] Download do arquivo DFP")
+	fmt.Print("[          ] Download do arquivo DFP")
 	files, err := fetchFiles(url, zipfile)
 	if err != nil {
 		return err
@@ -134,7 +135,7 @@ func processQuarterlyReport(db *sql.DB, year int) error {
 	zipfile := fmt.Sprintf("%s/itr_%d.zip", dataDir, year)
 
 	// Download files from CVM server
-	fmt.Print("[ ] Download do arquivo ITR")
+	fmt.Print("[          ] Download do arquivo ITR")
 	files, err := fetchFiles(url, zipfile)
 	if err != nil {
 		return err
@@ -172,7 +173,7 @@ func processFREReport(db *sql.DB, year int) error {
 	zipfile := fmt.Sprintf("%s/fre_%d.zip", dataDir, year)
 
 	// Download files from CVM server
-	fmt.Print("[ ] Download do arquivo FRE")
+	fmt.Print("[          ] Download do arquivo FRE")
 	files, err := fetchFiles(url, zipfile)
 	if err != nil {
 		return err
@@ -223,6 +224,24 @@ func fetchFiles(url, zipfile string) ([]string, error) {
 	return files, nil
 }
 
+// WriteCounter counts the number of bytes written the io.Writer.
+// source: https://golangcode.com/download-a-file-with-progress/
+type WriteCounter struct {
+	Total uint64
+}
+
+// Write implements the io.Writer interface and will be passed to io.TeeReader().
+func (wc *WriteCounter) Write(p []byte) (int, error) {
+	n := len(p)
+	wc.Total += uint64(n)
+	wc.printProgress()
+	return n, nil
+}
+
+func (wc WriteCounter) printProgress() {
+	fmt.Printf("\r[  %7s", humanize.Bytes(wc.Total))
+}
+
 //
 // downloadFile source: https://stackoverflow.com/a/33853856/276311
 //
@@ -237,7 +256,14 @@ func downloadFile(url, filepath string) (err error) {
 	if err != nil {
 		return err
 	}
-	defer out.Close()
+
+	// https://www.joeshaw.org/dont-defer-close-on-writable-files/
+	defer func() {
+		cerr := out.Close()
+		if err == nil {
+			err = cerr
+		}
+	}()
 
 	// Get the data
 	resp, err := http.Get(url)
@@ -252,12 +278,13 @@ func downloadFile(url, filepath string) (err error) {
 	}
 
 	// Write the body to file
-	_, err = io.Copy(out, resp.Body)
+	counter := &WriteCounter{}
+	_, err = io.Copy(out, io.TeeReader(resp.Body, counter))
 	if err != nil {
 		return err
 	}
 
-	return nil
+	return
 }
 
 //

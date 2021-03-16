@@ -25,6 +25,10 @@ func Unzip(src string, dest string) ([]string, error) {
 
 	for _, f := range r.File {
 
+		if !valid(f.Name) {
+			continue
+		}
+
 		rc, err := f.Open()
 		if err != nil {
 			return filenames, err
@@ -58,7 +62,10 @@ func Unzip(src string, dest string) ([]string, error) {
 				return filenames, err
 			}
 
-			_, err = io.Copy(outFile, rc)
+			fmt.Printf("[          ] Unziping %s", fpath)
+			counter := &WriteCounter{}
+			_, err = io.Copy(outFile, io.TeeReader(rc, counter))
+			fmt.Println()
 
 			// Close the file without defer to close before next iteration of loop
 			outFile.Close()
@@ -70,4 +77,22 @@ func Unzip(src string, dest string) ([]string, error) {
 		}
 	}
 	return filenames, nil
+}
+
+func valid(filename string) bool {
+	n := strings.ToLower(filename)
+
+	if strings.Contains(n, "_ind_") {
+		return false
+	}
+
+	list := []string{"_bpa_", "_bpp_", "_dfc_", "_dre_", "_dva_", "fre_"}
+
+	for _, item := range list {
+		if strings.Contains(n, item) {
+			return true
+		}
+	}
+
+	return false
 }
