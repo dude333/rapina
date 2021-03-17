@@ -103,9 +103,6 @@ func populateTable(db *sql.DB, dataType, file string) (err error) {
 	}
 
 	// Data used inside loop
-	sep := func(r rune) bool {
-		return r == ';'
-	}
 	header := make(map[string]int) // stores the header item position (e.g., DT_FIM_EXERC:9)
 	scanner := bufio.NewScanner(dec)
 	count := 0
@@ -119,7 +116,7 @@ func populateTable(db *sql.DB, dataType, file string) (err error) {
 		if len(line) == 0 {
 			continue
 		}
-		fields := strings.FieldsFunc(line, sep)
+		fields := strings.Split(line, ";")
 
 		if len(header) == 0 { // HEADER
 			// Get header positioning
@@ -198,6 +195,9 @@ func populateTable(db *sql.DB, dataType, file string) (err error) {
 	return
 }
 
+// Cache (optimization)
+var unixTime = make(map[string]int64)
+
 //
 // prepareFields prepares all fields (columns) to be inserted on the DB.
 //
@@ -226,11 +226,16 @@ func prepareFields(dataType string, header map[string]int, fields []string, comp
 		if !ok {
 			return 0
 		}
-		t, err := time.Parse("2006-01-02", fields[v])
+		f := fields[v]
+		if ut, ok := unixTime[f]; ok {
+			return ut
+		}
+		t, err := time.Parse("2006-01-02", f)
 		if err != nil {
 			return 0
 		}
-		return t.Unix()
+		unixTime[f] = t.Unix()
+		return unixTime[f]
 	}
 
 	// REFERENCE DATE
@@ -264,19 +269,18 @@ func prepareFields(dataType string, header map[string]int, fields []string, comp
 	hash := Hash(cnpj + val("GRUPO_DFP") + val("DT_FIM_EXERC") + val("VERSAO") + val("CD_CONTA") + val("VL_CONTA"))
 
 	// Output -- need to follow INSERT sequence
-	var f []interface{}
-	f = append(f, hash)                                                             // ID
-	f = append(f, companyID)                                                        // ID_CIA
-	f = append(f, acctCode(fields[header["CD_CONTA"]], fields[header["DS_CONTA"]])) // CODE
-	f = append(f, year)                                                             // YEAR
-
-	f = append(f, val("VERSAO"))
-	f = append(f, val("MOEDA"))
-	f = append(f, val("ESCALA_MOEDA"))
-	f = append(f, tim("DT_FIM_EXERC"))
-	f = append(f, val("CD_CONTA"))
-	f = append(f, val("DS_CONTA"))
-	f = append(f, val("VL_CONTA"))
+	f := make([]interface{}, 11)
+	f[0] = hash                                                             // ID
+	f[1] = companyID                                                        // ID_CIA
+	f[2] = acctCode(fields[header["CD_CONTA"]], fields[header["DS_CONTA"]]) // CODE
+	f[3] = year                                                             // YEAR
+	f[4] = val("VERSAO")
+	f[5] = val("MOEDA")
+	f[6] = val("ESCALA_MOEDA")
+	f[7] = tim("DT_FIM_EXERC")
+	f[8] = val("CD_CONTA")
+	f[9] = val("DS_CONTA")
+	f[10] = val("VL_CONTA")
 
 	return f, nil
 }

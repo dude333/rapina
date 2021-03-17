@@ -68,7 +68,7 @@ func acctCode(cdAccount, dsAccount string) uint32 {
 
 	//  "BPA", "DRE", "DFC_MD", "DFC_MI", "DVA":
 
-	accounts := []account{
+	accounts := [...]account{
 		// BPA
 		{"1", "Ativo Total", AtivoTotal},
 		{"1.01", "Ativo Circulante", AtivoCirc},
