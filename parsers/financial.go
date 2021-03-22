@@ -150,7 +150,7 @@ func populateTable(db *sql.DB, dataType, file string) (int, error) {
 
 		} else { // VALUES
 
-			if len(fields) <= 12 {
+			if len(fields) <= 12 || fields[header["ORDEM_EXERC"]] == "PENÚLTIMO" {
 				continue
 			}
 
