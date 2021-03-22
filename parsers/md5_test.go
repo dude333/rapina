@@ -10,6 +10,10 @@ import (
 )
 
 func TestIsNewFile(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping testing in short mode") // used in CI
+	}
+
 	db, err := openDatabase()
 	if err != nil {
 		t.Errorf("cannot open db: %v", err)
