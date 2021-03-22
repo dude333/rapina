@@ -28,3 +28,6 @@ rapina
 
 # Output of the go coverage tool, specifically when used with LiteIDE
 *.out
+
+# Skip these (keep this at the end)
+!.github/**

@@ -1,0 +1,112 @@
+name: Test, Lint & Release
+
+on: [ push, pull_request ]
+
+jobs:
+  go-test:
+    strategy:
+      fail-fast: false
+      matrix:
+        go: ['1.16', '1.14', '1.12']
+        platform: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.platform }}
+    steps:
+      - if: github.actor == 'nektos/act'
+        name: act workaround
+        run: apt update && apt install -y zstd gcc git
+      - name: Set up Go
+        uses: actions/setup-go@v2
+        with:
+          go-version: ${{ matrix.go }}
+      - name: Show go version
+        run: go version
+      - name: Checkout
+        uses: actions/checkout@v2
+      - name: go mod package cache
+        uses: actions/cache@v2
+        with:
+          # In order:
+          # * Module download cache
+          # * Build cache (Linux)
+          # * Build cache (Mac)
+          # * Build cache (Windows)
+          path: |
+            ~/go/pkg/mod
+            ~/.cache/go-build
+            ~/Library/Caches/go-build
+            %LocalAppData%\go-build
+          key: ${{ runner.os }}-go-${{ matrix.go }}-${{ hashFiles('**/go.mod') }}
+          restore-keys: |
+            ${{ runner.os }}-go-${{ matrix.go }}
+      - name: Run tests
+        run: go test -cover ./...
+      - name: Go vet
+        run: go vet ./... 
+
+  go-lint:
+    name: lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: golangci-lint
+        uses: golangci/golangci-lint-action@v2
+        with:
+          version: latest
+
+  xgo:
+    if: github.event_name == 'push' && contains(github.ref, 'refs/tags/')
+    needs: [go-test, go-lint]
+    
+    strategy:
+      fail-fast: false
+      matrix:
+        go_version: [ 1.14.x ]
+
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+      - name: Get current date
+        id: date
+        run: echo "::set-output name=date::$(date +'%F')"
+      - name: Get current git tag or commit
+        id: tag
+        run: echo "::set-output name=tag::$(git describe --tags --always)"
+      - name: Build with xgo
+        uses: crazy-max/ghaction-xgo@v1
+        with:
+          xgo_version: latest
+          go_version: ${{ matrix.go_version }}
+          pkg: cli
+          dest: build
+          prefix: rapina-${{ steps.tag.outputs.tag }}
+          targets: windows/386,windows/amd64,linux/386,linux/amd64,darwin/386,darwin/amd64
+          v: false
+          x: false
+          race: false
+          ldflags: -s -w -X main.build=${{ steps.date.outputs.date }} -X main.version=${{ steps.tag.outputs.tag }}
+          buildmode: default
+      - name: Run UPX
+        uses: gacts/upx@master
+        with:
+          dir: 'build'
+          upx_args: '-9'
+      - name: Checksum
+        run: |
+          cd build
+          sha1sum rapina* > sha1sum.txt
+      - name: Generate changelog
+        id: changelog
+        uses: metcalfc/changelog-generator@v1.0.0
+        with:
+          myToken: ${{ secrets.GITHUB_TOKEN }}
+      - name: Release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: build/*
+          body: ${{ steps.changelog.outputs.changelog }}
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
