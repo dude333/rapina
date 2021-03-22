@@ -7,7 +7,8 @@ import (
 )
 
 func TestFromSector(t *testing.T) {
-	const filename = "/tmp/test_sectors.yml"
+	tempDir, _ := ioutil.TempDir("", "rapina-test")
+	filename := tempDir + "/test_sectors.yml"
 
 	createYaml(filename)
 	s, _, _ := FromSector("GRENDENE S.A.", filename)

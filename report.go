@@ -3,6 +3,7 @@ package rapina
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 	"sort"
 	"strings"
 
@@ -170,7 +171,7 @@ func promptUser(list []string) (result string) {
 
 //
 // filename cleans up the filename and returns the path/filename
-func filename(path, name string) (filepath string, err error) {
+func filename(path, name string) (fpath string, err error) {
 	clean := func(r rune) rune {
 		switch r {
 		case ' ', ',', '/', '\\':
@@ -181,20 +182,20 @@ func filename(path, name string) (filepath string, err error) {
 	path = strings.TrimSuffix(path, "/")
 	name = strings.TrimSuffix(name, ".")
 	name = strings.Map(clean, name)
-	filepath = path + "/" + name + ".xlsx"
+	fpath = filepath.FromSlash(path + "/" + name + ".xlsx")
 
 	const max = 50
 	var x int
 	for x = 1; x <= max; x++ {
-		_, err = os.Stat(filepath)
+		_, err = os.Stat(fpath)
 		if err == nil {
 			// File exists, try again with another name
-			filepath = fmt.Sprintf("%s/%s(%d).xlsx", path, name, x)
+			fpath = fmt.Sprintf("%s/%s(%d).xlsx", path, name, x)
 		} else if os.IsNotExist(err) {
 			err = nil // reset error
 			break
 		} else {
-			err = fmt.Errorf("file %s stat error: %v", filepath, err)
+			err = fmt.Errorf("file %s stat error: %v", fpath, err)
 			return
 		}
 	}
