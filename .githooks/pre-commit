@@ -5,20 +5,8 @@
 echo "Running pre-commit checks at `pwd`"
 
 {
-  echo "go vet ./..."
-	go vet ./...
-} || {
-	exitStatus=$?
-
-	if [ $exitStatus ]; then
-		printf "\ngo vet issues found in your code, please fix them and try again."
-		exit 1
-	fi
-}
-
-{
-  echo "golint ./..."
-	golint ./...
+  echo "golangci-lint run ./..."
+	golangci-lint run ./...
 } || {
 	exitStatus=$?
 
