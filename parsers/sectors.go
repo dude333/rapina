@@ -75,7 +75,7 @@ func SectorsToYaml(yamlFile string) (err error) {
 					lastSub = subsectors[i]
 					fmt.Fprintln(w, "          - Segmento:", elem.Text)
 					fmt.Fprintln(w, "            Empresas:")
-					companies(w, "http://bvmf.bmfbovespa.com.br/cias-listadas/empresas-listadas/"+elem.Attr("href"))
+					_ = companies(w, "http://bvmf.bmfbovespa.com.br/cias-listadas/empresas-listadas/"+elem.Attr("href"))
 				}
 
 				fmt.Printf("\r[%s]", progress[p%6])
@@ -87,7 +87,7 @@ func SectorsToYaml(yamlFile string) (err error) {
 	fmt.Print("[ ] Lendo informações do site da B3")
 	fmt.Fprintln(w, "Setores:")
 
-	c.Visit("http://bvmf.bmfbovespa.com.br/cias-listadas/empresas-listadas/BuscaEmpresaListada.aspx?opcao=1&indiceAba=1&Idioma=pt-br")
+	err = c.Visit("http://bvmf.bmfbovespa.com.br/cias-listadas/empresas-listadas/BuscaEmpresaListada.aspx?opcao=1&indiceAba=1&Idioma=pt-br")
 
 	fmt.Println()
 	w.Flush()
@@ -98,7 +98,7 @@ func SectorsToYaml(yamlFile string) (err error) {
 //
 // companies lists all companies in the same sector/subsector/segment
 //
-func companies(w *bufio.Writer, url string) {
+func companies(w *bufio.Writer, url string) error {
 	c := colly.NewCollector(
 		// Restrict crawling to specific domains
 		// colly.AllowedDomains("bvmf.bmfbovespa.com.br"),
@@ -122,7 +122,7 @@ func companies(w *bufio.Writer, url string) {
 
 	})
 
-	c.Visit(url)
+	return c.Visit(url)
 }
 
 //
@@ -177,7 +177,9 @@ func FromSector(company, yamlFile string) (companies []string, sectorName string
 	}
 
 	s := S{}
-	yaml.Unmarshal(y, &s)
+	if err := yaml.Unmarshal(y, &s); err != nil {
+		return nil, "", err
+	}
 
 	for _, sector := range s.Sectors {
 		for _, subsector := range sector.Subsectors {

@@ -51,14 +51,6 @@ func (r report) accountsItems(cid int) (items []accItems, err error) {
 	return
 }
 
-type account struct {
-	code     uint32
-	year     string
-	denomCia string
-	escala   string
-	vlConta  float32
-}
-
 //
 // accountsValues stores the values for each account into a map using a hash
 // of the account code and description as its key
@@ -87,7 +79,7 @@ func (r report) accountsValues(cid, year int) (map[uint32]float32, error) {
 	values[parsers.Escala] = r.scale(cid, year, table)
 
 	// Shares and free float
-	r.shares(cid, year, values)
+	_ = r.shares(cid, year, values)
 
 	var v float32
 	// Inventory average
@@ -183,7 +175,7 @@ func (r report) lastYearRange(cid int) (int, int, error) {
 	i := 0
 
 	for rows.Next() {
-		rows.Scan(&dateRange[i])
+		_ = rows.Scan(&dateRange[i])
 		i++
 		if i >= len(dateRange) {
 			break
@@ -221,47 +213,13 @@ func (r report) dfp(cid, year int, _values map[uint32]float32) error {
 	for rows.Next() {
 		var code uint32
 		var vlConta float32
-		rows.Scan(&code, &vlConta)
-		_values[code] = vlConta
+		err := rows.Scan(&code, &vlConta)
+		if err == nil {
+			_values[code] = vlConta
+		}
 	}
 
 	return nil
-}
-
-//
-// itrNumQuarters returns the number os quarters in the last year.
-//
-func itrNumQuarters(db *sql.DB, cid int) (int, error) {
-	validate := `
-	SELECT COUNT(*) FROM (
-		SELECT 
-			DISTINCT date(DT_FIM_EXERC, 'unixepoch') 
-		FROM dfp d 
-		WHERE 
-			ID_CIA = $1 
-			AND YEAR = strftime('%Y', 'now', '-1 year')
-			AND VERSAO = (SELECT MAX(VERSAO) FROM dfp WHERE ID_CIA = d.ID_CIA AND YEAR = d.YEAR)
-
-		UNION
-
-		SELECT
-			DISTINCT date(DT_FIM_EXERC, 'unixepoch')
-		FROM
-			itr i
-		WHERE
-			ID_CIA = $1
-			AND YEAR >= strftime('%Y', 'now', '-1 year')
-			AND VERSAO = (SELECT MAX(VERSAO) FROM itr WHERE ID_CIA = i.ID_CIA AND DT_FIM_EXERC = i.DT_FIM_EXERC)
-	);`
-
-	row := db.QueryRow(validate, cid)
-	count := 0
-	err := row.Scan(&count)
-	if err != nil {
-		return 0, err
-	}
-
-	return count, nil
 }
 
 func (r report) lastDate(cid int) (int, string, error) {
@@ -324,8 +282,10 @@ func (r report) lastBalance(cid int) (map[uint32]float32, error) {
 	var vlConta float32
 
 	for rows.Next() {
-		rows.Scan(&maxDt, &code, &vlConta)
-		balance[code] = vlConta
+		err := rows.Scan(&maxDt, &code, &vlConta)
+		if err == nil {
+			balance[code] = vlConta
+		}
 	}
 
 	return balance, nil
@@ -399,8 +359,10 @@ func (r report) ttm(cid int, _values map[uint32]float32) error {
 	var code uint32
 	var vlConta float32
 	for rows.Next() {
-		rows.Scan(&code, &vlConta)
-		_values[code] = vlConta
+		err := rows.Scan(&code, &vlConta)
+		if err == nil {
+			_values[code] = vlConta
+		}
 	}
 
 	bal, err := r.lastBalance(cid)
@@ -545,17 +507,22 @@ func (r report) accountsAverage(company string, year int) (map[uint32]float32, e
 	for rows.Next() {
 		var code uint32
 		var vlConta float32
-		rows.Scan(
+		err := rows.Scan(
 			&code,
 			&vlConta,
 		)
-		values[code] = vlConta
+		if err == nil {
+			values[code] = vlConta
+		}
 	}
 
-	values[parsers.EstoqueMedio], err = r.movingAvg(cids, year, parsers.Estoque)
-	values[parsers.EquityAvg], err = r.movingAvg(cids, year, parsers.Equity)
+	var err1, err2 error
+	values[parsers.EstoqueMedio], err1 = r.movingAvg(cids, year, parsers.Estoque)
+	values[parsers.EquityAvg], err2 = r.movingAvg(cids, year, parsers.Equity)
 
-	r.sharesAvg(cids, year, values)
+	if err1 == nil && err2 == nil {
+		_ = r.sharesAvg(cids, year, values)
+	}
 
 	return values, nil
 }
@@ -640,8 +607,10 @@ func companies(db *sql.DB) ([]CompanyInfo, error) {
 	var info CompanyInfo
 	var list []CompanyInfo
 	for rows.Next() {
-		rows.Scan(&info.id, &info.name)
-		list = append(list, info)
+		err := rows.Scan(&info.id, &info.name)
+		if err == nil {
+			list = append(list, info)
+		}
 	}
 
 	return list, nil
@@ -684,27 +653,6 @@ func (r report) scale(cid, year int, table string) float32 {
 	}
 
 	return 1000
-}
-
-//
-// isCompany returns true if company exists on DB
-//
-func (r report) isCompany(company string) bool {
-	selectCompany := fmt.Sprintf(`
-	SELECT
-		NAME
-	FROM
-		companies
-	WHERE
-		NAME LIKE "%s%%";`, company)
-
-	var c string
-	err := r.db.QueryRow(selectCompany).Scan(&c)
-	if err != nil {
-		return false
-	}
-
-	return true
 }
 
 //
@@ -754,7 +702,7 @@ func removeDuplicates(elements []string) []string { // change string to int here
 	result := []string{}             // change string to int here if required
 
 	for v := range elements {
-		if encountered[elements[v]] == true {
+		if encountered[elements[v]] {
 			// Do not add duplicate.
 		} else {
 			// Record this element as an encountered element.
@@ -798,8 +746,10 @@ func companyProfits(db *sql.DB, companyID int) ([]profit, error) {
 	for rows.Next() {
 		var year int
 		var val float32
-		rows.Scan(&year, &val)
-		profits = append(profits, profit{year, val})
+		err := rows.Scan(&year, &val)
+		if err == nil {
+			profits = append(profits, profit{year, val})
+		}
 	}
 
 	return profits, nil

@@ -202,8 +202,7 @@ func BenchmarkPrepareFields(b *testing.B) {
 	companies := make(map[string]company)
 	companies["54321"] = company{1, "A"}
 
-	h := make(map[string]int)
-	h = map[string]int{"x": 0, "y": 1, "DT_FIM_EXERC": 2, "CNPJ_CIA": 3}
+	h := map[string]int{"x": 0, "y": 1, "DT_FIM_EXERC": 2, "CNPJ_CIA": 3}
 
 	f := []string{"X", "Y", "2020-02-25", "54321"}
 

@@ -13,10 +13,7 @@ import (
 // Diacritics are removed from 'src' and 'list'.
 //
 func FuzzyMatch(src string, list []string, distance int) bool {
-	if FuzzyFind(src, list, distance) != "" {
-		return true
-	}
-	return false
+	return FuzzyFind(src, list, distance) != ""
 }
 
 //

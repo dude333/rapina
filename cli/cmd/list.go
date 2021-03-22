@@ -47,22 +47,22 @@ func init() {
 	listCmd.Flags().Float32VarP(&netProfitRate, "lucroLiquido", "l", -0.8, "Lista empresas com lucros lucros positivos e com a taxa de crescimento definida")
 
 	listCmd.Run = func(cmd *cobra.Command, args []string) {
+		var err error
+
 		if listCmd.Flags().NFlag() == 0 {
-			listCmd.Help()
+			_ = listCmd.Help()
 			return
 		}
 
 		if listCompanies {
-			rapina.ListCompanies()
+			err = rapina.ListCompanies()
+		} else if sector != "" {
+			err = rapina.ListSector(sector, yamlFile)
+		} else if listCmd.Flags().Changed("lucroLiquido") {
+			err = rapina.ListCompaniesProfits(netProfitRate)
 		}
-		if sector != "" {
-			rapina.ListSector(sector, yamlFile)
-		}
-		if listCmd.Flags().Changed("lucroLiquido") {
-			err := rapina.ListCompaniesProfits(netProfitRate)
-			if err != nil {
-				fmt.Println("[x]", err)
-			}
+		if err != nil {
+			fmt.Println("[x]", err)
 		}
 	}
 

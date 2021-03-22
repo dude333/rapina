@@ -25,7 +25,10 @@ func loadCompanies(db *sql.DB) (map[string]company, error) {
 
 	defer rows.Close()
 	for rows.Next() {
-		rows.Scan(&id, &cnpj, &name)
+		err := rows.Scan(&id, &cnpj, &name)
+		if err != nil && err != sql.ErrNoRows {
+			return nil, err
+		}
 		companies[cnpj] = company{id, name}
 	}
 

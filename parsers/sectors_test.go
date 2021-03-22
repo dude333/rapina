@@ -52,5 +52,5 @@ func createYaml(filename string) {
             - GRENDENE S.A.
             - VULCABRAS/AZALEIA S.A.`)
 
-	ioutil.WriteFile(filename, yaml, 0644)
+	_ = ioutil.WriteFile(filename, yaml, 0644)
 }

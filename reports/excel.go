@@ -40,8 +40,6 @@ func (e *Excel) saveAndCloseExcel(filename string) (err error) {
 type Sheet struct {
 	xlsx *excelize.File
 	name string
-	row  int
-	col  int
 }
 
 func (e *Excel) newSheet(name string) (s *Sheet, err error) {

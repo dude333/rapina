@@ -108,17 +108,17 @@ func Report(p Parms) error {
 			end--
 			break
 		}
-		sheet.printTitle(cell, title) // Print year as title on row 1
+		_ = sheet.printTitle(cell, title) // Print year as title on row 1
 		for _, acct := range accounts {
 			cell := col + strconv.Itoa(row)
-			sheet.printValue(cell, values[acct.code], NUMBER, baseItems[row])
+			_ = sheet.printValue(cell, values[acct.code], NUMBER, baseItems[row])
 			row++
 		}
 
 		// FINANCIAL METRICS (COLS C, D, E...) / YEAR =================\/
 		row++
 		cell = col + strconv.Itoa(row)
-		sheet.printTitle(cell, title) // Print year as title
+		_ = sheet.printTitle(cell, title) // Print year as title
 		row++
 		// Print report in the sequence defined on metricsList()
 		for _, metric := range metricsList(values) {
@@ -127,7 +127,7 @@ func Report(p Parms) error {
 			}
 			if metric.format != EMPTY {
 				cell := col + strconv.Itoa(row)
-				sheet.printValue(cell, metric.val, metric.format, false)
+				_ = sheet.printValue(cell, metric.val, metric.format, false)
 			}
 			row++
 		}
@@ -144,8 +144,8 @@ func Report(p Parms) error {
 	top := 2
 	bottom := top
 	for col := 2; col <= 2+wide; col++ {
-		vCol := col + wide + 2                                  // Column where the vertical analysis will be printed
-		sheet.printTitle(axis(vCol, 1), "'"+strconv.Itoa(year)) // Print year
+		vCol := col + wide + 2                                      // Column where the vertical analysis will be printed
+		_ = sheet.printTitle(axis(vCol, 1), "'"+strconv.Itoa(year)) // Print year
 		year++
 		var ref string
 		for row := top; row <= lastStatementsRow; row++ {
@@ -167,7 +167,7 @@ func Report(p Parms) error {
 			val := axis(col, row)
 			formula := fmt.Sprintf(`=IfError(%s/%s, "-")`, val, ref)
 
-			sheet.printFormula(axis(vCol, row), formula, PERCENT, baseItems[row])
+			_ = sheet.printFormula(axis(vCol, row), formula, PERCENT, baseItems[row])
 			bottom = row
 		}
 	}
@@ -191,14 +191,14 @@ func Report(p Parms) error {
 	bottom = lastMetricsRow
 	for col := 0; col <= wide-1; col++ {
 		year++
-		vCol := (2 + wide + 2) + col                              // Column where the horizontal analysis will be printed
-		sheet.printTitle(axis(vCol, top), "'"+strconv.Itoa(year)) // Print year
+		vCol := (2 + wide + 2) + col                                  // Column where the horizontal analysis will be printed
+		_ = sheet.printTitle(axis(vCol, top), "'"+strconv.Itoa(year)) // Print year
 		for row := top + 1; row <= bottom; row++ {
 			vt0 := axis(col+2, row)
 			vtn := axis(col+3, row)
 			formula := fmt.Sprintf(`=IF(OR(%s="", %s=""), "", IF(MIN(%s, %s)<=0, IF((%s - %s)>0, "      ⇧", "      ⇩"), (%s/%s)-1))`,
 				vtn, vt0, vtn, vt0, vtn, vt0, vtn, vt0)
-			sheet.printFormula(axis(vCol, row), formula, PERCENT, false)
+			_ = sheet.printFormula(axis(vCol, row), formula, PERCENT, false)
 		}
 	}
 
@@ -209,13 +209,13 @@ func Report(p Parms) error {
 	// CAGR (compound annual growth rate)
 	// CAGR (t0, tn) = (V(tn)/V(t0))^(1/(tn-t0-1))-1
 	vCol := (2 + wide + 2) + wide + 1
-	sheet.printTitle(axis(vCol, top), "CAGR")
+	_ = sheet.printTitle(axis(vCol, top), "CAGR")
 	for row := top + 1; row <= bottom; row++ {
 		vt0 := axis(2, row)
 		vtn := axis(2+wide, row)
 		formula := fmt.Sprintf(`=IF(OR(%s="", %s="", %s=0, (%s*%s)<0), "", (%s/%s)^(1/%d)-1)`,
 			vtn, vt0, vt0, vt0, vtn, vtn, vt0, wide)
-		sheet.printFormula(axis(vCol, row), formula, PERCENT, false)
+		_ = sheet.printFormula(axis(vCol, row), formula, PERCENT, false)
 	}
 
 	// ADJUST COLUMNS WIDTH
@@ -225,11 +225,11 @@ func Report(p Parms) error {
 	if p.Reports["Sector"] {
 		sheet2, err := e.newSheet("SETOR")
 		if err == nil {
-			sheet2.xlsx.SetSheetViewOptions(sheet2.name, 0,
+			_ = sheet2.xlsx.SetSheetViewOptions(sheet2.name, 0,
 				excelize.ShowGridLines(false),
 				excelize.ZoomScale(80),
 			)
-			r.sectorReport(sheet2, p.Company)
+			_ = r.sectorReport(sheet2, p.Company)
 		}
 	}
 
@@ -453,13 +453,13 @@ func (r *report) companySummary(sheet *Sheet, row, col *int, _company, sectorNam
 	// CAGR (compound annual growth rate)
 	// CAGR (t0, tn) = (V(tn)/V(t0))^(1/(tn-t0-1))-1
 	wide := end - begin
-	sheet.printTitle(axis(*col, rw), "CAGR")
+	_ = sheet.printTitle(axis(*col, rw), "CAGR")
 	for r := rw + 1; r <= bottom; r++ {
 		vt0 := axis(*col-wide-1, r)
 		vtn := axis(*col-1, r)
 		formula := fmt.Sprintf(`=IF(OR(%s="", %s="", %s=0, (%s*%s)<0), "", (%s/%s)^(1/%d)-1)`,
 			vtn, vt0, vt0, vt0, vtn, vtn, vt0, wide)
-		sheet.printFormula(axis(*col, r), formula, PERCENT, false)
+		_ = sheet.printFormula(axis(*col, r), formula, PERCENT, false)
 	}
 	*col++
 

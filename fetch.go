@@ -68,7 +68,7 @@ func FetchCVM() error {
 type fn func(*sql.DB, int) error
 
 // try to run the function 'f' 'n' times, in case there are network errors.
-func try(f fn, db *sql.DB, errMsg string, now, limit, n int) error {
+func try(f fn, db *sql.DB, errMsg string, now, limit, n int) {
 	tries := n
 	var err error
 
@@ -86,8 +86,6 @@ func try(f fn, db *sql.DB, errMsg string, now, limit, n int) error {
 			tries = n
 		}
 	}
-
-	return err
 }
 
 // processAnnualReport will get data from .zip files downloaded
@@ -247,9 +245,10 @@ func (wc WriteCounter) printProgress() {
 func downloadFile(url, filepath string) (err error) {
 	// Create dir if necessary
 	basepath := path.Dir(filepath)
-	os.MkdirAll(basepath, os.ModePerm)
-	//
-	err = nil
+	if err = os.MkdirAll(basepath, os.ModePerm); err != nil {
+		return err
+	}
+
 	// Create the file
 	out, err := os.Create(filepath)
 	if err != nil {

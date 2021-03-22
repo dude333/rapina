@@ -114,10 +114,6 @@ func newFormat(format int, position int, bold bool) (f *formatStyle) {
 	return
 }
 
-func (f *formatStyle) bold(enabled bool) {
-	f.Font = &formatFont{Bold: enabled}
-}
-
 func (f *formatStyle) size(s int) {
 	f.Font = &formatFont{Size: s}
 }

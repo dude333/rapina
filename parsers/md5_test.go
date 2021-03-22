@@ -16,7 +16,9 @@ func TestIsNewFile(t *testing.T) {
 		return
 	}
 
-	createTable(db, "MD5")
+	if err := createTable(db, "MD5"); err != nil {
+		t.Errorf("could not create table: %v", err)
+	}
 
 	file := "../cli/.data/bpa_cia_aberta_con_2017.csv"
 	isNew, err := isNewFile(db, file)

@@ -44,9 +44,11 @@ func ImportCsv(db *sql.DB, dataType string, file string) (err error) {
 			if v > 0 {
 				fmt.Printf("[i] Apagando tabela %s versão %d (versão atual: %d)\n", table, v, currentDbVersion)
 			}
-			wipeDB(db, t)
+			if err := wipeDB(db, t); err != nil {
+				return err
+			}
 		}
-		if err = createTable(db, t); err != nil {
+		if err := createTable(db, t); err != nil {
 			return err
 		}
 
@@ -192,7 +194,7 @@ func populateTable(db *sql.DB, dataType, file string) (int, error) {
 		return count, errors.Wrapf(err, "erro ao ler arquivo %s", file)
 	}
 
-	saveCompanies(db, companies)
+	err = saveCompanies(db, companies)
 
 	return count, err
 }
