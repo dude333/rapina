@@ -208,11 +208,10 @@ func fetchFiles(url, zipfile string) ([]string, error) {
 
 	// Download file from CVM server
 	err := downloadFile(url, zipfile)
+	fmt.Println()
 	if err != nil {
-		fmt.Println("\r[x")
 		return nil, ErrFileNotFound
 	}
-	fmt.Println("\r[√")
 
 	// Unzip and list files
 	files, err := Unzip(zipfile, dataDir)
