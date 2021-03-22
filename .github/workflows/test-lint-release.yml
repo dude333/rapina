@@ -40,8 +40,6 @@ jobs:
             ${{ runner.os }}-go-${{ matrix.go }}
       - name: Run tests
         run: go test -short -cover ./...
-      - name: Go vet
-        run: go vet ./... 
 
   go-lint:
     name: lint
