@@ -58,13 +58,14 @@ func ImportCsv(db *sql.DB, dataType string, file string) (err error) {
 		return
 	}
 
+	var count int
 	if dataType == "FRE" {
-		err = populateFRE(db, file)
+		count, err = populateFRE(db, file)
 	} else {
-		err = populateTable(db, dataType, file)
+		count, err = populateTable(db, dataType, file)
 	}
 	if err == nil {
-		fmt.Print("\r[√")
+		fmt.Printf("\r[√] %-7s %7d linhas processadas", dataType+":", count)
 		storeFile(db, file)
 	} else {
 		fmt.Print("\r[x")
@@ -76,21 +77,22 @@ func ImportCsv(db *sql.DB, dataType string, file string) (err error) {
 
 //
 // populateTable loop thru file and insert its lines into DB
+// and returns the number os lines inserted.
 //
-func populateTable(db *sql.DB, dataType, file string) (err error) {
+func populateTable(db *sql.DB, dataType, file string) (int, error) {
 	progress := []string{"/", "-", "\\", "|", "-", "\\"}
 	p := 0
 
 	table, err := whatTable(dataType)
 	if err != nil {
-		return err
+		return 0, err
 	}
 
 	companies, _ := loadCompanies(db)
 
 	fh, err := os.Open(file)
 	if err != nil {
-		return errors.Wrapf(err, "erro ao abrir arquivo %s", file)
+		return 0, errors.Wrapf(err, "erro ao abrir arquivo %s", file)
 	}
 	defer fh.Close()
 
@@ -99,7 +101,7 @@ func populateTable(db *sql.DB, dataType, file string) (err error) {
 	// BEGIN TRANSACTION
 	tx, err := db.Begin()
 	if err != nil {
-		return errors.Wrap(err, "Failed to begin transaction")
+		return 0, errors.Wrap(err, "Failed to begin transaction")
 	}
 
 	// Data used inside loop
@@ -140,7 +142,7 @@ func populateTable(db *sql.DB, dataType, file string) (err error) {
 			stmt, err = tx.Prepare(insert)
 			if err != nil {
 				err = errors.Wrapf(err, "erro ao preparar insert (verificar cabeçalho do arquivo %s)", file)
-				return
+				return count, err
 			}
 			defer stmt.Close()
 
@@ -163,11 +165,11 @@ func populateTable(db *sql.DB, dataType, file string) (err error) {
 				continue // ignore accumulated ITR data
 			}
 			if err != nil {
-				return errors.Wrap(err, "falha ao preparar registro")
+				return count, errors.Wrap(err, "falha ao preparar registro")
 			}
 			_, err = stmt.Exec(f...)
 			if err != nil {
-				return errors.Wrap(err, "falha ao inserir registro")
+				return count, errors.Wrap(err, "falha ao inserir registro")
 			}
 		}
 
@@ -183,16 +185,16 @@ func populateTable(db *sql.DB, dataType, file string) (err error) {
 	// END TRANSACTION
 	err = tx.Commit()
 	if err != nil {
-		return errors.Wrap(err, "Failed to commit transaction")
+		return count, errors.Wrap(err, "Failed to commit transaction")
 	}
 
 	if err := scanner.Err(); err != nil {
-		return errors.Wrapf(err, "erro ao ler arquivo %s", file)
+		return count, errors.Wrapf(err, "erro ao ler arquivo %s", file)
 	}
 
 	saveCompanies(db, companies)
 
-	return
+	return count, err
 }
 
 // Cache (optimization)

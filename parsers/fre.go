@@ -18,21 +18,21 @@ var (
 	ErrCNPJNotFound = fmt.Errorf("CNPJ not found")
 )
 
-func populateFRE(db *sql.DB, file string) error {
+func populateFRE(db *sql.DB, file string) (int, error) {
 	progress := []string{"/", "-", "\\", "|", "-", "\\"}
 	p := 0
 	var err error
 
 	table, err := whatTable("FRE")
 	if err != nil {
-		return err
+		return 0, err
 	}
 
 	companies, _ := loadCompanies(db)
 
 	fh, err := os.Open(file)
 	if err != nil {
-		return errors.Wrapf(err, "erro ao abrir arquivo %s", file)
+		return 0, errors.Wrapf(err, "erro ao abrir arquivo %s", file)
 	}
 	defer fh.Close()
 
@@ -41,7 +41,7 @@ func populateFRE(db *sql.DB, file string) error {
 	// BEGIN TRANSACTION
 	tx, err := db.Begin()
 	if err != nil {
-		return errors.Wrap(err, "Failed to begin transaction")
+		return 0, errors.Wrap(err, "Failed to begin transaction")
 	}
 
 	// Data used inside loop
@@ -83,7 +83,7 @@ func populateFRE(db *sql.DB, file string) error {
 			stmt, err = tx.Prepare(insert)
 			if err != nil {
 				err = errors.Wrapf(err, "erro ao preparar insert (verificar cabeçalho do arquivo %s)", file)
-				return err
+				return count, err
 			}
 			defer stmt.Close()
 
@@ -105,7 +105,7 @@ func populateFRE(db *sql.DB, file string) error {
 			}
 			_, err = stmt.Exec(f...)
 			if err != nil {
-				return errors.Wrap(err, "falha ao inserir registro")
+				return count, errors.Wrap(err, "falha ao inserir registro")
 			}
 		}
 
@@ -120,14 +120,14 @@ func populateFRE(db *sql.DB, file string) error {
 	// END TRANSACTION
 	err = tx.Commit()
 	if err != nil {
-		return errors.Wrap(err, "Failed to commit transaction")
+		return count, errors.Wrap(err, "Failed to commit transaction")
 	}
 
 	if err := scanner.Err(); err != nil {
-		return errors.Wrapf(err, "erro ao ler arquivo %s", file)
+		return count, errors.Wrapf(err, "erro ao ler arquivo %s", file)
 	}
 
-	return nil
+	return count, nil
 }
 
 func prepareFREFields(header map[string]int, fields []string, companies map[string]company) ([]interface{}, error) {
