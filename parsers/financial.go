@@ -150,8 +150,17 @@ func populateTable(db *sql.DB, dataType, file string) (int, error) {
 
 		} else { // VALUES
 
-			if len(fields) <= 12 || fields[header["ORDEM_EXERC"]] == "PENÚLTIMO" {
+			if len(fields) <= 12 {
 				continue
+			}
+
+			// Only use penultimate for 2010 file, that's the last year published,
+			// to get data from 2009
+			if fields[header["ORDEM_EXERC"]] == "PENÚLTIMO" {
+				dt := fields[header["DT_FIM_EXERC"]]
+				if len(dt) < 4 || dt[:4] != "2009" {
+					continue
+				}
 			}
 
 			// UPDATE COMPANIES
