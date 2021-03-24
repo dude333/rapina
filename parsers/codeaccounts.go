@@ -26,6 +26,8 @@ const (
 	PassivoTotal
 	DividaCirc
 	DividaNCirc
+	DividendosJCP
+	DividendosMin
 
 	// Income Statement
 	Vendas
@@ -70,12 +72,12 @@ var _accountsTable = []account{
 	{"1", "Ativo Total", AtivoTotal},
 	{"1.01", "Ativo Circulante", AtivoCirc},
 	{"1.02", "Ativo Não Circulante", AtivoNCirc},
-	{"1.*", "Caixa e Equivalentes de Caixa", Caixa},
-	{"1.01.*", "Aplicações Financeiras", AplicFinanceiras},
-	{"1.01.04", "", Estoque}, // or "Títulos e Créditos a Receber" for security companies
+	{"1.01.01", "Caixa e Equivalentes de Caixa", Caixa},
 	{"1.01.02", "Aplicações Financeiras", AplicFinanceiras},
+	{"1.01.04", "Estoques", Estoque}, // or "Títulos e Créditos a Receber" for security companies
 	{"1.01.03", "Contas a Receber", ContasARecebCirc},
-	{"1.02.01.*", "Contas a Receber", ContasARecebNCirc},
+	{"1.02.01.03", "Contas a Receber", ContasARecebNCirc},
+	{"1.02.01.04", "Contas a Receber", ContasARecebNCirc},
 
 	// BPP
 	{"2", "Passivo Total", PassivoTotal},
@@ -84,6 +86,8 @@ var _accountsTable = []account{
 	{"2.*", "Patrimônio Líquido Consolidado", Equity},
 	{"2.01.04", "Empréstimos e Financiamentos", DividaCirc},
 	{"2.02.01", "Empréstimos e Financiamentos", DividaNCirc},
+	{"2.01.05.02.01", "Dividendos e JCP a Pagar", DividendosJCP},
+	{"2.01.05.02.02", "Dividendo Mínimo Obrigatório a Pagar", DividendosMin},
 
 	// DRE
 	{"3.01", "", Vendas},
@@ -97,6 +101,7 @@ var _accountsTable = []account{
 	{"3.11", "Resultado Líquido de Operações Descontinuadas", ResulOpDescont},
 	{"3.12", "Resultado Líquido de Operações Descontinuadas", ResulOpDescont},
 	{"3.*", "Lucro/Prejuízo Consolidado do Período", LucLiq},
+	{"3.*", "Lucro/Prejuízo do Período", LucLiq},
 
 	// DFC
 	{"6.01", "", FCO},
