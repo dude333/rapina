@@ -1,13 +1,22 @@
 package parsers
 
 import (
+	"crypto/md5"
+	"crypto/tls"
+	"encoding/base64"
+	"encoding/json"
+	"io"
+	"log"
 	"net/http"
 	"net/http/httptest"
+	"strconv"
 	"testing"
+	"time"
 )
 
-const resJSON = `{"draw":2,"recordsFiltered":51,"recordsTotal":51,"data":[{"id":159719,"descricaoFundo":"BB PROGRESSIVO II FUNDO DE INVESTIMENTO IMOBILIÁRIO - FII","categoriaDocumento":"Aviso aos Cotistas - Estruturado","tipoDocumento":"Rendimentos e Amortizações","especieDocumento":"","dataReferencia":"31/03/2021","dataEntrega":"31/03/2021 17:36","status":"AC","descricaoStatus":"Ativo com visualização","analisado":"N","situacaoDocumento":"A","assuntos":null,"altaPrioridade":false,"formatoDataReferencia":"3","versao":1,"modalidade":"AP","descricaoModalidade":"Apresentação","nomePregao":"FII BB PRGII","informacoesAdicionais":"FII BB PRGII;","arquivoEstruturado":"","formatoEstruturaDocumento":null,"nomeAdministrador":null,"cnpjAdministrador":null,"cnpjFundo":null,"idTemplate":0,"idSelectNotificacaoConvenio":null,"idSelectItemConvenio":0,"indicadorFundoAtivoB3":false,"idEntidadeGerenciadora":null,"ofertaPublica":null,"numeroEmissao":null,"tipoPedido":null,"dda":null},{"id":151499,"descricaoFundo":"BB PROGRESSIVO II FUNDO DE INVESTIMENTO IMOBILIÁRIO - FII","categoriaDocumento":"Aviso aos Cotistas - Estruturado","tipoDocumento":"Rendimentos e Amortizações","especieDocumento":"","dataReferencia":"26/02/2021","dataEntrega":"26/02/2021 17:34","status":"AC","descricaoStatus":"Ativo com visualização","analisado":"N","situacaoDocumento":"A","assuntos":null,"altaPrioridade":false,"formatoDataReferencia":"3","versao":1,"modalidade":"AP","descricaoModalidade":"Apresentação","nomePregao":"FII BB PRGII","informacoesAdicionais":"FII BB PRGII;","arquivoEstruturado":"","formatoEstruturaDocumento":null,"nomeAdministrador":null,"cnpjAdministrador":null,"cnpjFundo":null,"idTemplate":0,"idSelectNotificacaoConvenio":null,"idSelectItemConvenio":0,"indicadorFundoAtivoB3":false,"idEntidadeGerenciadora":null,"ofertaPublica":null,"numeroEmissao":null,"tipoPedido":null,"dda":null},{"id":142827,"descricaoFundo":"BB PROGRESSIVO II FUNDO DE INVESTIMENTO IMOBILIÁRIO - FII","categoriaDocumento":"Aviso aos Cotistas - Estruturado","tipoDocumento":"Rendimentos e Amortizações","especieDocumento":"","dataReferencia":"29/01/2021","dataEntrega":"29/01/2021 17:40","status":"AC","descricaoStatus":"Ativo com visualização","analisado":"N","situacaoDocumento":"A","assuntos":null,"altaPrioridade":false,"formatoDataReferencia":"3","versao":1,"modalidade":"AP","descricaoModalidade":"Apresentação","nomePregao":"FII BB PRGII","informacoesAdicionais":"FII BB PRGII;","arquivoEstruturado":"","formatoEstruturaDocumento":null,"nomeAdministrador":null,"cnpjAdministrador":null,"cnpjFundo":null,"idTemplate":0,"idSelectNotificacaoConvenio":null,"idSelectItemConvenio":0,"indicadorFundoAtivoB3":false,"idEntidadeGerenciadora":null,"ofertaPublica":null,"numeroEmissao":null,"tipoPedido":null,"dda":null}]}`
-const resHTML = `<html>
+const (
+	resJSON = `{"draw":2,"recordsFiltered":51,"recordsTotal":51,"data":[{"id":159719,"descricaoFundo":"BB PROGRESSIVO II FUNDO DE INVESTIMENTO IMOBILIÁRIO - FII","categoriaDocumento":"Aviso aos Cotistas - Estruturado","tipoDocumento":"Rendimentos e Amortizações","especieDocumento":"","dataReferencia":"31/03/2021","dataEntrega":"31/03/2021 17:36","status":"AC","descricaoStatus":"Ativo com visualização","analisado":"N","situacaoDocumento":"A","assuntos":null,"altaPrioridade":false,"formatoDataReferencia":"3","versao":1,"modalidade":"AP","descricaoModalidade":"Apresentação","nomePregao":"FII BB PRGII","informacoesAdicionais":"FII BB PRGII;","arquivoEstruturado":"","formatoEstruturaDocumento":null,"nomeAdministrador":null,"cnpjAdministrador":null,"cnpjFundo":null,"idTemplate":0,"idSelectNotificacaoConvenio":null,"idSelectItemConvenio":0,"indicadorFundoAtivoB3":false,"idEntidadeGerenciadora":null,"ofertaPublica":null,"numeroEmissao":null,"tipoPedido":null,"dda":null},{"id":151499,"descricaoFundo":"BB PROGRESSIVO II FUNDO DE INVESTIMENTO IMOBILIÁRIO - FII","categoriaDocumento":"Aviso aos Cotistas - Estruturado","tipoDocumento":"Rendimentos e Amortizações","especieDocumento":"","dataReferencia":"26/02/2021","dataEntrega":"26/02/2021 17:34","status":"AC","descricaoStatus":"Ativo com visualização","analisado":"N","situacaoDocumento":"A","assuntos":null,"altaPrioridade":false,"formatoDataReferencia":"3","versao":1,"modalidade":"AP","descricaoModalidade":"Apresentação","nomePregao":"FII BB PRGII","informacoesAdicionais":"FII BB PRGII;","arquivoEstruturado":"","formatoEstruturaDocumento":null,"nomeAdministrador":null,"cnpjAdministrador":null,"cnpjFundo":null,"idTemplate":0,"idSelectNotificacaoConvenio":null,"idSelectItemConvenio":0,"indicadorFundoAtivoB3":false,"idEntidadeGerenciadora":null,"ofertaPublica":null,"numeroEmissao":null,"tipoPedido":null,"dda":null},{"id":142827,"descricaoFundo":"BB PROGRESSIVO II FUNDO DE INVESTIMENTO IMOBILIÁRIO - FII","categoriaDocumento":"Aviso aos Cotistas - Estruturado","tipoDocumento":"Rendimentos e Amortizações","especieDocumento":"","dataReferencia":"29/01/2021","dataEntrega":"29/01/2021 17:40","status":"AC","descricaoStatus":"Ativo com visualização","analisado":"N","situacaoDocumento":"A","assuntos":null,"altaPrioridade":false,"formatoDataReferencia":"3","versao":1,"modalidade":"AP","descricaoModalidade":"Apresentação","nomePregao":"FII BB PRGII","informacoesAdicionais":"FII BB PRGII;","arquivoEstruturado":"","formatoEstruturaDocumento":null,"nomeAdministrador":null,"cnpjAdministrador":null,"cnpjFundo":null,"idTemplate":0,"idSelectNotificacaoConvenio":null,"idSelectItemConvenio":0,"indicadorFundoAtivoB3":false,"idEntidadeGerenciadora":null,"ofertaPublica":null,"numeroEmissao":null,"tipoPedido":null,"dda":null}]}`
+	resHTML = `<html>
 <head>
 <META http-equiv="Content-Type" content="text/html; charset=UTF-8">
 <title>Informa&ccedil;&otilde;es sobre Pagamento de Proventos - FUNDOS</title>
@@ -148,6 +157,9 @@ const resHTML = `<html>
 </body>
 </html>
 `
+	resList = `"QUYgSU5WRVNUIENSSSBGRE8uIElOVi4gSU1PQiDigJMgUkVDRULDjVZFSVMgSU1PQi47RklJIEFGSEkgQ1JJOztBRkhJOwpBRiBJTlZFU1QgRkRPIElOVi4gSU1PQi4gLSBSRUNFQsONVkVJUyBJTU9CLjtGSUkgQUZJTlZDUjs7QUZDUjsKQUxJQU5aQSBGT0YgRlVORE8gREUgSU5WRVNUSU1FTlRPIElNT0JJTEnDgVJJTztGSUkgQUxJQU5aRkY7O0FGT0Y7CkFMSUFOWkEgTVVMVElPRkZJQ0VTICDigJMgRkRPLiBJTlYuIElNT0I7RklJIE1VTFQgT0YxOztNVE9GOwpBTElBTlpBIFRSVVNUIFJFTkRBIElNT0JJTElBUklBIEZETyBJTlYgSU1PQjtGSUkgQUxJQU5aQTs7QUxaUjsKQVEzIFJFTkRBIEZETyBJTlYgSU1PQiAtIEZJSTtGSUkgQVFVSUwgUkQ7TUI7QVJGSTsKw4FRVUlMTEEgRkRPIElOViBJTU9CIC0gRklJO0ZJSSBBUVVJTExBOztBUUxMOwpBVVRPTk9NWSBFRElGw41DSU9TIENPUlBPUkFUSVZPUyBGVU5ELiBJTlYuIElNT0IuO0ZJSSBBVVRPTk9NWTs7QUlFQzsKQkFORVNURVMgUkVDRULDjVZFSVMgSU1PQklMScOBUklPUyBGRE8gSU5WIElNT0IgIEZJSTtGSUkgQkVFUyBDUkk7O0JDUkk7CkJBTlJJU1VMIE5PVkFTIEZST05URUlSQVMgRkRPIElOViBJTU9CIC0gRklJO0ZJSSBCQU5SSVNVTDs7Qk5GUzsKQkFSWkVMIEZVTkRPIERFIElOVkVTVElNRU5UTyBJTU9CSUxJw4FSSU87RklJIEJBUlpFTDs7QlpFTDsKQkIgRkRPIElOViBJTU9CIFBST0dSRVNTSVZPO0ZJSSBCQiBQUk9HUjtNQjtCQkZJOwpCQiBGVU5ETyBERSBGVU5ET1MgLSBGRE8uIElOVi4gSU1PQi47RklJIEJCIEZPRjs7QkJGTzsK"`
+	// resDetails = `{"detailFund":{"acronym":"AFHI","tradingName":"FII AFHI CRI","tradingCode":"AFHI11 ","tradingCodeOthers":"","cnpj":"36642293000158","classification":"Financeiro e Outros/Fundos/Fundos Imobiliários","webSite":"www.btgpactual.com/asset-management/administracao-fiduciaria","fundAddress":"N/I PRAIA DO BOTAFOGO 501 - 5 ANDAR, PARTE - CEP: 22250040 CIDADE: RIO DE JANEIRO UF: RJ","fundPhoneNumberDDD":"11","fundPhoneNumber":"33832513","fundPhoneNumberFax":"0","positionManager":"DIRETOR RESPONSAVEL","managerName":"ALLAN HADID","companyAddress":"N/I PRAIA DO BOTAFOGO 501 - 5 ANDAR, PARTE - CEP: 22250040 CIDADE: RIO DE JANEIRO UF: RJ","companyPhoneNumberDDD":"11","companyPhoneNumber":"33832513","companyPhoneNumberFax":"0","companyEmail":"ol-reguladores@btgpactual.com","companyName":"AF INVEST CRI FDO. INV. IMOB – RECEBÍVEIS IMOB.   ","quotaCount":"1787671","quotaDateApproved":"26/01/2021","codes":["AFHI11"],"codesOther":null,"segment":null},"shareHolder":{"shareHolderName":"BTG PACTUAL SERVIÇOS FINANC. S.A. DTVM","shareHolderAddress":"PRAIA DE BOTAFOGO 501 - 5.ANDAR               - CEP: 22250040 CIDADE: RIO DE JANEIRO UF: RJ","shareHolderPhoneNumberDDD":"21","shareHolderPhoneNumber":"32629600","shareHolderFaxNumber":"32628600","shareHolderEmail":"-"}}`
+)
 
 func newTestServer() *httptest.Server {
 	mux := http.NewServeMux()
@@ -162,6 +174,16 @@ func newTestServer() *httptest.Server {
 		_, _ = w.Write([]byte(resHTML))
 	})
 
+	mux.HandleFunc("/fundsProxy/fundsCall/GetListFundDownload/eyJ0eXBlRnVuZCI6NywicGFnZU51bWJlciI6MSwicGFnZVNpemUiOjIwfQ==", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "text/plain")
+		_, _ = w.Write([]byte(resList))
+	})
+
+	mux.HandleFunc("/fundsProxy/fundsCall/GetDetailFundSIG", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "text/plain")
+		_, _ = w.Write([]byte(resList))
+	})
+
 	return httptest.NewServer(mux)
 }
 
@@ -172,4 +194,94 @@ func TestFetchFII(t *testing.T) {
 	if err := FetchFII(ts.URL); err != nil {
 		t.Fatal(err)
 	}
+}
+
+func TestMe(t *testing.T) {
+	tr := &http.Transport{
+		MaxIdleConns:       10,
+		IdleConnTimeout:    30 * time.Second,
+		DisableCompression: true,
+		TLSClientConfig:    &tls.Config{InsecureSkipVerify: true},
+	}
+	client := &http.Client{Transport: tr}
+
+	resp, err := client.Get("https://sistemaswebb3-listados.b3.com.br/fundsProxy/fundsCall/GetListFundDownload/eyJ0eXBlRnVuZCI6NywicGFnZU51bWJlciI6MSwicGFnZVNpemUiOjIwfQ==")
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	defer resp.Body.Close()
+	body, _ := io.ReadAll(resp.Body)
+	s, _ := strconv.Unquote(string(body))
+	txt, err := base64.StdEncoding.DecodeString(s)
+
+	log.Println("Body", string(txt), err)
+}
+
+func TestFetchFIIList(t *testing.T) {
+	ts := newTestServer()
+	defer ts.Close()
+
+	list, err := FetchFIIList(ts.URL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var whole string
+	for i := range list {
+		whole += list[i]
+	}
+	got := checksum(whole)
+	want := [16]byte{0xd0, 0xc7, 0x34, 0x6b, 0x53, 0xe1, 0xa1, 0xbb, 0x57, 0x32, 0xf5, 0x9d, 0x55, 0xc5, 0x41, 0x75}
+	if got != want {
+		t.Fatalf("checksum expected %d, got %d", want, got)
+	}
+}
+
+func checksum(b string) [16]byte {
+	return md5.Sum([]byte(b))
+}
+
+func TestChecksum(t *testing.T) {
+	b := [16]byte{0x10, 0x24, 0x8, 0xe4, 0x2b, 0x99, 0x27, 0x64, 0xc0, 0x8a, 0x7a, 0x2b, 0x3e, 0xa2, 0x9a, 0x4c}
+	t.Log(checksum("any word") == b)
+	t.Log(checksum("something longer"))
+}
+
+func TestFIIDetails(t *testing.T) {
+	// ts := newTestServer()
+	// defer ts.Close()
+
+	ret, err := FetchFIIDetails("https://sistemaswebb3-listados.b3.com.br", "BBPO")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	t.Log(prettyPrint(ret))
+}
+
+func prettyPrint(i interface{}) string {
+	s, _ := json.MarshalIndent(i, "", "\t")
+	return string(s)
+}
+
+func TestFII(t *testing.T) {
+	const baseURL = "https://sistemaswebb3-listados.b3.com.br"
+
+	list, err := FetchFIIList(baseURL)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	t.Log(list)
+	for i := range list {
+		fii, err := FetchFIIDetails(baseURL, list[i])
+		if err != nil {
+			t.Fatal(err)
+		}
+		t.Logf("- %s: %s", list[i], fii.DetailFund.Cnpj)
+		if i > 10 {
+			break
+		}
+	}
+
 }
