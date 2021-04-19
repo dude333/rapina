@@ -8,6 +8,7 @@ import (
 )
 
 const currentDbVersion = 210305
+const currentFIIDbVersion = 210305
 
 var createTableMap = map[string]string{
 	"dfp": `CREATE TABLE IF NOT EXISTS dfp
@@ -73,6 +74,13 @@ var createTableMap = map[string]string{
 		md5 NOT NULL PRIMARY KEY
 	);`,
 
+	"fii_detail": `CREATE TABLE IF NOT EXISTS fii_detail
+	(
+		cnpj TEXT NOT NULL PRIMARY KEY,
+		acronym varchar(4),
+		trading_code varchar(6)
+	);`,
+
 	"status": `CREATE TABLE IF NOT EXISTS status
 	(
 		table_name TEXT NOT NULL PRIMARY KEY,
@@ -99,6 +107,8 @@ func whatTable(dataType string) (table string, err error) {
 		table = "status"
 	case "COMPANIES":
 		table = "companies"
+	case "fii_detail":
+		table = "fii_detail"
 	default:
 		return "", errors.Wrapf(err, "tipo de informação inexistente: %s", dataType)
 	}
@@ -126,11 +136,17 @@ func createTable(db *sql.DB, dataType string) (err error) {
 		return errors.Wrap(err, "erro ao criar índice para table "+table)
 	}
 
-	if dataType != "STATUS" {
-		_, err = db.Exec(fmt.Sprintf(`INSERT OR REPLACE INTO status (table_name, version) VALUES ("%s",%d)`, table, currentDbVersion))
-		if err != nil {
-			return errors.Wrap(err, "erro ao atualizar tabela "+table)
-		}
+	if dataType == "STATUS" {
+		return nil
+	}
+
+	version := currentDbVersion
+	if dataType == "fii_detail" {
+		version = currentFIIDbVersion
+	}
+	_, err = db.Exec(fmt.Sprintf(`INSERT OR REPLACE INTO status (table_name, version) VALUES ("%s",%d)`, table, version))
+	if err != nil {
+		return errors.Wrap(err, "erro ao atualizar tabela "+table)
 	}
 
 	return nil
@@ -198,4 +214,18 @@ func createIndexes(db *sql.DB, table string) error {
 	}
 
 	return nil
+}
+
+//
+// hasTable checks if the table exists
+//
+func hasTable(db *sql.DB, tableName string) bool {
+	sqlStmt := `SELECT name FROM sqlite_master WHERE type='table' AND name=?;`
+	var n string
+	err := db.QueryRow(sqlStmt, tableName).Scan(&n)
+	if err != nil {
+		return false
+	}
+
+	return n == tableName
 }
