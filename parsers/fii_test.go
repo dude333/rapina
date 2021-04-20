@@ -1,6 +1,7 @@
 package parsers
 
 import (
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"reflect"
@@ -209,13 +210,15 @@ func TestFIIListAndDetails(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	fii, _ := NewFII(nil, ts.URL)
+
 	for i := range list {
-		fii, err := FetchFIIDetails(ts.URL, list[i])
-		if err != nil {
+		fiiDetails, err := fii.FetchFIIDetails(list[i])
+		if err != nil && !errors.Is(err, ErrDBUnset) {
 			t.Fatal(err)
 		}
-		if len(fii.DetailFund.CNPJ) != 14 {
-			t.Fatal("FetchFIIDetails returned a wrong CNPJ:", fii.DetailFund.CNPJ)
+		if len(fiiDetails.DetailFund.CNPJ) != 14 {
+			t.Fatal("FetchFIIDetails returned a wrong CNPJ:", fiiDetails.DetailFund.CNPJ)
 		}
 	}
 }

@@ -2,6 +2,7 @@ package parsers
 
 import (
 	"crypto/tls"
+	"database/sql"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
@@ -22,6 +23,19 @@ import (
 	(2) loop list: fii *FII <= FetchFIIDetails
 	(3) db: insert code, cnpj
 */
+
+type FII struct {
+	db      *sql.DB
+	baseURL string
+}
+
+func NewFII(db *sql.DB, baseURL string) (*FII, error) {
+	fii := &FII{
+		db:      db,
+		baseURL: baseURL,
+	}
+	return fii, nil
+}
 
 //
 // FetchFIIs downloads the list of FIIs to get their code (e.g. 'HGLG'),
@@ -73,8 +87,8 @@ func FetchFIIList(baseURL string) ([]string, error) {
 	return codes, nil
 }
 
-// FII details (main field: DetailFund.CNPJ)
-type FII struct {
+// FIIDetails details (main field: DetailFund.CNPJ)
+type FIIDetails struct {
 	DetailFund struct {
 		Acronym               string      `json:"acronym"`
 		TradingName           string      `json:"tradingName"`
@@ -112,12 +126,17 @@ type FII struct {
 }
 
 //
-// FetchFIIDetails fetches the details from a fund and returns a *FII struct.
+// FetchFIIDetails fetches the details from a fund and returns a *FII struct and
+// stores the results in the DB.
 //
-func FetchFIIDetails(baseURL string, fiiCode string) (*FII, error) {
-	data := fmt.Sprintf(`{"typeFund":7,"cnpj":"0","identifierFund":"%s"}`, fiiCode)
+func (fii FII) FetchFIIDetails(fiiCode string) (*FIIDetails, error) {
+	if len(fiiCode) < 4 {
+		return nil, fmt.Errorf("wrong code '%s'", fiiCode)
+	}
+
+	data := fmt.Sprintf(`{"typeFund":7,"cnpj":"0","identifierFund":"%s"}`, fiiCode[0:4])
 	enc := base64.URLEncoding.EncodeToString([]byte(data))
-	fundDetailURL := JoinURL(baseURL, `/fundsProxy/fundsCall/GetDetailFundSIG/`, enc)
+	fundDetailURL := JoinURL(fii.baseURL, `/fundsProxy/fundsCall/GetDetailFundSIG/`, enc)
 
 	tr := &http.Transport{
 		DisableCompression: true,
@@ -140,19 +159,29 @@ func FetchFIIDetails(baseURL string, fiiCode string) (*FII, error) {
 		return nil, errors.Wrap(err, "read body")
 	}
 
-	var fii FII
+	var fiiDetails FIIDetails
 
-	if err := json.Unmarshal(body, &fii); err != nil {
+	if err := json.Unmarshal(body, &fiiDetails); err != nil {
 		return nil, errors.Wrap(err, "json unmarshal")
 	}
 
-	return &fii, nil
+	trimFIIDetails(&fiiDetails)
+
+	err = fii.StoreFIIDetails(&fiiDetails)
+
+	return &fiiDetails, err
 }
 
 // JoinURL joins strings as URL paths
 func JoinURL(base string, paths ...string) string {
 	p := path.Join(paths...)
 	return fmt.Sprintf("%s/%s", strings.TrimRight(base, "/"), strings.TrimLeft(p, "/"))
+}
+
+func trimFIIDetails(f *FIIDetails) {
+	f.DetailFund.CNPJ = strings.TrimSpace(f.DetailFund.CNPJ)
+	f.DetailFund.Acronym = strings.TrimSpace(f.DetailFund.Acronym)
+	f.DetailFund.TradingCode = strings.TrimSpace(f.DetailFund.TradingCode)
 }
 
 /* ------------------------------------------ */
@@ -207,7 +236,7 @@ func FetchFII(baseURL string) error {
 				if fieldName == "" {
 					fieldName = v
 				} else {
-					fmt.Printf("%s => %s\n", fieldName, v)
+					// fmt.Printf("%s => %s\n", fieldName, v)
 					yeld[fieldName] = v
 					fieldName = ""
 				}
@@ -268,7 +297,7 @@ func FetchFII(baseURL string) error {
 		if err := c.Visit(u); err != nil {
 			return err
 		}
-		fmt.Printf("%+v\n", yeld)
+		// fmt.Printf("%+v\n", yeld)
 	}
 
 	return nil

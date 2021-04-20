@@ -74,7 +74,7 @@ var createTableMap = map[string]string{
 		md5 NOT NULL PRIMARY KEY
 	);`,
 
-	"fii_detail": `CREATE TABLE IF NOT EXISTS fii_detail
+	"fii_details": `CREATE TABLE IF NOT EXISTS fii_details
 	(
 		cnpj TEXT NOT NULL PRIMARY KEY,
 		acronym varchar(4),
@@ -107,8 +107,8 @@ func whatTable(dataType string) (table string, err error) {
 		table = "status"
 	case "COMPANIES":
 		table = "companies"
-	case "fii_detail":
-		table = "fii_detail"
+	case "fii_details":
+		table = "fii_details"
 	default:
 		return "", errors.Wrapf(err, "tipo de informação inexistente: %s", dataType)
 	}
@@ -141,7 +141,7 @@ func createTable(db *sql.DB, dataType string) (err error) {
 	}
 
 	version := currentDbVersion
-	if dataType == "fii_detail" {
+	if dataType == "fii_details" {
 		version = currentFIIDbVersion
 	}
 	_, err = db.Exec(fmt.Sprintf(`INSERT OR REPLACE INTO status (table_name, version) VALUES ("%s",%d)`, table, version))
