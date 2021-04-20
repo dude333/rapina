@@ -245,7 +245,6 @@ func FetchFII(baseURL string) error {
 
 	})
 
-	// Handles the json output with the report IDs
 	c.OnRequest(func(r *colly.Request) {
 		r.Headers.Set("Accept", "text/html, application/json")
 	})
@@ -254,6 +253,7 @@ func FetchFII(baseURL string) error {
 		fmt.Println("Request URL:", r.Request.URL, "failed with response:", string(r.Body), "\nError:", err)
 	})
 
+	// Handles the json output with the report IDs
 	c.OnResponse(func(r *colly.Response) {
 		if !strings.Contains(r.Headers.Get("content-type"), "application/json") {
 			return
