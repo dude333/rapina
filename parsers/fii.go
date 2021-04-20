@@ -6,7 +6,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
-	"io"
+	"io/ioutil"
 	"net/http"
 	"net/url"
 	"path"
@@ -62,7 +62,7 @@ func FetchFIIList(baseURL string) ([]string, error) {
 		return nil, errors.New(resp.Status)
 	}
 
-	body, err := io.ReadAll(resp.Body)
+	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
 		return nil, err
 	}
@@ -154,7 +154,7 @@ func (fii FII) FetchFIIDetails(fiiCode string) (*FIIDetails, error) {
 		return nil, fmt.Errorf("%s: %s", resp.Status, fundDetailURL)
 	}
 
-	body, err := io.ReadAll(resp.Body)
+	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
 		return nil, errors.Wrap(err, "read body")
 	}
