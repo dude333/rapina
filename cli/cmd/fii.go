@@ -39,12 +39,24 @@ Cobra is a CLI library for Go that empowers applications.
 This application is a tool to generate the needed files
 to quickly create a Cobra application.`,
 	Run: func(cmd *cobra.Command, args []string) {
+		// Fund code
 		code, err := cmd.Flags().GetString("dividend")
 		if err != nil {
 			log.Println(err)
 			return
 		}
-		if err := rapina.FIIDividends(code); err != nil {
+		if code == "" {
+			_ = cmd.Help()
+			return
+		}
+
+		// Number of reports
+		n, err := cmd.Flags().GetInt("number")
+		if err != nil || n <= 0 {
+			n = 1
+		}
+
+		if err := rapina.FIIDividends(code, n); err != nil {
 			log.Println(err)
 		}
 	},
@@ -53,6 +65,7 @@ to quickly create a Cobra application.`,
 func init() {
 	rootCmd.AddCommand(fiiCmd)
 	fiiCmd.Flags().StringP("dividend", "d", "", "Dividends for FII CODE")
+	fiiCmd.Flags().IntP("number", "n", 1, "number of reports")
 
 	// Here you will define your flags and configuration settings.
 

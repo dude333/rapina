@@ -18,21 +18,15 @@ import (
 	"github.com/pkg/errors"
 )
 
-/*
-	(1) list []string <= FetchFIIList
-	(2) loop list: fii *FII <= FetchFIIDetails
-	(3) db: insert code, cnpj
-*/
-
+// FII holds the infrastructure data.
 type FII struct {
-	db      *sql.DB
-	baseURL string
+	db *sql.DB
 }
 
-func NewFII(db *sql.DB, baseURL string) (*FII, error) {
+// NewFII creates a new instace of FII.
+func NewFII(db *sql.DB) (*FII, error) {
 	fii := &FII{
-		db:      db,
-		baseURL: baseURL,
+		db: db, // will accept null db when caching is no needed
 	}
 	return fii, nil
 }
@@ -87,7 +81,7 @@ func FetchFIIList(baseURL string) ([]string, error) {
 	return codes, nil
 }
 
-// FIIDetails details (main field: DetailFund.CNPJ)
+// FIIDetails details (ID field: DetailFund.CNPJ)
 type FIIDetails struct {
 	DetailFund struct {
 		Acronym               string      `json:"acronym"`
@@ -136,7 +130,10 @@ func (fii FII) FetchFIIDetails(fiiCode string) (*FIIDetails, error) {
 
 	data := fmt.Sprintf(`{"typeFund":7,"cnpj":"0","identifierFund":"%s"}`, fiiCode[0:4])
 	enc := base64.URLEncoding.EncodeToString([]byte(data))
-	fundDetailURL := JoinURL(fii.baseURL, `/fundsProxy/fundsCall/GetDetailFundSIG/`, enc)
+	fundDetailURL := JoinURL(
+		`https://sistemaswebb3-listados.b3.com.br/fundsProxy/fundsCall/GetDetailFundSIG/`,
+		enc,
+	)
 
 	tr := &http.Transport{
 		DisableCompression: true,
@@ -172,29 +169,17 @@ func (fii FII) FetchFIIDetails(fiiCode string) (*FIIDetails, error) {
 	return &fiiDetails, err
 }
 
-// JoinURL joins strings as URL paths
-func JoinURL(base string, paths ...string) string {
-	p := path.Join(paths...)
-	return fmt.Sprintf("%s/%s", strings.TrimRight(base, "/"), strings.TrimLeft(p, "/"))
-}
-
-func trimFIIDetails(f *FIIDetails) {
-	f.DetailFund.CNPJ = strings.TrimSpace(f.DetailFund.CNPJ)
-	f.DetailFund.Acronym = strings.TrimSpace(f.DetailFund.Acronym)
-	f.DetailFund.TradingCode = strings.TrimSpace(f.DetailFund.TradingCode)
-}
-
 /* ------------------------------------------ */
 
 type id int
-type data struct {
+type Report struct {
 	Data []docID `json:"data"`
 }
 type docID struct {
-	ID      id     `json:"id"`
-	Descr   string `json:"descricaoFundo"`
-	TipoDoc string `json:"tipoDocumento"`
-	Sit     string `json:"situacaoDocumento"`
+	ID          id     `json:"id"`
+	Description string `json:"descricaoFundo"`
+	DocType     string `json:"tipoDocumento"`
+	Status      string `json:"situacaoDocumento"`
 }
 
 /*
@@ -217,32 +202,19 @@ type fiiYeld struct {
 */
 
 //
-// FetchFII gets the report IDs for one company and then the
-// yeld montlhy reports.
+// FetchFIIDividends gets the report IDs for one company ('cnpj') and then the
+// yeld montlhy report for 'n' months, starting from the latest released.
 //
-func FetchFII(baseURL string) error {
+func (fii FII) FetchFIIDividends(cnpj string, n int) error {
 	var ids []id
+	yeld := make(map[string]string, n)
+	if n <= 0 {
+		n = 1
+	}
 
 	c := colly.NewCollector()
-	yeld := make(map[string]string, 20)
-
-	// Handles the html report
-	c.OnHTML("tr", func(e *colly.HTMLElement) {
-		var fieldName string
-
-		e.ForEach("td", func(_ int, el *colly.HTMLElement) {
-			v := strings.Trim(el.Text, " \r\n")
-			if v != "" {
-				if fieldName == "" {
-					fieldName = v
-				} else {
-					// fmt.Printf("%s => %s\n", fieldName, v)
-					yeld[fieldName] = v
-					fieldName = ""
-				}
-			}
-		})
-
+	c.WithTransport(&http.Transport{
+		TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
 	})
 
 	c.OnRequest(func(r *colly.Request) {
@@ -258,47 +230,88 @@ func FetchFII(baseURL string) error {
 		if !strings.Contains(r.Headers.Get("content-type"), "application/json") {
 			return
 		}
-		var d data
-		err := json.Unmarshal(r.Body, &d)
+		var report Report
+		err := json.Unmarshal(r.Body, &report)
 		if err != nil {
 			fmt.Println("json error:", err)
-		} else {
-			for _, x := range d.Data {
-				if x.Sit == "A" {
-					ids = append(ids, x.ID)
-				}
+			return
+		}
+		for _, d := range report.Data {
+			if d.Status == "A" {
+				ids = append(ids, d.ID)
 			}
 		}
 	})
 
+	// Parameters to list the report IDs for the last 'n' dividend reports
+	timestamp := strconv.FormatInt(int64(time.Now().UnixNano()/1e6), 10)
 	v := url.Values{
 		"d":                    []string{"2"},
 		"s":                    []string{"0"},
-		"l":                    []string{"2"}, // months
+		"l":                    []string{strconv.Itoa(n)}, // months
 		"o[0][dataEntrega]":    []string{"desc"},
 		"tipoFundo":            []string{"1"},
-		"cnpjFundo":            []string{"14410722000129"},
+		"cnpjFundo":            []string{cnpj},
 		"idCategoriaDocumento": []string{"14"},
 		"idTipoDocumento":      []string{"41"},
 		"idEspecieDocumento":   []string{"0"},
 		"situacao":             []string{"A"},
-		"_":                    []string{"1609254186709"},
+		"_":                    []string{timestamp},
 	}
 
-	// Get the 'report IDs' for a given company (CNPJ)
-	u := JoinURL(baseURL, "/pesquisarGerenciadorDocumentosDados?", v.Encode())
+	// Get the 'report IDs' for a given company (CNPJ) -- returns JSON
+	u := "https://fnet.bmfbovespa.com.br/fnet/publico/pesquisarGerenciadorDocumentosDados" +
+		"?" + v.Encode()
 	if err := c.Visit(u); err != nil {
 		return err
 	}
 
-	// Get the yeld monthly report given the list of 'report IDs'
+	// Handles the html report
+	c.OnHTML("tr", func(e *colly.HTMLElement) {
+		var fieldName string
+		e.ForEach("td", func(_ int, el *colly.HTMLElement) {
+			v := strings.Trim(el.Text, " \r\n")
+			if v != "" {
+				if fieldName == "" {
+					fieldName = v
+				} else {
+					fmt.Printf("%-30s => %s\n", fieldName, v)
+					yeld[fieldName] = v
+					fieldName = ""
+				}
+			}
+		})
+	})
+
+	// Get the yeld monthly report given the list of 'report IDs' -- returns HTML
 	for _, i := range ids {
-		u = JoinURL(baseURL, fmt.Sprintf("/exibirDocumento?id=%d&cvm=true", i))
+		u = fmt.Sprintf("https://fnet.bmfbovespa.com.br/fnet/publico/exibirDocumento?id=%d&cvm=true", i)
 		if err := c.Visit(u); err != nil {
 			return err
 		}
+		fmt.Println("----------------------------")
+
 		// fmt.Printf("%+v\n", yeld)
 	}
 
 	return nil
+}
+
+/* ------- Utils ------- */
+
+func IsUrl(str string) bool {
+	u, err := url.Parse(str)
+	return err == nil && u.Scheme != "" && u.Host != ""
+}
+
+// JoinURL joins strings as URL paths
+func JoinURL(base string, paths ...string) string {
+	p := path.Join(paths...)
+	return fmt.Sprintf("%s/%s", strings.TrimRight(base, "/"), strings.TrimLeft(p, "/"))
+}
+
+func trimFIIDetails(f *FIIDetails) {
+	f.DetailFund.CNPJ = strings.TrimSpace(f.DetailFund.CNPJ)
+	f.DetailFund.Acronym = strings.TrimSpace(f.DetailFund.Acronym)
+	f.DetailFund.TradingCode = strings.TrimSpace(f.DetailFund.TradingCode)
 }
