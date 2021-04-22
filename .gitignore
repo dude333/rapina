@@ -8,6 +8,7 @@ debug
 rapina
 *.db-journal
 .vscode
+bin/**
 
 # Temporary and data files
 *.zip

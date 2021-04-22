@@ -18,7 +18,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
 
-package rapina
+package fetch
 
 import (
 	"database/sql"
@@ -37,9 +37,6 @@ import (
 	"github.com/pkg/errors"
 )
 
-// Directory where the DB and downloaded files are stored
-const dataDir = ".data"
-
 var (
 	// ErrFileNotFound error
 	ErrFileNotFound = errors.New("file not found")
@@ -51,30 +48,25 @@ var (
 // FetchCVM fetches all statements from a range
 // of years
 //
-func FetchCVM() error {
-	db, err := openDatabase()
-	if err != nil {
-		return err
-	}
-
+func FetchCVM(db *sql.DB, dataDir string) error {
 	now := time.Now().Year()
-	try(processQuarterlyReport, db, "Arquivo ITR não encontrado", now, now-1, 2)
-	try(processAnnualReport, db, "Arquivo DFP não encontrado", now-1, 2009, 2)
-	try(processFREReport, db, "Arquivo FRE não encontrado", now-1, 2009, 2)
+	try(processQuarterlyReport, db, dataDir, "Arquivo ITR não encontrado", now, now-1, 2)
+	try(processAnnualReport, db, dataDir, "Arquivo DFP não encontrado", now-1, 2009, 2)
+	try(processFREReport, db, dataDir, "Arquivo FRE não encontrado", now-1, 2009, 2)
 
 	return nil
 }
 
-type fn func(*sql.DB, int) error
+type fn func(*sql.DB, string, int) error
 
 // try to run the function 'f' 'n' times, in case there are network errors.
-func try(f fn, db *sql.DB, errMsg string, now, limit, n int) {
+func try(f fn, db *sql.DB, dataDir, errMsg string, now, limit, n int) {
 	tries := n
 	var err error
 
 	for year := now; tries > 0 && year >= limit; year-- {
 		fmt.Printf("[>] %d ---------------------\n", year)
-		err = f(db, year)
+		err = f(db, dataDir, year)
 		if err == ErrFileNotFound {
 			fmt.Printf("[x] %s\n", errMsg)
 			tries--
@@ -90,14 +82,14 @@ func try(f fn, db *sql.DB, errMsg string, now, limit, n int) {
 
 // processAnnualReport will get data from .zip files downloaded
 // directly from CVM and insert its data into the DB
-func processAnnualReport(db *sql.DB, year int) error {
+func processAnnualReport(db *sql.DB, dataDir string, year int) error {
 
 	url := fmt.Sprintf("http://dados.cvm.gov.br/dados/CIA_ABERTA/DOC/DFP/DADOS/dfp_cia_aberta_%d.zip", year)
 	zipfile := fmt.Sprintf("%s/dfp_%d.zip", dataDir, year)
 
 	// Download files from CVM server
 	fmt.Print("[          ] Download do arquivo DFP")
-	files, err := fetchFiles(url, zipfile)
+	files, err := fetchFiles(url, dataDir, zipfile)
 	if err != nil {
 		return err
 	}
@@ -127,14 +119,14 @@ func processAnnualReport(db *sql.DB, year int) error {
 //
 // processQuarterlyReport download quarter files from CVM and store them on DB
 //
-func processQuarterlyReport(db *sql.DB, year int) error {
+func processQuarterlyReport(db *sql.DB, dataDir string, year int) error {
 
 	url := fmt.Sprintf("http://dados.cvm.gov.br/dados/CIA_ABERTA/DOC/ITR/DADOS/ITR_CIA_ABERTA_%d.zip", year)
 	zipfile := fmt.Sprintf("%s/itr_%d.zip", dataDir, year)
 
 	// Download files from CVM server
 	fmt.Print("[          ] Download do arquivo ITR")
-	files, err := fetchFiles(url, zipfile)
+	files, err := fetchFiles(url, dataDir, zipfile)
 	if err != nil {
 		return err
 	}
@@ -166,13 +158,13 @@ func processQuarterlyReport(db *sql.DB, year int) error {
 // processFREReport download FRE (Reference Form) files from CVM and store
 // them on DB.
 //
-func processFREReport(db *sql.DB, year int) error {
+func processFREReport(db *sql.DB, dataDir string, year int) error {
 	url := fmt.Sprintf("http://dados.cvm.gov.br/dados/CIA_ABERTA/DOC/FRE/DADOS/fre_cia_aberta_%d.zip", year)
 	zipfile := fmt.Sprintf("%s/fre_%d.zip", dataDir, year)
 
 	// Download files from CVM server
 	fmt.Print("[          ] Download do arquivo FRE")
-	files, err := fetchFiles(url, zipfile)
+	files, err := fetchFiles(url, dataDir, zipfile)
 	if err != nil {
 		return err
 	}
@@ -202,7 +194,7 @@ func processFREReport(db *sql.DB, year int) error {
 //
 // fetchFiles on CVM server
 //
-func fetchFiles(url, zipfile string) ([]string, error) {
+func fetchFiles(url, dataDir string, zipfile string) ([]string, error) {
 
 	// Download file from CVM server
 	err := downloadFile(url, zipfile)

@@ -18,52 +18,24 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
 
-package cmd
+package main
 
 import (
 	"fmt"
+	"os"
 
-	"github.com/dude333/rapina"
-	"github.com/spf13/cobra"
+	"github.com/dude333/rapina/cmd"
 )
 
-// listCmd represents the list command
-var listCmd = &cobra.Command{
-	Use:   "list",
-	Short: "Lista informações armazenadas no banco de dados",
-}
+var (
+	version string
+	build   string
+)
 
-func init() {
-	var (
-		listCompanies bool
-		sector        string
-		netProfitRate float32
-	)
+func main() {
+	fmt.Fprint(os.Stderr, "Rapina - Dados Financeiros de Empresas Brasileiras - ")
+	fmt.Fprintf(os.Stderr, "%s-%s\n", version, build)
+	fmt.Fprint(os.Stderr, "(2018-2020) github.com/dude333/rapina\n\n")
 
-	rootCmd.AddCommand(listCmd)
-
-	listCmd.Flags().BoolVarP(&listCompanies, "empresas", "e", false, "Lista todas as empresas disponíveis")
-	listCmd.Flags().StringVarP(&sector, "setor", "s", "", "Lista todas as empresas do mesmo setor")
-	listCmd.Flags().Float32VarP(&netProfitRate, "lucroLiquido", "l", -0.8, "Lista empresas com lucros lucros positivos e com a taxa de crescimento definida")
-
-	listCmd.Run = func(cmd *cobra.Command, args []string) {
-		var err error
-
-		if listCmd.Flags().NFlag() == 0 {
-			_ = listCmd.Help()
-			return
-		}
-
-		if listCompanies {
-			err = rapina.ListCompanies()
-		} else if sector != "" {
-			err = rapina.ListSector(sector, yamlFile)
-		} else if listCmd.Flags().Changed("lucroLiquido") {
-			err = rapina.ListCompaniesProfits(netProfitRate)
-		}
-		if err != nil {
-			fmt.Println("[x]", err)
-		}
-	}
-
+	cmd.Execute()
 }

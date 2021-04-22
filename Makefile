@@ -1,9 +1,9 @@
 SOURCEDIR=.
 SOURCES := $(shell find $(SOURCEDIR) -name '*.go')
 
-BINARY=rapina
-WINBINARY=rapina.exe
-OSXBINARY=rapina-osx
+BINARY=bin/rapina
+WINBINARY=bin/rapina.exe
+OSXBINARY=bin/rapina-osx
 
 VERSION=`git describe --tags --always`
 BUILD_TIME=`date +%F`

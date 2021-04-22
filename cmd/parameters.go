@@ -1,4 +1,4 @@
-package rapina
+package cmd
 
 // Parms holds the input parameters
 type Parms struct {

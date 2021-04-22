@@ -1,4 +1,4 @@
-package rapina
+package fetch
 
 import (
 	"archive/zip"

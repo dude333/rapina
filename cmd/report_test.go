@@ -1,4 +1,4 @@
-package rapina
+package cmd
 
 import (
 	"io/ioutil"

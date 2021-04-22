@@ -1,10 +1,13 @@
-package rapina
+package cmd
 
 import (
 	"database/sql"
 
 	"github.com/pkg/errors"
 )
+
+// Directory where the DB and downloaded files are stored
+const dataDir = ".data"
 
 //
 // openDatabase to be used by parsers and reporting
