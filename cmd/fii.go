@@ -24,7 +24,6 @@ package cmd
 import (
 	"database/sql"
 	"fmt"
-	"log"
 	"strings"
 
 	"github.com/dude333/rapina/parsers"
@@ -34,51 +33,16 @@ import (
 // fiiCmd represents the fii command
 var fiiCmd = &cobra.Command{
 	Use:   "fii",
-	Short: "A brief description of your command",
-	Long: `A longer description that spans multiple lines and likely contains examples
-and usage of using your command. For example:
-
-Cobra is a CLI library for Go that empowers applications.
-This application is a tool to generate the needed files
-to quickly create a Cobra application.`,
+	Short: "Comando relacionados aos FIIs",
+	Long:  `Comando relacionado aos Fundos de Investiment Imobiliários (FII).`,
 	Run: func(cmd *cobra.Command, args []string) {
-		// Fund code
-		code, err := cmd.Flags().GetString("dividend")
-		if err != nil {
-			log.Println(err)
-			return
-		}
-		if code == "" {
-			_ = cmd.Help()
-			return
-		}
-
-		// Number of reports
-		n, err := cmd.Flags().GetInt("number")
-		if err != nil || n <= 0 {
-			n = 1
-		}
-
-		if err := FIIDividends(code, n); err != nil {
-			log.Println(err)
-		}
+		_ = cmd.Help()
 	},
 }
 
 func init() {
 	rootCmd.AddCommand(fiiCmd)
-	fiiCmd.Flags().StringP("dividend", "d", "", "Dividends for FII CODE")
-	fiiCmd.Flags().IntP("number", "n", 1, "number of reports")
-
-	// Here you will define your flags and configuration settings.
-
-	// Cobra supports Persistent Flags which will work for this command
-	// and all subcommands, e.g.:
-	// fiiCmd.PersistentFlags().String("foo", "", "A help for foo")
-
-	// Cobra supports local flags which will only run when this command
-	// is called directly, e.g.:
-	// fiiCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
+	fiiCmd.PersistentFlags().IntP("num", "n", 1, "número de meses desde o último disponível")
 }
 
 //
