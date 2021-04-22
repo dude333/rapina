@@ -22,14 +22,10 @@ package cmd
 
 import (
 	"fmt"
-	"os"
-	"path/filepath"
 	"sort"
-	"strings"
 
 	"github.com/dude333/rapina/reports"
 	"github.com/lithammer/fuzzysearch/fuzzy"
-	"github.com/manifoldco/promptui"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 )
@@ -171,77 +167,4 @@ func Report(p Parms) (err error) {
 		Reports:  p.Reports,
 	}
 	return reports.Report(parms)
-}
-
-//
-// promptUser presents a navigable list to be selected on CLI
-//
-func promptUser(list []string) (result string) {
-	templates := &promptui.SelectTemplates{
-		Help: `{{ "Use estas teclas para navegar:" | faint }} {{ .NextKey | faint }} ` +
-			`{{ .PrevKey | faint }} {{ .PageDownKey | faint }} {{ .PageUpKey | faint }} ` +
-			`{{ if .Search }} {{ "and" | faint }} {{ .SearchKey | faint }} {{ "toggles search" | faint }}{{ end }}`,
-	}
-
-	prompt := promptui.Select{
-		Label:     "Selecione a Empresa",
-		Items:     list,
-		Templates: templates,
-	}
-
-	_, result, err := prompt.Run()
-
-	if err != nil {
-		fmt.Printf("Prompt failed %v\n", err)
-		return
-	}
-
-	return
-}
-
-//
-// filename cleans up the filename and returns the path/filename
-func filename(path, name string) (fpath string, err error) {
-	clean := func(r rune) rune {
-		switch r {
-		case ' ', ',', '/', '\\':
-			return '_'
-		}
-		return r
-	}
-	path = strings.TrimSuffix(path, "/")
-	name = strings.TrimSuffix(name, ".")
-	name = strings.Map(clean, name)
-	fpath = filepath.FromSlash(path + "/" + name + ".xlsx")
-
-	const max = 50
-	var x int
-	for x = 1; x <= max; x++ {
-		_, err = os.Stat(fpath)
-		if err == nil {
-			// File exists, try again with another name
-			fpath = fmt.Sprintf("%s/%s(%d).xlsx", path, name, x)
-		} else if os.IsNotExist(err) {
-			err = nil // reset error
-			break
-		} else {
-			err = fmt.Errorf("file %s stat error: %v", fpath, err)
-			return
-		}
-	}
-
-	if x > max {
-		err = fmt.Errorf("remova o arquivo %s/%s.xlsx antes de continuar", path, name)
-		return
-	}
-
-	// Create directory
-	_ = os.Mkdir(path, os.ModePerm)
-
-	// Check if the directory was created
-	if _, err := os.Stat(path); os.IsNotExist(err) {
-		return "", errors.Wrap(err, "diretório não pode ser criado")
-	}
-
-	return
 }
