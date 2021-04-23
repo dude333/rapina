@@ -9,6 +9,7 @@ import (
 
 const currentDbVersion = 210305
 const currentFIIDbVersion = 210305
+const currentStockQuotesVersion = 210305
 
 var createTableMap = map[string]string{
 	"dfp": `CREATE TABLE IF NOT EXISTS dfp
@@ -81,6 +82,17 @@ var createTableMap = map[string]string{
 		trading_code varchar(6)
 	);`,
 
+	"stock_quotes": `CREATE TABLE IF NOT EXISTS stock_quotes
+	(
+		stock varchar(12) NOT NULL,
+		date   varchar(10) NOT NULL,
+		open   real,
+		high   real,
+		low    real,
+		close  real,
+		volume real
+	);`,
+
 	"status": `CREATE TABLE IF NOT EXISTS status
 	(
 		table_name TEXT NOT NULL PRIMARY KEY,
@@ -108,7 +120,9 @@ func whatTable(dataType string) (table string, err error) {
 	case "COMPANIES":
 		table = "companies"
 	case "fii_details":
-		table = "fii_details"
+		table = dataType
+	case "stock_quotes":
+		table = dataType
 	default:
 		return "", errors.Wrapf(err, "tipo de informação inexistente: %s", dataType)
 	}
@@ -141,9 +155,13 @@ func createTable(db *sql.DB, dataType string) (err error) {
 	}
 
 	version := currentDbVersion
-	if dataType == "fii_details" {
+	switch dataType {
+	case "fii_details":
 		version = currentFIIDbVersion
+	case "stock_quotes":
+		version = currentStockQuotesVersion
 	}
+
 	_, err = db.Exec(fmt.Sprintf(`INSERT OR REPLACE INTO status (table_name, version) VALUES ("%s",%d)`, table, version))
 	if err != nil {
 		return errors.Wrap(err, "erro ao atualizar tabela "+table)
@@ -203,6 +221,10 @@ func createIndexes(db *sql.DB, table string) error {
 		indexes = []string{
 			"CREATE INDEX IF NOT EXISTS itr_metrics ON itr (CODE, ID_CIA, YEAR, VL_CONTA);",
 			"CREATE INDEX IF NOT EXISTS itr_quarter_ver ON itr (ID_CIA, DT_FIM_EXERC, VERSAO);",
+		}
+	case "stock_quotes":
+		indexes = []string{
+			"CREATE INDEX IF NOT EXISTS stock_quotes_stockdate ON stock_quotes (stock, date);",
 		}
 	}
 

@@ -38,7 +38,7 @@ func TestIsNewFile(t *testing.T) {
 
 func openDatabase() (db *sql.DB, err error) {
 
-	db, err = sql.Open("sqlite3", "../cli/.data/rapina.db")
+	db, err = sql.Open("sqlite3", "../bin/.data/rapina.db")
 	if err != nil {
 		return db, errors.Wrap(err, "database open failed")
 	}

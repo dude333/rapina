@@ -18,15 +18,19 @@ import (
 	"github.com/pkg/errors"
 )
 
+type QuoteFn func(code, date string) (float64, error)
+
 // FII holds the infrastructure data.
 type FII struct {
-	db *sql.DB
+	db      *sql.DB
+	quotefn QuoteFn
 }
 
 // NewFII creates a new instace of FII.
-func NewFII(db *sql.DB) (*FII, error) {
+func NewFII(db *sql.DB, quotefn QuoteFn) (*FII, error) {
 	fii := &FII{
-		db: db, // will accept null db when caching is no needed
+		db:      db, // will accept null db when caching is no needed
+		quotefn: quotefn,
 	}
 	return fii, nil
 }
