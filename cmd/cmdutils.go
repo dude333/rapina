@@ -13,6 +13,7 @@ import (
 
 // Directory where the DB and downloaded files are stored
 const dataDir = ".data"
+const yamlFile = "./setores.yml"
 
 // Parms holds the input parameters
 type Parms struct {

@@ -69,7 +69,8 @@ func FIIDividends(code string, n int) error {
 	}
 	code = strings.ToUpper(code)
 
-	srv, err := fetch.NewStockServer(db, viper.GetString("apikey"))
+	stockStore, _ := parsers.NewStockStore(db)
+	srv, err := fetch.NewStockServer(stockStore, viper.GetString("apikey"))
 	if err != nil {
 		return err
 	}
@@ -79,7 +80,6 @@ func FIIDividends(code string, n int) error {
 	}
 
 	fii, _ := parsers.NewFII(db, srv.QuoteFromDB)
-
 	cnpj, err := cnpj(fii, code)
 	if err != nil {
 		return err

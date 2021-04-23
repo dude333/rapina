@@ -22,23 +22,32 @@ type stockQuote struct {
 	Volume float64
 }
 
+type StockStore struct {
+	db   *sql.DB
+	stmt *sql.Stmt
+}
+
+func NewStockStore(db *sql.DB) (*StockStore, error) {
+	s := &StockStore{db: db}
+	return s, nil
+}
+
 //
 // StockCsv parses the 'stream', get the 'code' stock quotes and
 // store it on 'db'.
 //
-func StockCsv(db *sql.DB, stream io.ReadCloser, code string) error {
-	if db == nil {
+func (s StockStore) StockCsv(stream io.ReadCloser, code string) error {
+	if s.db == nil {
 		return errors.New("invalid db")
 	}
 	if stream == nil {
 		return errors.New("empty stream")
 	}
 
-	stock := &stockDB{db: db}
-	if err := stock.open(); err != nil {
+	if err := s.open(); err != nil {
 		return err
 	}
-	defer stock.close()
+	defer s.close()
 
 	scanner := bufio.NewScanner(stream)
 	for scanner.Scan() {
@@ -57,7 +66,7 @@ func StockCsv(db *sql.DB, stream io.ReadCloser, code string) error {
 			continue
 		}
 
-		_ = stock.store(&stockQuote{
+		_ = s.store(&stockQuote{
 			Stock:  code,
 			Date:   fields[0],
 			Open:   floats[0],
@@ -75,14 +84,8 @@ func StockCsv(db *sql.DB, stream io.ReadCloser, code string) error {
 	return nil
 }
 
-// stockDB manages the insert statement.
-type stockDB struct {
-	db   *sql.DB
-	stmt *sql.Stmt
-}
-
 // open prepares the insert statement.
-func (s *stockDB) open() error {
+func (s *StockStore) open() error {
 	if s.db == nil {
 		return fmt.Errorf("db not provided")
 	}
@@ -103,7 +106,7 @@ func (s *stockDB) open() error {
 }
 
 // store stores the data using the insert statement.
-func (s stockDB) store(q *stockQuote) error {
+func (s StockStore) store(q *stockQuote) error {
 	if s.stmt == nil {
 		return errors.New("sql statement not initalized")
 	}
@@ -125,7 +128,7 @@ func (s stockDB) store(q *stockQuote) error {
 }
 
 // close closes the insert statement.
-func (s stockDB) close() error {
+func (s StockStore) close() error {
 	var err error
 	if s.stmt != nil {
 		err = s.stmt.Close()

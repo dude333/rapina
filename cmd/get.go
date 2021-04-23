@@ -28,8 +28,6 @@ import (
 	"github.com/spf13/cobra"
 )
 
-const yamlFile = "./setores.yml"
-
 var sectors bool
 
 // getCmd represents the get command
@@ -46,13 +44,13 @@ var getCmd = &cobra.Command{
 
 		fmt.Println("[√] Coletando dados ===========")
 		if !sectors { // if -s flag is selected, dowload only the sectors
-			err = fetch.FetchCVM(db, dataDir)
+			err = fetch.CVM(db, dataDir)
 		}
 		if err != nil {
 			fmt.Println("[x]", err)
 			os.Exit(1)
 		}
-		err = fetch.FetchSectors(yamlFile)
+		err = fetch.Sectors(yamlFile)
 		if err != nil {
 			fmt.Println("[x]", err)
 			os.Exit(1)

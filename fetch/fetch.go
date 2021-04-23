@@ -45,10 +45,10 @@ var (
 )
 
 //
-// FetchCVM fetches all statements from a range
+// CVM fetches all statements from a range
 // of years
 //
-func FetchCVM(db *sql.DB, dataDir string) error {
+func CVM(db *sql.DB, dataDir string) error {
 	now := time.Now().Year()
 	try(processQuarterlyReport, db, dataDir, "Arquivo ITR não encontrado", now, now-1, 2)
 	try(processAnnualReport, db, dataDir, "Arquivo DFP não encontrado", now-1, 2009, 2)
@@ -278,12 +278,12 @@ func downloadFile(url, filepath string) (err error) {
 }
 
 //
-// FetchSectors checks if the configuration file is already populated.
+// Sectors checks if the configuration file is already populated.
 // If 'force' is set or if the config is empty, it retrieves data from B3,
 // unzip and extract a spreadsheet containing a list of companies divided by
 // sector, subsector, and segment; then this info is set into the config file.
 //
-func FetchSectors(yamlFile string) (err error) {
+func Sectors(yamlFile string) (err error) {
 	err = parsers.SectorsToYaml(yamlFile)
 
 	return

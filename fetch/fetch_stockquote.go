@@ -2,8 +2,8 @@ package fetch
 
 import (
 	"crypto/tls"
-	"database/sql"
 	"fmt"
+	"io"
 	"net/http"
 	"net/url"
 	"time"
@@ -13,24 +13,29 @@ import (
 
 const apiServer = "https://www.alphavantage.co/"
 
+// Store service used to store data on DB.
+type Store interface {
+	StockCsv(stream io.ReadCloser, code string) error
+}
+
 type StockServer struct {
 	apiKey string
-	db     *sql.DB
+	store  Store
 }
 
 //
 // NewStockServer returns a new instance of *StockServer
 //
-func NewStockServer(db *sql.DB, apiKey string) (*StockServer, error) {
-	if db == nil {
-		return nil, fmt.Errorf("invalid DB")
+func NewStockServer(store Store, apiKey string) (*StockServer, error) {
+	if store == nil {
+		return nil, fmt.Errorf("invalid store service")
 	}
 	if apiKey == "" {
 		return nil, fmt.Errorf("invalid API key: '%s'", apiKey)
 	}
 	s := StockServer{
 		apiKey: apiKey,
-		db:     db,
+		store:  store,
 	}
 	return &s, nil
 }
@@ -69,7 +74,7 @@ func (s StockServer) FetchStockQuote(code string) error {
 		return fmt.Errorf("%s: %s", resp.Status, u)
 	}
 
-	return parsers.StockCsv(s.db, resp.Body, code)
+	return s.store.StockCsv(resp.Body, code)
 }
 
 func (s StockServer) QuoteFromDB(code, date string) (float64, error) {
