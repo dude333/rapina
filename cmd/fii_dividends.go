@@ -28,7 +28,6 @@ import (
 	"github.com/dude333/rapina/fetch"
 	"github.com/dude333/rapina/parsers"
 	"github.com/spf13/cobra"
-	"github.com/spf13/viper"
 )
 
 // fiiDividendsCmd represents the rendimentos command
@@ -67,24 +66,26 @@ func FIIDividends(code string, n int) error {
 	}
 	code = strings.ToUpper(code)
 
-	stockStore, _ := parsers.NewStockStore(db)
-	srv, err := fetch.NewStockServer(stockStore, viper.GetString("apikey"))
-	if err != nil {
-		return err
-	}
-	err = srv.FetchStockQuote(fix(code))
-	if err != nil {
-		return err
-	}
+	/*
+		stockStore, _ := parsers.NewStockStore(db)
+		srv, err := fetch.NewStockServer(stockStore, viper.GetString("apikey"))
+		if err != nil {
+			return err
+		}
+		err = srv.FetchStockQuote(fix(code))
+		if err != nil {
+			return err
+		}
+	*/
 
 	fiiStore := parsers.NewFIIStore(db)
 	fii := fetch.NewFII(fiiStore)
 	return fii.FetchFIIDividends(code, n)
 }
 
-func fix(code string) string {
-	if len(code) == 4 {
-		return code + "11"
-	}
-	return code
-}
+// func fix(code string) string {
+// 	if len(code) == 4 {
+// 		return code + "11"
+// 	}
+// 	return code
+// }

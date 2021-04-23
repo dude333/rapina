@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"strconv"
 	"strings"
 
 	"github.com/pkg/errors"
@@ -98,6 +99,10 @@ func (fii FIIStore) StoreFIIDetails(stream []byte) error {
 	return err
 }
 
+//
+// CNPJ returns the FII CNPJ for the 'code' or
+// an empty string if not found in the db.
+//
 func (fii FIIStore) CNPJ(code string) (string, error) {
 	if fii.db == nil {
 		return "", ErrDBUnset
@@ -120,6 +125,31 @@ func (fii FIIStore) CNPJ(code string) (string, error) {
 	}
 
 	return cnpj, nil
+}
+
+//
+// StoreFIIDividends stores the map into the db.
+//
+func (fii FIIStore) StoreFIIDividends(stream map[string]string) error {
+	// fmt.Println("----------------------------")
+	// fmt.Printf("%+v\n\n", stream)
+
+	if err := createTable(fii.db, "fii_dividends"); err != nil {
+		return err
+	}
+
+	code := mapFinder("Código de negociação da cota", stream)
+	baseDate := mapFinder("Data-base", stream)
+	pymtDate := mapFinder("Data do pagamento", stream)
+	val := mapFinder("Valor do provento por cota", stream)
+
+	const insert = `INSERT OR IGNORE INTO fii_dividends 
+	(trading_code, base_date, payment_date, value) VALUES (?,?,?,?)`
+	_, err := fii.db.Exec(insert, code, baseDate, pymtDate, comma2dot(val))
+
+	// fmt.Println(insert, code, baseDate, pymtDate, comma2dot(val))
+
+	return errors.Wrap(err, "inserting data on fii_dividends")
 }
 
 func (fii FIIStore) SelectFIIDetails(code string) (*FIIDetails, error) {
@@ -151,8 +181,26 @@ func (fii FIIStore) SelectFIIDetails(code string) (*FIIDetails, error) {
 	return &fiiDetail, nil
 }
 
+/* -------- Utils ----------- */
+
 func trimFIIDetails(f *FIIDetails) {
 	f.DetailFund.CNPJ = strings.TrimSpace(f.DetailFund.CNPJ)
 	f.DetailFund.Acronym = strings.TrimSpace(f.DetailFund.Acronym)
 	f.DetailFund.TradingCode = strings.TrimSpace(f.DetailFund.TradingCode)
+}
+
+func mapFinder(key string, m map[string]string) string {
+	for k := range m {
+		if strings.Contains(k, key) {
+			return m[k]
+		}
+	}
+	return ""
+}
+
+func comma2dot(val string) float64 {
+	a := strings.ReplaceAll(val, ".", "")
+	b := strings.ReplaceAll(a, ",", ".")
+	n, _ := strconv.ParseFloat(b, 64)
+	return n
 }

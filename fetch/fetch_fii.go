@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
+	"log"
 	"net/http"
 	"net/url"
 	"path"
@@ -20,6 +21,7 @@ import (
 type FIIStore interface {
 	CNPJ(code string) (string, error)
 	StoreFIIDetails(stream []byte) error
+	StoreFIIDividends(stream map[string]string) error
 }
 
 // FII holds the infrastructure data.
@@ -141,7 +143,7 @@ func (fii FII) FetchFIIDividends(code string, n int) error {
 				if fieldName == "" {
 					fieldName = v
 				} else {
-					fmt.Printf("%-30s => %s\n", fieldName, v)
+					// fmt.Printf("%-30s => %s\n", fieldName, v)
 					yeld[fieldName] = v
 					fieldName = ""
 				}
@@ -155,9 +157,9 @@ func (fii FII) FetchFIIDividends(code string, n int) error {
 		if err := c.Visit(u); err != nil {
 			return err
 		}
-		fmt.Println("----------------------------")
-
-		// fmt.Printf("%+v\n", yeld)
+		if err := fii.store.StoreFIIDividends(yeld); err != nil {
+			log.Println("[x]", err)
+		}
 	}
 
 	return nil

@@ -93,6 +93,14 @@ var createTableMap = map[string]string{
 		volume real
 	);`,
 
+	"fii_dividends": `CREATE TABLE IF NOT EXISTS fii_dividends
+	(
+		trading_code varchar(12) NOT NULL, 
+		base_date varchar(10) NOT NULL, 
+		payment_date varchar(10), 
+		value real
+	);`,
+
 	"status": `CREATE TABLE IF NOT EXISTS status
 	(
 		table_name TEXT NOT NULL PRIMARY KEY,
@@ -120,6 +128,8 @@ func whatTable(dataType string) (table string, err error) {
 	case "COMPANIES":
 		table = "companies"
 	case "fii_details":
+		table = dataType
+	case "fii_dividends":
 		table = dataType
 	case "stock_quotes":
 		table = dataType
@@ -157,6 +167,8 @@ func createTable(db *sql.DB, dataType string) (err error) {
 	version := currentDbVersion
 	switch dataType {
 	case "fii_details":
+		version = currentFIIDbVersion
+	case "fii_dividends":
 		version = currentFIIDbVersion
 	case "stock_quotes":
 		version = currentStockQuotesVersion
