@@ -79,12 +79,15 @@ func FIIDividends(code string, n int) error {
 		return err
 	}
 
+	fiiStore := struct{}{}
+	fii2, _ := fetch.NewFII(fiiStore)
+
 	fii, _ := parsers.NewFII(db, srv.QuoteFromDB)
 	cnpj, err := cnpj(fii, code)
 	if err != nil {
 		return err
 	}
-	err = fii.FetchFIIDividends(cnpj, n)
+	err = fii2.FetchFIIDividends(cnpj, n)
 	if err != nil {
 		return err
 	}
