@@ -22,8 +22,6 @@ THE SOFTWARE.
 package cmd
 
 import (
-	"database/sql"
-	"fmt"
 	"log"
 	"strings"
 
@@ -79,45 +77,9 @@ func FIIDividends(code string, n int) error {
 		return err
 	}
 
-	fiiStore := struct{}{}
-	fii2, _ := fetch.NewFII(fiiStore)
-
-	fii, _ := parsers.NewFII(db, srv.QuoteFromDB)
-	cnpj, err := cnpj(fii, code)
-	if err != nil {
-		return err
-	}
-	err = fii2.FetchFIIDividends(cnpj, n)
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
-//
-// cnpj returns the CNPJ from FII code. It first checks the DB and, if not
-// found, fetches from B3.
-//
-func cnpj(fii *parsers.FII, code string) (string, error) {
-	fiiDetails, err := fii.SelectFIIDetails(code)
-	if err != nil && err != sql.ErrNoRows {
-		fmt.Println("[x] error", err)
-	}
-	if err == nil && fiiDetails.DetailFund.CNPJ != "" {
-		fmt.Println("DB", code, fiiDetails.DetailFund.CNPJ)
-		return fiiDetails.DetailFund.CNPJ, nil
-	}
-	//
-	// Fetch online if DB fails
-	fiiDetails, err = fii.FetchFIIDetails(code)
-	if err != nil {
-		return "", err
-	}
-
-	fmt.Println("online", code, fiiDetails.DetailFund.CNPJ)
-
-	return fiiDetails.DetailFund.CNPJ, nil
+	fiiStore := parsers.NewFIIStore(db)
+	fii := fetch.NewFII(fiiStore)
+	return fii.FetchFIIDividends(code, n)
 }
 
 func fix(code string) string {

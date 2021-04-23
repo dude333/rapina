@@ -2,18 +2,24 @@ package fetch
 
 import (
 	"crypto/tls"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"net/http"
 	"net/url"
+	"path"
 	"strconv"
 	"strings"
 	"time"
 
 	"github.com/gocolly/colly"
+	"github.com/pkg/errors"
 )
 
 type FIIStore interface {
+	CNPJ(code string) (string, error)
+	StoreFIIDetails(stream []byte) error
 }
 
 // FII holds the infrastructure data.
@@ -22,9 +28,9 @@ type FII struct {
 }
 
 // NewFII creates a new instace of FII.
-func NewFII(store FIIStore) (*FII, error) {
+func NewFII(store FIIStore) *FII {
 	fii := &FII{store: store}
-	return fii, nil
+	return fii
 }
 
 type id int
@@ -61,7 +67,7 @@ type fiiYeld struct {
 // FetchFIIDividends gets the report IDs for one company ('cnpj') and then the
 // yeld montlhy report for 'n' months, starting from the latest released.
 //
-func (fii FII) FetchFIIDividends(cnpj string, n int) error {
+func (fii FII) FetchFIIDividends(code string, n int) error {
 	var ids []id
 	yeld := make(map[string]string, n)
 	if n <= 0 {
@@ -101,6 +107,10 @@ func (fii FII) FetchFIIDividends(cnpj string, n int) error {
 
 	// Parameters to list the report IDs for the last 'n' dividend reports
 	timestamp := strconv.FormatInt(int64(time.Now().UnixNano()/1e6), 10)
+	cnpj, err := fii.CNPJ(code)
+	if err != nil {
+		return err
+	}
 	v := url.Values{
 		"d":                    []string{"2"},
 		"s":                    []string{"0"},
@@ -151,4 +161,69 @@ func (fii FII) FetchFIIDividends(cnpj string, n int) error {
 	}
 
 	return nil
+}
+
+//
+// FetchFIIDetails returns the FII CNPJ from DB. If not found:
+// fetches from server, stores it in the DB and returns the CNPJ.
+//
+func (fii FII) CNPJ(fiiCode string) (string, error) {
+	if len(fiiCode) != 4 && len(fiiCode) != 6 {
+		return "", fmt.Errorf("wrong code '%s'", fiiCode)
+	}
+
+	cnpj, err := fii.store.CNPJ(fiiCode)
+	if err != nil {
+		return "", err
+	}
+	if cnpj != "" {
+		return cnpj, nil
+	}
+
+	// Fetch from server if not found in the database
+	data := fmt.Sprintf(`{"typeFund":7,"cnpj":"0","identifierFund":"%s"}`, fiiCode[0:4])
+	enc := base64.URLEncoding.EncodeToString([]byte(data))
+	fundDetailURL := JoinURL(
+		`https://sistemaswebb3-listados.b3.com.br/fundsProxy/fundsCall/GetDetailFundSIG/`,
+		enc,
+	)
+
+	tr := &http.Transport{
+		DisableCompression: true,
+		IdleConnTimeout:    30 * time.Second,
+		TLSClientConfig:    &tls.Config{InsecureSkipVerify: true},
+	}
+	client := &http.Client{Transport: tr}
+
+	resp, err := client.Get(fundDetailURL)
+	if err != nil {
+		return "", err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != 200 {
+		return "", fmt.Errorf("%s: %s", resp.Status, fundDetailURL)
+	}
+
+	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return "", errors.Wrap(err, "read body")
+	}
+
+	_ = fii.store.StoreFIIDetails(body)
+
+	return fii.store.CNPJ(fiiCode)
+}
+
+/* ------- Utils ------- */
+
+func IsUrl(str string) bool {
+	u, err := url.Parse(str)
+	return err == nil && u.Scheme != "" && u.Host != ""
+}
+
+// JoinURL joins strings as URL paths
+func JoinURL(base string, paths ...string) string {
+	p := path.Join(paths...)
+	return fmt.Sprintf("%s/%s", strings.TrimRight(base, "/"), strings.TrimLeft(p, "/"))
 }

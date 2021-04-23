@@ -7,8 +7,6 @@ import (
 	"net/http"
 	"net/url"
 	"time"
-
-	"github.com/dude333/rapina/parsers"
 )
 
 const apiServer = "https://www.alphavantage.co/"
@@ -60,7 +58,7 @@ func (s StockServer) FetchStockQuote(code string) error {
 	v.Add("outputsize", "compact")
 	v.Add("datatype", "csv")
 
-	u := parsers.JoinURL(apiServer, "query?"+v.Encode())
+	u := JoinURL(apiServer, "query?"+v.Encode())
 
 	fmt.Println(u)
 
