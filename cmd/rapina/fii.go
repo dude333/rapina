@@ -1,6 +1,5 @@
-The MIT License (MIT)
-
-Copyright © 2018 Adriano P
+/*
+Copyright © 2021 Adriano P <dev@dude333.com>
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -19,3 +18,24 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
+*/
+package main
+
+import (
+	"github.com/spf13/cobra"
+)
+
+// fiiCmd represents the fii command
+var fiiCmd = &cobra.Command{
+	Use:   "fii",
+	Short: "Comando relacionados aos FIIs",
+	Long:  `Comando relacionado aos Fundos de Investiment Imobiliários (FII).`,
+	Run: func(cmd *cobra.Command, args []string) {
+		_ = cmd.Help()
+	},
+}
+
+func init() {
+	rootCmd.AddCommand(fiiCmd)
+	fiiCmd.PersistentFlags().IntP("num", "n", 1, "número de meses desde o último disponível")
+}

@@ -24,18 +24,43 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/dude333/rapina/cmd"
+	"github.com/dude333/rapina/fetch"
+	"github.com/spf13/cobra"
 )
 
-var (
-	version string
-	build   string
-)
+var sectors bool
 
-func main() {
-	fmt.Fprint(os.Stderr, "Rapina - Dados Financeiros de Empresas Brasileiras - ")
-	fmt.Fprintf(os.Stderr, "%s-%s\n", version, build)
-	fmt.Fprint(os.Stderr, "(2018-2020) github.com/dude333/rapina\n\n")
+// getCmd represents the get command
+var getCmd = &cobra.Command{
+	Use:   "get",
+	Short: "Baixa os arquivos da CVM e os armazena no bando de dados",
+	Long:  `Baixa os arquivos do site da CVM, processa e os armazena no bando de dados.`,
+	Run: func(cmd *cobra.Command, args []string) {
+		db, err := openDatabase()
+		if err != nil {
+			fmt.Println("[x]", err)
+			return
+		}
 
-	cmd.Execute()
+		fmt.Println("[√] Coletando dados ===========")
+		if !sectors { // if -s flag is selected, dowload only the sectors
+			err = fetch.CVM(db, dataDir)
+		}
+		if err != nil {
+			fmt.Println("[x]", err)
+			os.Exit(1)
+		}
+		err = fetch.Sectors(yamlFile)
+		if err != nil {
+			fmt.Println("[x]", err)
+			os.Exit(1)
+		}
+		fmt.Println("[√] Arquivo salvo: setores.yaml")
+	},
+}
+
+func init() {
+	rootCmd.AddCommand(getCmd)
+
+	getCmd.Flags().BoolVarP(&sectors, "sectors", "s", false, "Baixa a classificação setorial das empresas e fundos negociados na B3")
 }

@@ -18,7 +18,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
 
-package cmd
+package main
 
 import (
 	"fmt"
@@ -118,4 +118,17 @@ func initConfig() {
 	if err := viper.ReadInConfig(); err == nil {
 		fmt.Println("Usando arquivo de configuração:", viper.ConfigFileUsed())
 	}
+}
+
+var (
+	version string
+	build   string
+)
+
+func main() {
+	fmt.Fprint(os.Stderr, "Rapina - Dados Financeiros de Empresas Brasileiras - ")
+	fmt.Fprintf(os.Stderr, "%s-%s\n", version, build)
+	fmt.Fprint(os.Stderr, "(2018-2020) github.com/dude333/rapina\n\n")
+
+	Execute()
 }
