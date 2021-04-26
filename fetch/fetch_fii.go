@@ -14,23 +14,18 @@ import (
 	"strings"
 	"time"
 
+	"github.com/dude333/rapina"
 	"github.com/gocolly/colly"
 	"github.com/pkg/errors"
 )
 
-type FIIStore interface {
-	CNPJ(code string) (string, error)
-	StoreFIIDetails(stream []byte) error
-	StoreFIIDividends(stream map[string]string) error
-}
-
 // FII holds the infrastructure data.
 type FII struct {
-	store FIIStore
+	store rapina.FIIStore
 }
 
 // NewFII creates a new instace of FII.
-func NewFII(store FIIStore) *FII {
+func NewFII(store rapina.FIIStore) *FII {
 	fii := &FII{store: store}
 	return fii
 }

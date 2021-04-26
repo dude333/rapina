@@ -3,28 +3,24 @@ package fetch
 import (
 	"crypto/tls"
 	"fmt"
-	"io"
 	"net/http"
 	"net/url"
 	"time"
+
+	"github.com/dude333/rapina"
 )
 
 const apiServer = "https://www.alphavantage.co/"
 
-// Store service used to store data on DB.
-type Store interface {
-	StockCsv(stream io.ReadCloser, code string) error
-}
-
 type StockServer struct {
 	apiKey string
-	store  Store
+	store  rapina.StockStore
 }
 
 //
 // NewStockServer returns a new instance of *StockServer
 //
-func NewStockServer(store Store, apiKey string) (*StockServer, error) {
+func NewStockServer(store rapina.StockStore, apiKey string) (*StockServer, error) {
 	if store == nil {
 		return nil, fmt.Errorf("invalid store service")
 	}
@@ -72,7 +68,7 @@ func (s StockServer) FetchStockQuote(code string) error {
 		return fmt.Errorf("%s: %s", resp.Status, u)
 	}
 
-	return s.store.StockCsv(resp.Body, code)
+	return s.store.CsvToDB(resp.Body, code)
 }
 
 func (s StockServer) QuoteFromDB(code, date string) (float64, error) {

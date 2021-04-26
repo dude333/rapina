@@ -33,10 +33,10 @@ func NewStockStore(db *sql.DB) (*StockStore, error) {
 }
 
 //
-// StockCsv parses the 'stream', get the 'code' stock quotes and
+// CsvToDB parses the 'stream', get the 'code' stock quotes and
 // store it on 'db'.
 //
-func (s StockStore) StockCsv(stream io.ReadCloser, code string) error {
+func (s StockStore) CsvToDB(stream io.ReadCloser, code string) error {
 	if s.db == nil {
 		return errors.New("invalid db")
 	}

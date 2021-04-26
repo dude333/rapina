@@ -22,12 +22,15 @@ THE SOFTWARE.
 package main
 
 import (
+	"fmt"
 	"log"
+	"os"
 	"strings"
 
 	"github.com/dude333/rapina/fetch"
 	"github.com/dude333/rapina/parsers"
 	"github.com/spf13/cobra"
+	"github.com/spf13/viper"
 )
 
 // fiiDividendsCmd represents the rendimentos command
@@ -40,11 +43,19 @@ var fiiDividendsCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		// Number of reports
 		n, err := cmd.Flags().GetInt("num")
-		log.Println("n =", n)
 		if err != nil || n <= 0 {
 			n = 1
 		}
 
+		code := args[0]
+
+		if len(code) != 6 {
+			fmt.Println("[x] Código inválido:", code)
+			fmt.Println("[i] Padrão experado: ABCD11")
+			os.Exit(1)
+		}
+
+		// FII code ('ABCD11')
 		if err := FIIDividends(args[0], n); err != nil {
 			log.Println(err)
 		}
@@ -66,26 +77,24 @@ func FIIDividends(code string, n int) error {
 	}
 	code = strings.ToUpper(code)
 
-	/*
-		stockStore, _ := parsers.NewStockStore(db)
-		srv, err := fetch.NewStockServer(stockStore, viper.GetString("apikey"))
-		if err != nil {
-			return err
-		}
-		err = srv.FetchStockQuote(fix(code))
-		if err != nil {
-			return err
-		}
-	*/
+	stockStore, _ := parsers.NewStockStore(db)
+	srv, err := fetch.NewStockServer(stockStore, viper.GetString("apikey"))
+	if err != nil {
+		return err
+	}
+	err = srv.FetchStockQuote(fix(code))
+	if err != nil {
+		return err
+	}
 
 	fiiStore := parsers.NewFIIStore(db)
 	fii := fetch.NewFII(fiiStore)
 	return fii.FetchFIIDividends(code, n)
 }
 
-// func fix(code string) string {
-// 	if len(code) == 4 {
-// 		return code + "11"
-// 	}
-// 	return code
-// }
+func fix(code string) string {
+	if len(code) == 4 {
+		return code + "11"
+	}
+	return code
+}

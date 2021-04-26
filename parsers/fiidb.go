@@ -7,6 +7,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/dude333/rapina"
 	"github.com/pkg/errors"
 )
 
@@ -28,44 +29,6 @@ func NewFIIStore(db *sql.DB) *FIIStore {
 	return fii
 }
 
-// FIIDetails details (ID field: DetailFund.CNPJ)
-type FIIDetails struct {
-	DetailFund struct {
-		Acronym               string      `json:"acronym"`
-		TradingName           string      `json:"tradingName"`
-		TradingCode           string      `json:"tradingCode"`
-		TradingCodeOthers     string      `json:"tradingCodeOthers"`
-		CNPJ                  string      `json:"cnpj"`
-		Classification        string      `json:"classification"`
-		WebSite               string      `json:"webSite"`
-		FundAddress           string      `json:"fundAddress"`
-		FundPhoneNumberDDD    string      `json:"fundPhoneNumberDDD"`
-		FundPhoneNumber       string      `json:"fundPhoneNumber"`
-		FundPhoneNumberFax    string      `json:"fundPhoneNumberFax"`
-		PositionManager       string      `json:"positionManager"`
-		ManagerName           string      `json:"managerName"`
-		CompanyAddress        string      `json:"companyAddress"`
-		CompanyPhoneNumberDDD string      `json:"companyPhoneNumberDDD"`
-		CompanyPhoneNumber    string      `json:"companyPhoneNumber"`
-		CompanyPhoneNumberFax string      `json:"companyPhoneNumberFax"`
-		CompanyEmail          string      `json:"companyEmail"`
-		CompanyName           string      `json:"companyName"`
-		QuotaCount            string      `json:"quotaCount"`
-		QuotaDateApproved     string      `json:"quotaDateApproved"`
-		Codes                 []string    `json:"codes"`
-		CodesOther            interface{} `json:"codesOther"`
-		Segment               interface{} `json:"segment"`
-	} `json:"detailFund"`
-	ShareHolder struct {
-		ShareHolderName           string `json:"shareHolderName"`
-		ShareHolderAddress        string `json:"shareHolderAddress"`
-		ShareHolderPhoneNumberDDD string `json:"shareHolderPhoneNumberDDD"`
-		ShareHolderPhoneNumber    string `json:"shareHolderPhoneNumber"`
-		ShareHolderFaxNumber      string `json:"shareHolderFaxNumber"`
-		ShareHolderEmail          string `json:"shareHolderEmail"`
-	} `json:"shareHolder"`
-}
-
 //
 // StoreFIIDetails parses the stream data into FIIDetails and returns
 // the *FIIDetails.
@@ -81,7 +44,7 @@ func (fii FIIStore) StoreFIIDetails(stream []byte) error {
 		}
 	}
 
-	var fiiDetails FIIDetails
+	var fiiDetails rapina.FIIDetails
 	if err := json.Unmarshal(stream, &fiiDetails); err != nil {
 		return errors.Wrap(err, "json unmarshal")
 	}
@@ -152,7 +115,7 @@ func (fii FIIStore) StoreFIIDividends(stream map[string]string) error {
 	return errors.Wrap(err, "inserting data on fii_dividends")
 }
 
-func (fii FIIStore) SelectFIIDetails(code string) (*FIIDetails, error) {
+func (fii FIIStore) SelectFIIDetails(code string) (*rapina.FIIDetails, error) {
 	if fii.db == nil {
 		return nil, ErrDBUnset
 	}
@@ -173,7 +136,7 @@ func (fii FIIStore) SelectFIIDetails(code string) (*FIIDetails, error) {
 		return nil, err
 	}
 
-	var fiiDetail FIIDetails
+	var fiiDetail rapina.FIIDetails
 	fiiDetail.DetailFund.CNPJ = cnpj
 	fiiDetail.DetailFund.Acronym = acronym
 	fiiDetail.DetailFund.TradingCode = tradingCode
@@ -183,7 +146,7 @@ func (fii FIIStore) SelectFIIDetails(code string) (*FIIDetails, error) {
 
 /* -------- Utils ----------- */
 
-func trimFIIDetails(f *FIIDetails) {
+func trimFIIDetails(f *rapina.FIIDetails) {
 	f.DetailFund.CNPJ = strings.TrimSpace(f.DetailFund.CNPJ)
 	f.DetailFund.Acronym = strings.TrimSpace(f.DetailFund.Acronym)
 	f.DetailFund.TradingCode = strings.TrimSpace(f.DetailFund.TradingCode)
