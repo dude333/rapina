@@ -104,8 +104,8 @@ func (fii FIIStore) Dividends(code, monthYear string) (*[]rapina.Dividend, error
 	}
 	defer rows.Close()
 
+	dividends := []rapina.Dividend{}
 	var (
-		dividends             []rapina.Dividend
 		tradingCode, baseDate string
 		value                 float64
 	)
@@ -115,13 +115,21 @@ func (fii FIIStore) Dividends(code, monthYear string) (*[]rapina.Dividend, error
 			return nil, err
 		}
 
-		fmt.Println("[d]", tradingCode, baseDate, value)
+		// fmt.Println("[d reading]", tradingCode, baseDate, value)
 
 		dividends = append(dividends, rapina.Dividend{
 			Code: tradingCode,
 			Date: baseDate,
 			Val:  value,
 		})
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	if len(dividends) == 0 {
+		return nil, errors.New("dividendos não encontrados")
 	}
 
 	return &dividends, nil
@@ -148,7 +156,7 @@ func (fii FIIStore) SaveDividend(stream map[string]string) (*rapina.Dividend, er
 	(trading_code, base_date, payment_date, value) VALUES (?,?,?,?)`
 	_, err := fii.db.Exec(insert, code, baseDate, pymtDate, fVal)
 
-	// fmt.Println(insert, code, baseDate, pymtDate, comma2dot(val))
+	// fmt.Println("[d saving]", code, baseDate, fVal)
 
 	d := rapina.Dividend{
 		Code: code,

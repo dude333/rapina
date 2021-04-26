@@ -73,29 +73,39 @@ type fiiYeld struct {
 // yeld montlhy report for 'n' months, starting from the latest released.
 //
 func (fii FII) Dividends(code string, n int) (*[]rapina.Dividend, error) {
-	dividends, err := fii.dividendsFromDB(code, n)
+	dividends, months, err := fii.dividendsFromDB(code, n)
 	if err == nil {
-		fmt.Println("[d] FROM DB")
-		return dividends, err
+		fmt.Println("[d] FROM DB", n, months)
+		if months >= n {
+			return dividends, err
+		}
 	}
 
-	fmt.Println("[d] FROM SERVER")
+	fmt.Println("[d] FROM SERVER", err)
 	dividends, err = fii.dividendsFromServer(code, n)
 
 	return dividends, err
 }
 
-func (fii FII) dividendsFromDB(code string, n int) (*[]rapina.Dividend, error) {
+func (fii FII) dividendsFromDB(code string, n int) (*[]rapina.Dividend, int, error) {
 	var dividends []rapina.Dividend
-	for _, monthYear := range rapina.MonthsFromToday(n) {
+	var months int
+	for _, monthYear := range rapina.MonthsFromToday(n + 2) {
 		d, err := fii.parser.Dividends(code, monthYear)
-		if err != nil {
-			return nil, err
+		if err == nil { // ignore errors
+			dividends = append(dividends, *d...)
+			months++
 		}
-		dividends = append(dividends, *d...)
+		if months == n {
+			break
+		}
 	}
 
-	return &dividends, nil
+	if len(dividends) == 0 {
+		return nil, 0, errors.New("dividendos não encontrados")
+	}
+
+	return &dividends, months, nil
 }
 
 //
@@ -196,7 +206,9 @@ func (fii FII) dividendsFromServer(code string, n int) (*[]rapina.Dividend, erro
 			log.Println("[x]", err)
 			continue
 		}
-		dividends = append(dividends, *d)
+		if d.Code == code {
+			dividends = append(dividends, *d)
+		}
 	}
 
 	return &dividends, nil
