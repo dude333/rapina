@@ -102,8 +102,8 @@ func (fii FIIStore) StoreFIIDividends(stream map[string]string) error {
 	}
 
 	code := mapFinder("Código de negociação da cota", stream)
-	baseDate := mapFinder("Data-base", stream)
-	pymtDate := mapFinder("Data do pagamento", stream)
+	baseDate := fixDate(mapFinder("Data-base", stream))
+	pymtDate := fixDate(mapFinder("Data do pagamento", stream))
 	val := mapFinder("Valor do provento por cota", stream)
 
 	const insert = `INSERT OR IGNORE INTO fii_dividends 
@@ -166,4 +166,13 @@ func comma2dot(val string) float64 {
 	b := strings.ReplaceAll(a, ",", ".")
 	n, _ := strconv.ParseFloat(b, 64)
 	return n
+}
+
+// fixDate converts dates from DD/MM/YYYY to YYYY-MM-DD.
+func fixDate(date string) string {
+	if len(date) != len("26/04/2021") || strings.Count(date, "/") != 2 {
+		return date
+	}
+
+	return date[6:10] + "-" + date[3:5] + "-" + date[0:2]
 }
