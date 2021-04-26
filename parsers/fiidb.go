@@ -91,28 +91,72 @@ func (fii FIIStore) CNPJ(code string) (string, error) {
 }
 
 //
-// StoreFIIDividends stores the map into the db.
+// Dividend returns the dividend from the db.
 //
-func (fii FIIStore) StoreFIIDividends(stream map[string]string) error {
+func (fii FIIStore) Dividends(code, monthYear string) (*[]rapina.Dividend, error) {
+	const s = `SELECT trading_code, base_date, value
+	FROM fii_dividends 
+	WHERE trading_code=$1 
+	AND base_date LIKE $2;`
+	rows, err := fii.db.Query(s, code, monthYear+"%")
+	if err != nil {
+		return nil, errors.Wrap(err, "lendo dividendos do bd")
+	}
+	defer rows.Close()
+
+	var (
+		dividends             []rapina.Dividend
+		tradingCode, baseDate string
+		value                 float64
+	)
+	for rows.Next() {
+		err := rows.Scan(&tradingCode, &baseDate, &value)
+		if err != nil {
+			return nil, err
+		}
+
+		fmt.Println("[d]", tradingCode, baseDate, value)
+
+		dividends = append(dividends, rapina.Dividend{
+			Code: tradingCode,
+			Date: baseDate,
+			Val:  value,
+		})
+	}
+
+	return &dividends, nil
+}
+
+//
+// SaveDividend parses and stores the map in the db. Returns the parsed stream.
+//
+func (fii FIIStore) SaveDividend(stream map[string]string) (*rapina.Dividend, error) {
 	// fmt.Println("----------------------------")
 	// fmt.Printf("%+v\n\n", stream)
 
 	if err := createTable(fii.db, "fii_dividends"); err != nil {
-		return err
+		return nil, err
 	}
 
 	code := mapFinder("Código de negociação da cota", stream)
 	baseDate := fixDate(mapFinder("Data-base", stream))
 	pymtDate := fixDate(mapFinder("Data do pagamento", stream))
 	val := mapFinder("Valor do provento por cota", stream)
+	fVal := comma2dot(val)
 
 	const insert = `INSERT OR IGNORE INTO fii_dividends 
 	(trading_code, base_date, payment_date, value) VALUES (?,?,?,?)`
-	_, err := fii.db.Exec(insert, code, baseDate, pymtDate, comma2dot(val))
+	_, err := fii.db.Exec(insert, code, baseDate, pymtDate, fVal)
 
 	// fmt.Println(insert, code, baseDate, pymtDate, comma2dot(val))
 
-	return errors.Wrap(err, "inserting data on fii_dividends")
+	d := rapina.Dividend{
+		Code: code,
+		Date: baseDate,
+		Val:  fVal,
+	}
+
+	return &d, errors.Wrap(err, "inserting data on fii_dividends")
 }
 
 func (fii FIIStore) SelectFIIDetails(code string) (*rapina.FIIDetails, error) {

@@ -1,23 +1,6 @@
 /*
 Copyright © 2021 Adriano P <dev@dude333.com>
-
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in
-all copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
-THE SOFTWARE.
+Distributed under the MIT License.
 */
 package main
 
@@ -27,10 +10,9 @@ import (
 	"os"
 	"strings"
 
-	"github.com/dude333/rapina/fetch"
 	"github.com/dude333/rapina/parsers"
+	"github.com/dude333/rapina/reports"
 	"github.com/spf13/cobra"
-	"github.com/spf13/viper"
 )
 
 // fiiDividendsCmd represents the rendimentos command
@@ -67,34 +49,57 @@ func init() {
 }
 
 //
-// FIIDividends prints the dividends from 'code' fund for 'n' months,
+// FIIDividends prints the dividends from 'code' for 'n' months,
 // starting from latest.
 //
 func FIIDividends(code string, n int) error {
+	code = strings.ToUpper(code)
+
 	db, err := openDatabase()
 	if err != nil {
 		return err
 	}
-	code = strings.ToUpper(code)
-
 	stockStore, _ := parsers.NewStockStore(db)
-	srv, err := fetch.NewStockServer(stockStore, viper.GetString("apikey"))
+	fiiParser := parsers.NewFIIStore(db)
+
+	r, err := reports.NewFIITerminalReport(db, stockStore, fiiParser)
 	if err != nil {
 		return err
 	}
-	err = srv.FetchStockQuote(fix(code))
+	err = r.Dividends(code, n)
 	if err != nil {
 		return err
 	}
+	/*
+		// QUOTES
+		stockStore, _ := parsers.NewStockStore(db)
+		stock, err := fetch.NewStockFetch(stockStore, viper.GetString("apikey"))
+		if err != nil {
+			return err
+		}
+		q, err := stock.Quote(code, "2011-01-02")
+		if err != nil {
+			return err
+		}
+		fmt.Println(q)
 
-	fiiStore := parsers.NewFIIStore(db)
-	fii := fetch.NewFII(fiiStore)
-	return fii.FetchFIIDividends(code, n)
-}
+		// DIVIDENDS
+		fiiStore := parsers.NewFIIStore(db)
+		fii := fetch.NewFII(fiiStore)
+		err = fii.Dividends(code, n)
+		if err != nil {
+			return err
+		}
 
-func fix(code string) string {
-	if len(code) == 4 {
-		return code + "11"
-	}
-	return code
+		// DIVIDENDS REPORT
+		r, err := reports.NewFIITerminalReport(db)
+		if err != nil {
+			return err
+		}
+		r.Dividends(code, n)
+		if err != nil {
+			return err
+		}
+	*/
+	return nil
 }

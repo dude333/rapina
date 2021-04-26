@@ -1,5 +1,14 @@
 package fetch
 
+/*
+	URL List:
+
+	Fundos.NET: where the report IDs are obtained.
+	=> https://fnet.bmfbovespa.com.br/fnet/publico/pesquisarGerenciadorDocumentosCVM?paginaCertificados=false&tipoFundo=1
+	=> GET
+	https://fnet.bmfbovespa.com.br/fnet/publico/pesquisarGerenciadorDocumentosDados?d=3&s=0&l=10&o[0][dataEntrega]=desc&tipoFundo=1&idCategoriaDocumento=14&idTipoDocumento=41&idEspecieDocumento=0&situacao=A&cnpj=28737771000185&dataInicial=01/02/2021&dataFinal=28/02/2021&_=1619467786288
+*/
+
 import (
 	"crypto/tls"
 	"encoding/base64"
@@ -9,7 +18,6 @@ import (
 	"log"
 	"net/http"
 	"net/url"
-	"path"
 	"strconv"
 	"strings"
 	"time"
@@ -21,12 +29,12 @@ import (
 
 // FII holds the infrastructure data.
 type FII struct {
-	store rapina.FIIStore
+	parser rapina.FIIParser
 }
 
 // NewFII creates a new instace of FII.
-func NewFII(store rapina.FIIStore) *FII {
-	fii := &FII{store: store}
+func NewFII(parser rapina.FIIParser) *FII {
+	fii := &FII{parser: parser}
 	return fii
 }
 
@@ -61,10 +69,40 @@ type fiiYeld struct {
 */
 
 //
-// FetchFIIDividends gets the report IDs for one company ('cnpj') and then the
+// Dividends gets the report IDs for one company ('cnpj') and then the
 // yeld montlhy report for 'n' months, starting from the latest released.
 //
-func (fii FII) FetchFIIDividends(code string, n int) error {
+func (fii FII) Dividends(code string, n int) (*[]rapina.Dividend, error) {
+	dividends, err := fii.dividendsFromDB(code, n)
+	if err == nil {
+		fmt.Println("[d] FROM DB")
+		return dividends, err
+	}
+
+	fmt.Println("[d] FROM SERVER")
+	dividends, err = fii.dividendsFromServer(code, n)
+
+	return dividends, err
+}
+
+func (fii FII) dividendsFromDB(code string, n int) (*[]rapina.Dividend, error) {
+	var dividends []rapina.Dividend
+	for _, monthYear := range rapina.MonthsFromToday(n) {
+		d, err := fii.parser.Dividends(code, monthYear)
+		if err != nil {
+			return nil, err
+		}
+		dividends = append(dividends, *d...)
+	}
+
+	return &dividends, nil
+}
+
+//
+// Dividends gets the report IDs for one company ('cnpj') and then the
+// yeld montlhy report for 'n' months, starting from the latest released.
+//
+func (fii FII) dividendsFromServer(code string, n int) (*[]rapina.Dividend, error) {
 	var ids []id
 	yeld := make(map[string]string, n)
 	if n <= 0 {
@@ -106,7 +144,7 @@ func (fii FII) FetchFIIDividends(code string, n int) error {
 	timestamp := strconv.FormatInt(int64(time.Now().UnixNano()/1e6), 10)
 	cnpj, err := fii.CNPJ(code)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	v := url.Values{
 		"d":                    []string{"2"},
@@ -126,7 +164,7 @@ func (fii FII) FetchFIIDividends(code string, n int) error {
 	u := "https://fnet.bmfbovespa.com.br/fnet/publico/pesquisarGerenciadorDocumentosDados" +
 		"?" + v.Encode()
 	if err := c.Visit(u); err != nil {
-		return err
+		return nil, err
 	}
 
 	// Handles the html report
@@ -147,17 +185,21 @@ func (fii FII) FetchFIIDividends(code string, n int) error {
 	})
 
 	// Get the yeld monthly report given the list of 'report IDs' -- returns HTML
+	dividends := make([]rapina.Dividend, 0, n)
 	for _, i := range ids {
 		u = fmt.Sprintf("https://fnet.bmfbovespa.com.br/fnet/publico/exibirDocumento?id=%d&cvm=true", i)
 		if err := c.Visit(u); err != nil {
-			return err
+			return nil, err
 		}
-		if err := fii.store.StoreFIIDividends(yeld); err != nil {
+		d, err := fii.parser.SaveDividend(yeld)
+		if err != nil {
 			log.Println("[x]", err)
+			continue
 		}
+		dividends = append(dividends, *d)
 	}
 
-	return nil
+	return &dividends, nil
 }
 
 //
@@ -169,7 +211,7 @@ func (fii FII) CNPJ(fiiCode string) (string, error) {
 		return "", fmt.Errorf("wrong code '%s'", fiiCode)
 	}
 
-	cnpj, err := fii.store.CNPJ(fiiCode)
+	cnpj, err := fii.parser.CNPJ(fiiCode)
 	if err != nil {
 		return "", err
 	}
@@ -180,7 +222,7 @@ func (fii FII) CNPJ(fiiCode string) (string, error) {
 	// Fetch from server if not found in the database
 	data := fmt.Sprintf(`{"typeFund":7,"cnpj":"0","identifierFund":"%s"}`, fiiCode[0:4])
 	enc := base64.URLEncoding.EncodeToString([]byte(data))
-	fundDetailURL := JoinURL(
+	fundDetailURL := rapina.JoinURL(
 		`https://sistemaswebb3-listados.b3.com.br/fundsProxy/fundsCall/GetDetailFundSIG/`,
 		enc,
 	)
@@ -207,20 +249,7 @@ func (fii FII) CNPJ(fiiCode string) (string, error) {
 		return "", errors.Wrap(err, "read body")
 	}
 
-	_ = fii.store.StoreFIIDetails(body)
+	_ = fii.parser.StoreFIIDetails(body)
 
-	return fii.store.CNPJ(fiiCode)
-}
-
-/* ------- Utils ------- */
-
-func IsUrl(str string) bool {
-	u, err := url.Parse(str)
-	return err == nil && u.Scheme != "" && u.Host != ""
-}
-
-// JoinURL joins strings as URL paths
-func JoinURL(base string, paths ...string) string {
-	p := path.Join(paths...)
-	return fmt.Sprintf("%s/%s", strings.TrimRight(base, "/"), strings.TrimLeft(p, "/"))
+	return fii.parser.CNPJ(fiiCode)
 }

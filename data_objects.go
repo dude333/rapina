@@ -37,3 +37,15 @@ type FIIDetails struct {
 		ShareHolderEmail          string `json:"shareHolderEmail"`
 	} `json:"shareHolder"`
 }
+
+type Quotation struct {
+	Code string
+	Date string
+	Val  float64
+}
+
+type Dividend struct {
+	Code string
+	Date string
+	Val  float64
+}

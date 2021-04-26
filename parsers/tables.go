@@ -8,7 +8,7 @@ import (
 )
 
 const currentDbVersion = 210305
-const currentFIIDbVersion = 210305
+const currentFIIDbVersion = 210426
 const currentStockQuotesVersion = 210305
 
 var createTableMap = map[string]string{
@@ -237,6 +237,10 @@ func createIndexes(db *sql.DB, table string) error {
 	case "stock_quotes":
 		indexes = []string{
 			"CREATE INDEX IF NOT EXISTS stock_quotes_stockdate ON stock_quotes (stock, date);",
+		}
+	case "fii_dividends":
+		indexes = []string{
+			"CREATE UNIQUE INDEX IF NOT EXISTS fii_dividends_pk ON fii_dividends (trading_code, base_date);",
 		}
 	}
 

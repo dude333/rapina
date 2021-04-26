@@ -9,6 +9,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/dude333/rapina"
 	"github.com/pkg/errors"
 )
 
@@ -134,4 +135,12 @@ func (s StockStore) close() error {
 		err = s.stmt.Close()
 	}
 	return err
+}
+
+func (s StockStore) Quote(code, date string) (rapina.Quotation, error) {
+	return rapina.Quotation{
+		Code: code,
+		Date: date,
+		Val:  123.45,
+	}, nil
 }

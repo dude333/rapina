@@ -33,7 +33,7 @@ func Test_comma2dot(t *testing.T) {
 	}
 }
 
-func Test_convertDateStr(t *testing.T) {
+func Test_FixDate(t *testing.T) {
 	type args struct {
 		date string
 	}

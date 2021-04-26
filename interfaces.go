@@ -2,12 +2,14 @@ package rapina
 
 import "io"
 
-type FIIStore interface {
+type FIIParser interface {
 	CNPJ(code string) (string, error)
 	StoreFIIDetails(stream []byte) error
-	StoreFIIDividends(stream map[string]string) error
+	Dividends(code, monthYear string) (*[]Dividend, error)
+	SaveDividend(stream map[string]string) (*Dividend, error)
 }
 
 type StockStore interface {
 	CsvToDB(stream io.ReadCloser, code string) error
+	Quote(code, date string) (Quotation, error)
 }
