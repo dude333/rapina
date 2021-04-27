@@ -38,7 +38,7 @@ type FIIDetails struct {
 	} `json:"shareHolder"`
 }
 
-type Quotation struct {
+type Quote struct {
 	Code string
 	Date string
 	Val  float64

@@ -9,7 +9,6 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/dude333/rapina"
 	"github.com/pkg/errors"
 )
 
@@ -54,6 +53,9 @@ func (s StockStore) CsvToDB(stream io.ReadCloser, code string) error {
 	for scanner.Scan() {
 		line := scanner.Text()
 		fields := strings.Split(line, ",")
+		if len(fields) != 6 {
+			continue
+		}
 
 		var err error
 		var floats [5]float64
@@ -137,10 +139,16 @@ func (s StockStore) close() error {
 	return err
 }
 
-func (s StockStore) Quote(code, date string) (rapina.Quotation, error) {
-	return rapina.Quotation{
-		Code: code,
-		Date: date,
-		Val:  123.45,
-	}, nil
+//
+// Quote returns the quote from DB.
+//
+func (s StockStore) Quote(code, date string) (float64, error) {
+	query := `SELECT close FROM stock_quotes WHERE stock=$1 AND date=$2;`
+	var close float64
+	err := s.db.QueryRow(query, code, date).Scan(&close)
+	if err != nil {
+		return 0, errors.Wrap(err, "lendo cotação do bd")
+	}
+
+	return close, nil
 }

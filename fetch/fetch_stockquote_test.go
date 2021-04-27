@@ -16,13 +16,9 @@ func (m MockStockFetch) CsvToDB(stream io.ReadCloser, code string) error {
 	return nil
 }
 
-func (m MockStockFetch) Quote(code, date string) (rapina.Quotation, error) {
+func (m MockStockFetch) Quote(code, date string) (float64, error) {
 	// fmt.Printf("calling mock Quote(%s, %s)\n", code, date)
-	return rapina.Quotation{
-		Code: code,
-		Date: date,
-		Val:  123.45,
-	}, nil
+	return 123.45, nil
 }
 
 func TestStockFetch_Quote(t *testing.T) {
@@ -38,7 +34,7 @@ func TestStockFetch_Quote(t *testing.T) {
 		name    string
 		fields  fields
 		args    args
-		want    rapina.Quotation
+		want    float64
 		wantErr bool
 	}{
 		{
@@ -51,11 +47,7 @@ func TestStockFetch_Quote(t *testing.T) {
 				code: "TEST11",
 				date: "2021-04-26",
 			},
-			want: rapina.Quotation{
-				Code: "TEST11",
-				Date: "2021-04-26",
-				Val:  123.45,
-			},
+			want:    123.45,
 			wantErr: false,
 		},
 		{
@@ -68,11 +60,7 @@ func TestStockFetch_Quote(t *testing.T) {
 				code: "TEST11",
 				date: "2021-04-32",
 			},
-			want: rapina.Quotation{
-				Code: "TEST11",
-				Date: "2021-04-26",
-				Val:  123.45,
-			},
+			want:    123.45,
 			wantErr: true,
 		},
 	}

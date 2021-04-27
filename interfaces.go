@@ -11,5 +11,5 @@ type FIIParser interface {
 
 type StockStore interface {
 	CsvToDB(stream io.ReadCloser, code string) error
-	Quote(code, date string) (Quotation, error)
+	Quote(code, date string) (float64, error)
 }

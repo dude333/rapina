@@ -115,7 +115,7 @@ func (fii FIIStore) Dividends(code, monthYear string) (*[]rapina.Dividend, error
 			return nil, err
 		}
 
-		// fmt.Println("[d reading]", tradingCode, baseDate, value)
+		fmt.Println("[d reading]", tradingCode, baseDate, value)
 
 		dividends = append(dividends, rapina.Dividend{
 			Code: tradingCode,

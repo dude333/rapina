@@ -10,9 +10,9 @@ import (
 	"os"
 	"strings"
 
-	"github.com/dude333/rapina/parsers"
 	"github.com/dude333/rapina/reports"
 	"github.com/spf13/cobra"
+	"github.com/spf13/viper"
 )
 
 // fiiDividendsCmd represents the rendimentos command
@@ -59,10 +59,8 @@ func FIIDividends(code string, n int) error {
 	if err != nil {
 		return err
 	}
-	stockStore, _ := parsers.NewStockStore(db)
-	fiiParser := parsers.NewFIIStore(db)
 
-	r, err := reports.NewFIITerminalReport(db, stockStore, fiiParser)
+	r, err := reports.NewFIITerminalReport(db, viper.GetString("apikey"))
 	if err != nil {
 		return err
 	}

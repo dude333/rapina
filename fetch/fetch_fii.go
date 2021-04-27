@@ -206,6 +206,7 @@ func (fii FII) dividendsFromServer(code string, n int) (*[]rapina.Dividend, erro
 			log.Println("[x]", err)
 			continue
 		}
+		// fmt.Println("[d] from server", d.Code, d.Date, d.Val)
 		if d.Code == code {
 			dividends = append(dividends, *d)
 		}
