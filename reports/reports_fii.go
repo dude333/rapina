@@ -3,14 +3,17 @@ package reports
 import (
 	"database/sql"
 	"fmt"
+	"math"
 	"os"
 	"strings"
 
 	"github.com/dude333/rapina/fetch"
 	"github.com/dude333/rapina/parsers"
+	"golang.org/x/text/language"
+	"golang.org/x/text/message"
 )
 
-var line = strings.Repeat("-", 55)
+var line = strings.Repeat("-", 67)
 
 type FIITerminalReport struct {
 	fetchFII   *fetch.FII
@@ -66,14 +69,17 @@ func (t FIITerminalReport) PrintDividends(code string, n int) error {
 	fmt.Println(line)
 	fmt.Println(code)
 	fmt.Println(line)
-	fmt.Println("  DATA           RENDIMENTO     COTAÇÃO       YELD  ")
-	fmt.Println("  ----------     ----------     ----------    ------")
+	fmt.Println("  DATA COM       RENDIMENTO     COTAÇÃO       YELD      YELD a.a.")
+	fmt.Println("  ----------     ----------     ----------    ------    ---------")
+
+	p := message.NewPrinter(language.BrazilianPortuguese)
 
 	for _, d := range *dividends {
 		q, _ := t.fetchStock.Quote(code, d.Date)
-		fmt.Printf("  %s %14.6f %14.6f ", d.Date, d.Val, q)
+		p.Printf("  %s     R$%8.2f     R$%8.2f ", d.Date, d.Val, q)
 		if q > 0 {
-			fmt.Printf("%8.2f%%\n", 100*d.Val/q)
+			i := d.Val / q
+			p.Printf("%8.2f%%    %8.2f%%\n", 100*i, 100*(math.Pow(1+i, 12)-1))
 		}
 	}
 
