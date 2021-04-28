@@ -15,10 +15,16 @@ import (
 
 var line = strings.Repeat("-", 67)
 
+const (
+	Rtable = iota + 1
+	Rcsv
+)
+
 type FIITerminalReport struct {
 	fetchFII   *fetch.FII
 	fetchStock *fetch.StockFetch
 	log        *Logger
+	reportType int
 }
 
 func NewFIITerminalReport(db *sql.DB, apiKey string) (*FIITerminalReport, error) {
@@ -32,10 +38,30 @@ func NewFIITerminalReport(db *sql.DB, apiKey string) (*FIITerminalReport, error)
 		fetchFII:   fetchFII,
 		fetchStock: fetchStock,
 		log:        log,
+		reportType: Rtable,
 	}, nil
 }
 
+func (t *FIITerminalReport) SetParms(parms map[string]string) {
+	if _, ok := parms["verbose"]; ok {
+		t.log.SetOut(os.Stderr)
+	}
+	if r, ok := parms["type"]; ok {
+		switch r {
+		case "table", "tabela", "tab":
+			t.reportType = Rtable
+		case "csv":
+			t.reportType = Rcsv
+		}
+	}
+}
+
 func (t FIITerminalReport) Dividends(codes []string, n int) error {
+
+	// Header
+	if t.reportType == Rcsv {
+		fmt.Println("Código,Data Com,Rendimento,Cotação,Yeld,Yeld a.a.")
+	}
 
 	for _, code := range codes {
 		if len(code) != 6 {
@@ -44,20 +70,24 @@ func (t FIITerminalReport) Dividends(codes []string, n int) error {
 			continue
 		}
 
-		err := t.PrintDividends(code, n)
+		var err error
+		switch t.reportType {
+		case Rcsv:
+			err = t.CsvDividends(code, n)
+		default:
+			err = t.PrintDividends(code, n)
+		}
 		if err != nil {
 			t.log.Error("%s", err)
 		}
 	}
-	fmt.Println(line)
+
+	// Footer
+	if t.reportType == Rtable {
+		fmt.Println(line)
+	}
 
 	return nil
-}
-
-func (t *FIITerminalReport) SetParms(parms map[string]string) {
-	if _, ok := parms["verbose"]; ok {
-		t.log.SetOut(os.Stderr)
-	}
 }
 
 func (t FIITerminalReport) PrintDividends(code string, n int) error {
@@ -81,6 +111,27 @@ func (t FIITerminalReport) PrintDividends(code string, n int) error {
 			i := d.Val / q
 			p.Printf("%8.2f%%    %8.2f%%\n", 100*i, 100*(math.Pow(1+i, 12)-1))
 		}
+	}
+
+	return nil
+}
+
+func (t FIITerminalReport) CsvDividends(code string, n int) error {
+	dividends, err := t.fetchFII.Dividends(code, n)
+	if err != nil {
+		return err
+	}
+
+	p := message.NewPrinter(language.BrazilianPortuguese)
+	for _, d := range *dividends {
+		q, _ := t.fetchStock.Quote(code, d.Date)
+		var i float64
+		if q > 0 {
+			i = d.Val / q
+		}
+		p.Printf(`%s,%s,"%f","%f",`, code, d.Date, d.Val, q)
+		p.Printf(`"%f%%","%f%%"`, 100*i, 100*(math.Pow(1+i, 12)-1))
+		p.Println()
 	}
 
 	return nil

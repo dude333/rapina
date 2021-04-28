@@ -22,14 +22,20 @@ var fiiDividendsCmd = &cobra.Command{
 	Long:    `Lista os rendimentos de um Fundos de Investiment Imobiliários (FII).`,
 	Run: func(cmd *cobra.Command, args []string) {
 		// Number of reports
-		n, err := cmd.Flags().GetInt("num")
+		n, err := cmd.Flags().GetInt(Fnum)
 		if err != nil || n <= 0 {
 			n = 1
 		}
 		parms := make(map[string]string)
-		v, err := cmd.Flags().GetBool("verbose")
+		// Verbose
+		v, err := cmd.Flags().GetBool(Fverbose)
 		if err == nil && v {
 			parms["verbose"] = "true"
+		}
+		// Report type
+		t, err := cmd.Flags().GetString(Ftype)
+		if err == nil && t != "" {
+			parms["type"] = t
 		}
 
 		if err := FIIDividends(parms, args, n); err != nil {
@@ -41,6 +47,7 @@ var fiiDividendsCmd = &cobra.Command{
 
 func init() {
 	fiiCmd.AddCommand(fiiDividendsCmd)
+	fiiDividendsCmd.Flags().StringP(Ftype, "t", "table", "tipo de relatório: tabela|csv")
 }
 
 //

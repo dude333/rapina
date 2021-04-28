@@ -20,5 +20,5 @@ var fiiCmd = &cobra.Command{
 
 func init() {
 	rootCmd.AddCommand(fiiCmd)
-	fiiCmd.PersistentFlags().IntP("num", "n", 1, "número de meses desde o último disponível")
+	fiiCmd.PersistentFlags().IntP(Fnum, "n", 1, "número de meses desde o último disponível")
 }
