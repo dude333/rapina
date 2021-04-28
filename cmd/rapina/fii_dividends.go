@@ -26,8 +26,13 @@ var fiiDividendsCmd = &cobra.Command{
 		if err != nil || n <= 0 {
 			n = 1
 		}
+		parms := make(map[string]string)
+		v, err := cmd.Flags().GetBool("verbose")
+		if err == nil && v {
+			parms["verbose"] = "true"
+		}
 
-		if err := FIIDividends(args, n); err != nil {
+		if err := FIIDividends(parms, args, n); err != nil {
 			log.Println(err)
 		}
 
@@ -42,7 +47,7 @@ func init() {
 // FIIDividends prints the dividends from 'code' for 'n' months,
 // starting from latest.
 //
-func FIIDividends(codes []string, n int) error {
+func FIIDividends(parms map[string]string, codes []string, n int) error {
 	for i := 0; i < len(codes); i++ {
 		codes[i] = strings.ToUpper(codes[i])
 	}
@@ -56,6 +61,9 @@ func FIIDividends(codes []string, n int) error {
 	if err != nil {
 		return err
 	}
+
+	r.SetParms(parms)
+
 	err = r.Dividends(codes, n)
 	if err != nil {
 		return err

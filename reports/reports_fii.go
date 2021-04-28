@@ -19,7 +19,7 @@ type FIITerminalReport struct {
 }
 
 func NewFIITerminalReport(db *sql.DB, apiKey string) (*FIITerminalReport, error) {
-	log := NewLogger(os.Stderr)
+	log := NewLogger(nil)
 	store := parsers.NewStockStore(db, log)
 	parser := parsers.NewFIIStore(db, log)
 	fetchStock := fetch.NewStockFetch(store, log, apiKey)
@@ -49,6 +49,12 @@ func (t FIITerminalReport) Dividends(codes []string, n int) error {
 	fmt.Println(line)
 
 	return nil
+}
+
+func (t *FIITerminalReport) SetParms(parms map[string]string) {
+	if _, ok := parms["verbose"]; ok {
+		t.log.SetOut(os.Stderr)
+	}
 }
 
 func (t FIITerminalReport) PrintDividends(code string, n int) error {

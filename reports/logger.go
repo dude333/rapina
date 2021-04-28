@@ -15,6 +15,10 @@ func NewLogger(out io.Writer) *Logger {
 	return &Logger{out: out}
 }
 
+func (l *Logger) SetOut(out io.Writer) {
+	l.out = out
+}
+
 // Run prints a message before running a process.
 func (l *Logger) Run(format string, v ...interface{}) {
 	s := fmt.Sprintf(format, v...)
@@ -65,12 +69,18 @@ func (l *Logger) Error(format string, v ...interface{}) {
 }
 
 func (l *Logger) output(s string) {
+	if l.out == nil {
+		return
+	}
 	l.buf = l.buf[:0]
 	l.buf = append(l.buf, s...)
 	_, _ = l.out.Write(l.buf)
 }
 
 func (l *Logger) outputln(s string) {
+	if l.out == nil {
+		return
+	}
 	l.buf = l.buf[:0]
 	l.buf = append(l.buf, s...)
 	if len(s) == 0 || s[len(s)-1] != '\n' {
