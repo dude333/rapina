@@ -44,7 +44,10 @@ func (t FIITerminalReport) Dividends(code string, n int) error {
 
 	for _, d := range *dividends {
 		q, _ := t.fetchStock.Quote(code, d.Date)
-		fmt.Printf("  %s %14.6f %14.6f %8.2f%%\n", d.Date, d.Val, q, 100*d.Val/q)
+		fmt.Printf("  %s %14.6f %14.6f ", d.Date, d.Val, q)
+		if q > 0 {
+			fmt.Printf("%8.2f%%\n", 100*d.Val/q)
+		}
 	}
 
 	fmt.Println(line)
