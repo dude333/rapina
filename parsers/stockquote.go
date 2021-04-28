@@ -9,6 +9,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/dude333/rapina"
 	"github.com/pkg/errors"
 )
 
@@ -25,11 +26,12 @@ type stockQuote struct {
 type StockStore struct {
 	db   *sql.DB
 	stmt *sql.Stmt
+	log  rapina.Logger
 }
 
-func NewStockStore(db *sql.DB) (*StockStore, error) {
-	s := &StockStore{db: db}
-	return s, nil
+func NewStockStore(db *sql.DB, log rapina.Logger) *StockStore {
+	s := &StockStore{db: db, log: log}
+	return s
 }
 
 //

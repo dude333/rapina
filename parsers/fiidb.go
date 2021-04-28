@@ -18,13 +18,15 @@ var (
 )
 
 type FIIStore struct {
-	db *sql.DB
+	db  *sql.DB
+	log rapina.Logger
 }
 
 // NewFIIStore creates a new instace of FII.
-func NewFIIStore(db *sql.DB) *FIIStore {
+func NewFIIStore(db *sql.DB, log rapina.Logger) *FIIStore {
 	fii := &FIIStore{
-		db: db, // will accept null db when caching is no needed
+		db:  db,
+		log: log,
 	}
 	return fii
 }
@@ -115,7 +117,7 @@ func (fii FIIStore) Dividends(code, monthYear string) (*[]rapina.Dividend, error
 			return nil, err
 		}
 
-		fmt.Println("[d reading]", tradingCode, baseDate, value)
+		fii.log.Debug("reading: %v %v %v", tradingCode, baseDate, value)
 
 		dividends = append(dividends, rapina.Dividend{
 			Code: tradingCode,
@@ -156,7 +158,7 @@ func (fii FIIStore) SaveDividend(stream map[string]string) (*rapina.Dividend, er
 	(trading_code, base_date, payment_date, value) VALUES (?,?,?,?)`
 	_, err := fii.db.Exec(insert, code, baseDate, pymtDate, fVal)
 
-	// fmt.Println("[d saving]", code, baseDate, fVal)
+	// fmt.Println("saving: %v %v %v", code, baseDate, fVal)
 
 	d := rapina.Dividend{
 		Code: code,

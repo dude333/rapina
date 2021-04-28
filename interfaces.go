@@ -15,6 +15,9 @@ type StockStore interface {
 }
 
 type Logger interface {
+	Run(format string, v ...interface{})
+	Ok()
+	Nok()
 	Printf(format string, v ...interface{})
 	Trace(format string, v ...interface{})
 	Debug(format string, v ...interface{})

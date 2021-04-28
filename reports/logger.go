@@ -11,7 +11,7 @@ type Logger struct {
 }
 
 // New creates a new Logger
-func New(out io.Writer) *Logger {
+func NewLogger(out io.Writer) *Logger {
 	return &Logger{out: out}
 }
 
@@ -51,12 +51,12 @@ func (l *Logger) Debug(format string, v ...interface{}) {
 
 // Info for something noteworthy.
 func (l *Logger) Info(format string, v ...interface{}) {
-	l.outputln("[INFO] " + fmt.Sprintf(format, v...))
+	l.outputln("[INFO]  " + fmt.Sprintf(format, v...))
 }
 
 // Warn for a warning message.
 func (l *Logger) Warn(format string, v ...interface{}) {
-	l.outputln("[WARN] " + fmt.Sprintf(format, v...))
+	l.outputln("[WARN]  " + fmt.Sprintf(format, v...))
 }
 
 // Error message.

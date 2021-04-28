@@ -17,24 +17,19 @@ type StockFetch struct {
 	apiKey string
 	store  rapina.StockStore
 	cache  map[string]bool
+	log    rapina.Logger
 }
 
 //
 // NewStockFetch returns a new instance of *StockServer
 //
-func NewStockFetch(store rapina.StockStore, apiKey string) (*StockFetch, error) {
-	if store == nil {
-		return nil, fmt.Errorf("invalid store service")
-	}
-	if apiKey == "" {
-		return nil, fmt.Errorf("invalid API key: '%s'", apiKey)
-	}
-	s := StockFetch{
+func NewStockFetch(store rapina.StockStore, log rapina.Logger, apiKey string) *StockFetch {
+	return &StockFetch{
 		apiKey: apiKey,
 		store:  store,
 		cache:  make(map[string]bool),
+		log:    log,
 	}
-	return &s, nil
 }
 
 // Quote returns the quote for 'code' on 'date'.
@@ -49,7 +44,7 @@ func (s StockFetch) Quote(code, date string) (float64, error) {
 		return val, nil
 	}
 
-	fmt.Println("[d] FROM SERVER")
+	s.log.Debug("FROM SERVER")
 	err = s.stockQuoteFromServer(code)
 	if err != nil {
 		return 0, err
@@ -85,7 +80,7 @@ func (s StockFetch) stockQuoteFromServer(code string) error {
 
 	u := rapina.JoinURL(apiServer, "query?"+v.Encode())
 
-	fmt.Print("[ ] Baixando cotações...", u)
+	s.log.Run("[ ] Baixando cotações de %v", u)
 
 	resp, err := client.Get(u)
 	if err != nil {
@@ -94,18 +89,18 @@ func (s StockFetch) stockQuoteFromServer(code string) error {
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		fmt.Println("\r[x")
+		s.log.Nok()
 		return fmt.Errorf("%s: %s", resp.Status, u)
 	}
-	fmt.Println("\r[✓")
+	s.log.Ok()
 
-	fmt.Print("[ ] Armazendo cotações no banco de dados...")
+	s.log.Run("[ ] Armazendo cotações no banco de dados...")
 	err = s.store.CsvToDB(resp.Body, code)
 	if err != nil {
-		fmt.Println("\r[x")
+		s.log.Ok()
 		return errors.Wrap(err, "armazenando cotações")
 	}
-	fmt.Println("\r[✓")
+	s.log.Nok()
 
 	return err
 }

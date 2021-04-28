@@ -30,11 +30,12 @@ import (
 // FII holds the infrastructure data.
 type FII struct {
 	parser rapina.FIIParser
+	log    rapina.Logger
 }
 
 // NewFII creates a new instace of FII.
-func NewFII(parser rapina.FIIParser) *FII {
-	fii := &FII{parser: parser}
+func NewFII(parser rapina.FIIParser, log rapina.Logger) *FII {
+	fii := &FII{parser: parser, log: log}
 	return fii
 }
 
@@ -75,13 +76,13 @@ type fiiYeld struct {
 func (fii FII) Dividends(code string, n int) (*[]rapina.Dividend, error) {
 	dividends, months, err := fii.dividendsFromDB(code, n)
 	if err == nil {
-		fmt.Println("[d] FROM DB", n, months)
+		fii.log.Debug("FROM DB (n=%v months=%v)", n, months)
 		if months >= n {
 			return dividends, err
 		}
 	}
 
-	fmt.Println("[d] FROM SERVER", err)
+	fii.log.Debug("FROM SERVER (%v)", err)
 	dividends, err = fii.dividendsFromServer(code, n)
 
 	return dividends, err
@@ -129,7 +130,7 @@ func (fii FII) dividendsFromServer(code string, n int) (*[]rapina.Dividend, erro
 	})
 
 	c.OnError(func(r *colly.Response, err error) {
-		fmt.Println("Request URL:", r.Request.URL, "failed with response:", string(r.Body), "\nError:", err)
+		fii.log.Error("Request URL: %v failed with response: %v\nError: %v", r.Request.URL, string(r.Body), err)
 	})
 
 	// Handles the json output with the report IDs
@@ -140,7 +141,7 @@ func (fii FII) dividendsFromServer(code string, n int) (*[]rapina.Dividend, erro
 		var report Report
 		err := json.Unmarshal(r.Body, &report)
 		if err != nil {
-			fmt.Println("json error:", err)
+			fii.log.Error("json error: %v", err)
 			return
 		}
 		for _, d := range report.Data {
@@ -206,7 +207,7 @@ func (fii FII) dividendsFromServer(code string, n int) (*[]rapina.Dividend, erro
 			log.Println("[x]", err)
 			continue
 		}
-		// fmt.Println("[d] from server", d.Code, d.Date, d.Val)
+		// fmt.Println("from server", d.Code, d.Date, d.Val)
 		if d.Code == code {
 			dividends = append(dividends, *d)
 		}

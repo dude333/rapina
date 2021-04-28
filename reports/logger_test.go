@@ -9,7 +9,7 @@ import (
 
 func TestLogger(t *testing.T) {
 	var buf bytes.Buffer
-	log := New(&buf)
+	log := NewLogger(&buf)
 
 	tests := []struct {
 		name string
@@ -39,13 +39,13 @@ func TestLogger(t *testing.T) {
 			name: "info",
 			fn:   log.Info,
 			msg:  "you have been informed",
-			want: "[INFO] you have been informed\n",
+			want: "[INFO]  you have been informed\n",
 		},
 		{
 			name: "warn",
 			fn:   log.Warn,
 			msg:  "this is a warning",
-			want: "[WARN] this is a warning\n",
+			want: "[WARN]  this is a warning\n",
 		},
 		{
 			name: "error",
@@ -66,7 +66,7 @@ func TestLogger(t *testing.T) {
 
 func TestLogger_Run(t *testing.T) {
 	var buf bytes.Buffer
-	log := New(&buf)
+	log := NewLogger(&buf)
 
 	log.Run("starting process %d\n", 10)
 	log.Ok()

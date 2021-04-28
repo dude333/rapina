@@ -3,9 +3,8 @@ package reports
 import (
 	"database/sql"
 	"fmt"
+	"os"
 	"strings"
-
-	"github.com/pkg/errors"
 
 	"github.com/dude333/rapina/fetch"
 	"github.com/dude333/rapina/parsers"
@@ -17,22 +16,11 @@ type FIITerminalReport struct {
 }
 
 func NewFIITerminalReport(db *sql.DB, apiKey string) (*FIITerminalReport, error) {
-	store, err := parsers.NewStockStore(db)
-	if err != nil {
-		return nil, err
-	}
-	parser := parsers.NewFIIStore(db)
-	if parser == nil {
-		return nil, errors.New("invalid parser")
-	}
-	fetchStock, err := fetch.NewStockFetch(store, apiKey)
-	if err != nil {
-		return nil, errors.Wrap(err, "new StockFetch instance")
-	}
-	fetchFII := fetch.NewFII(parser)
-	if fetchFII == nil {
-		return nil, errors.New("invalid FII fetcher")
-	}
+	log := NewLogger(os.Stderr)
+	store := parsers.NewStockStore(db, log)
+	parser := parsers.NewFIIStore(db, log)
+	fetchStock := fetch.NewStockFetch(store, log, apiKey)
+	fetchFII := fetch.NewFII(parser, log)
 
 	return &FIITerminalReport{
 		fetchFII:   fetchFII,
