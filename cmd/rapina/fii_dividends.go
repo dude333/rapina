@@ -5,9 +5,7 @@ Distributed under the MIT License.
 package main
 
 import (
-	"fmt"
 	"log"
-	"os"
 	"strings"
 
 	"github.com/dude333/rapina/reports"
@@ -29,18 +27,10 @@ var fiiDividendsCmd = &cobra.Command{
 			n = 1
 		}
 
-		code := args[0]
-
-		if len(code) != 6 {
-			fmt.Println("[x] Código inválido:", code)
-			fmt.Println("[i] Padrão experado: ABCD11")
-			os.Exit(1)
-		}
-
-		// FII code ('ABCD11')
-		if err := FIIDividends(args[0], n); err != nil {
+		if err := FIIDividends(args, n); err != nil {
 			log.Println(err)
 		}
+
 	},
 }
 
@@ -52,8 +42,10 @@ func init() {
 // FIIDividends prints the dividends from 'code' for 'n' months,
 // starting from latest.
 //
-func FIIDividends(code string, n int) error {
-	code = strings.ToUpper(code)
+func FIIDividends(codes []string, n int) error {
+	for i := 0; i < len(codes); i++ {
+		codes[i] = strings.ToUpper(codes[i])
+	}
 
 	db, err := openDatabase()
 	if err != nil {
@@ -64,7 +56,7 @@ func FIIDividends(code string, n int) error {
 	if err != nil {
 		return err
 	}
-	err = r.Dividends(code, n)
+	err = r.Dividends(codes, n)
 	if err != nil {
 		return err
 	}

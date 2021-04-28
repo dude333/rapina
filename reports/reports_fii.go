@@ -10,9 +10,12 @@ import (
 	"github.com/dude333/rapina/parsers"
 )
 
+var line = strings.Repeat("-", 55)
+
 type FIITerminalReport struct {
 	fetchFII   *fetch.FII
 	fetchStock *fetch.StockFetch
+	log        *Logger
 }
 
 func NewFIITerminalReport(db *sql.DB, apiKey string) (*FIITerminalReport, error) {
@@ -25,17 +28,35 @@ func NewFIITerminalReport(db *sql.DB, apiKey string) (*FIITerminalReport, error)
 	return &FIITerminalReport{
 		fetchFII:   fetchFII,
 		fetchStock: fetchStock,
+		log:        log,
 	}, nil
 }
 
-func (t FIITerminalReport) Dividends(code string, n int) error {
+func (t FIITerminalReport) Dividends(codes []string, n int) error {
 
+	for _, code := range codes {
+		if len(code) != 6 {
+			t.log.Error("Código inválido: %s", code)
+			t.log.Info("Padrão experado: ABCD11")
+			continue
+		}
+
+		err := t.PrintDividends(code, n)
+		if err != nil {
+			t.log.Error("%s", err)
+		}
+	}
+	fmt.Println(line)
+
+	return nil
+}
+
+func (t FIITerminalReport) PrintDividends(code string, n int) error {
 	dividends, err := t.fetchFII.Dividends(code, n)
 	if err != nil {
 		return err
 	}
 
-	line := strings.Repeat("-", 55)
 	fmt.Println(line)
 	fmt.Println(code)
 	fmt.Println(line)
@@ -50,6 +71,5 @@ func (t FIITerminalReport) Dividends(code string, n int) error {
 		}
 	}
 
-	fmt.Println(line)
 	return nil
 }
