@@ -112,8 +112,9 @@ func (t FIITerminalReport) PrintDividends(code string, n int) error {
 		p.Printf("  %s     R$%8.2f     R$%8.2f ", d.Date, d.Val, q)
 		if q > 0 {
 			i := d.Val / q
-			p.Printf("%8.2f%%    %8.2f%%\n", 100*i, 100*(math.Pow(1+i, 12)-1))
+			p.Printf("%8.2f%%    %8.2f%%", 100*i, 100*(math.Pow(1+i, 12)-1))
 		}
+		p.Println()
 	}
 
 	return nil
