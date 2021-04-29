@@ -37,7 +37,7 @@ var showShares bool
 var extraRatios bool
 var fleuriet bool
 var omitSector bool
-var outputDir string = "reports"
+var outputDir = "reports"
 
 // reportCmd represents the report command
 var reportCmd = &cobra.Command{
@@ -59,7 +59,7 @@ func init() {
 	reportCmd.Flags().BoolVarP(&extraRatios, "extraRatios", "x", false, "Reporte de índices extras")
 	reportCmd.Flags().BoolVarP(&fleuriet, "fleuriet", "F", false, "Capital de giro no modelo Fleuriet")
 	reportCmd.Flags().BoolVarP(&omitSector, "omitSector", "o", false, "Omite o relatório das empresas do mesmo setor")
-	reportCmd.Flags().StringVarP(&outputDir, "outputDir", "d", "", "Diretório onde o relatório será salvo")
+	reportCmd.Flags().StringVarP(&outputDir, "outputDir", "d", "reports", "Diretório onde o relatório será salvo")
 }
 
 func report(company string) {

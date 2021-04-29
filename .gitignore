@@ -22,6 +22,7 @@ bin/**
 *.yaml
 *.yml
 !.travis.yml
+wiki/**
 
 # Test binary, build with `go test -c`
 *.test
