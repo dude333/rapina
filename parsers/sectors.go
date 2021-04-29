@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/PuerkitoBio/goquery"
+	"github.com/dude333/rapina"
 	"github.com/gocolly/colly"
 	"github.com/pkg/errors"
 	yaml "gopkg.in/yaml.v2"
@@ -22,7 +23,7 @@ func SectorsToYaml(yamlFile string) (err error) {
 	var p int32
 
 	if !overwritePrompt(yamlFile) {
-		return fmt.Errorf("arquivo %s não foi alterado", yamlFile)
+		return rapina.ErrFileNotUpdated
 	}
 	f, err := os.Create(yamlFile)
 	if err != nil {

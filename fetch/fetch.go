@@ -51,8 +51,8 @@ var (
 func CVM(db *sql.DB, dataDir string) error {
 	now := time.Now().Year()
 	try(processQuarterlyReport, db, dataDir, "Arquivo ITR não encontrado", now, now-1, 2)
-	try(processAnnualReport, db, dataDir, "Arquivo DFP não encontrado", now-1, 2009, 2)
-	try(processFREReport, db, dataDir, "Arquivo FRE não encontrado", now-1, 2009, 2)
+	try(processAnnualReport, db, dataDir, "Arquivo DFP não encontrado", now-1, 2010, 2)
+	try(processFREReport, db, dataDir, "Arquivo FRE não encontrado", now-1, 2010, 2)
 
 	return nil
 }
@@ -103,7 +103,6 @@ func processAnnualReport(db *sql.DB, dataDir string, year int) error {
 			filesCleanup(files)
 			return fmt.Errorf("arquivo %s não encontrado", reqFile)
 		}
-		files, _ = removeItem(files, reqFile)
 
 		// Import file into DB
 		if err = parsers.ImportCsv(db, dt, reqFile); err != nil {
@@ -140,7 +139,6 @@ func processQuarterlyReport(db *sql.DB, dataDir string, year int) error {
 			filesCleanup(files)
 			return fmt.Errorf("arquivo %s não encontrado", reqFile)
 		}
-		files, _ = removeItem(files, reqFile)
 
 		// Import file into DB (the trick is to add ITR to the data type so the
 		// ImportCSV loads that into the ITR table)
@@ -178,7 +176,6 @@ func processFREReport(db *sql.DB, dataDir string, year int) error {
 			filesCleanup(files)
 			return fmt.Errorf("arquivo %s não encontrado", reqFile)
 		}
-		files, _ = removeItem(files, reqFile)
 
 		if err = parsers.ImportCsv(db, "FRE", reqFile); err != nil {
 			return err
@@ -299,35 +296,6 @@ func filesCleanup(files []string) {
 			fmt.Println("could not delete file", f)
 		}
 	}
-}
-
-//
-// find returns the smallest index i at which x == a[i],
-// or -1 if there is no such index.
-//
-func find(a []string, x string) int {
-	for i, n := range a {
-		n = strings.Replace(n, "\\", "/", -1)
-		if x == n {
-			return i
-		}
-	}
-	return -1
-}
-
-//
-// removeItem removes 'item' from 'list' (changes the list order)
-//
-func removeItem(list []string, item string) ([]string, error) {
-	if len(list) == 0 {
-		return list, nil
-	}
-	idx := find(list, item)
-	if idx == -1 {
-		return list, ErrItemNotFound
-	}
-	list[idx] = list[len(list)-1]  // Replace it with the last one.
-	return list[:len(list)-1], nil // Chop off the last one.
 }
 
 //

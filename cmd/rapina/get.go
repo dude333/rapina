@@ -21,20 +21,23 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"os"
 
+	"github.com/dude333/rapina"
 	"github.com/dude333/rapina/fetch"
 	"github.com/spf13/cobra"
 )
 
 var sectors bool
 
-// getCmd represents the get command
-var getCmd = &cobra.Command{
-	Use:   "get",
-	Short: "Baixa os arquivos da CVM e os armazena no bando de dados",
-	Long:  `Baixa os arquivos do site da CVM, processa e os armazena no bando de dados.`,
+// getUpdate represents the get command
+var getUpdate = &cobra.Command{
+	Use:     "update",
+	Aliases: []string{"get"},
+	Short:   "Baixa os arquivos da CVM e atualiza o bando de dados",
+	Long:    `Baixa os arquivos do site da CVM, processa e os armazena no bando de dados.`,
 	Run: func(cmd *cobra.Command, args []string) {
 		db, err := openDatabase()
 		if err != nil {
@@ -43,24 +46,29 @@ var getCmd = &cobra.Command{
 		}
 
 		fmt.Println("[√] Coletando dados ===========")
-		if !sectors { // if -s flag is selected, dowload only the sectors
+		err = fetch.Sectors(yamlFile)
+		if err != nil && !errors.Is(err, rapina.ErrFileNotUpdated) {
+			fmt.Println("[x]", err)
+			os.Exit(1)
+		}
+		if err == nil {
+			fmt.Println("[√] Arquivo salvo:", yamlFile)
+		}
+		//
+		fmt.Println()
+		//
+		if !sectors { // skip if -s flag is selected (dowload only the sectors)
 			err = fetch.CVM(db, dataDir)
 		}
 		if err != nil {
 			fmt.Println("[x]", err)
 			os.Exit(1)
 		}
-		err = fetch.Sectors(yamlFile)
-		if err != nil {
-			fmt.Println("[x]", err)
-			os.Exit(1)
-		}
-		fmt.Println("[√] Arquivo salvo: setores.yaml")
 	},
 }
 
 func init() {
-	rootCmd.AddCommand(getCmd)
+	rootCmd.AddCommand(getUpdate)
 
-	getCmd.Flags().BoolVarP(&sectors, "sectors", "s", false, "Baixa a classificação setorial das empresas e fundos negociados na B3")
+	getUpdate.Flags().BoolVarP(&sectors, "sectors", "s", false, "Baixa a classificação setorial das empresas e fundos negociados na B3")
 }
