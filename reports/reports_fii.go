@@ -30,7 +30,10 @@ type FIITerminalReport struct {
 func NewFIITerminalReport(db *sql.DB, apiKey string) (*FIITerminalReport, error) {
 	log := NewLogger(nil)
 	store := parsers.NewStockStore(db, log)
-	parser := parsers.NewFIIStore(db, log)
+	parser, err := parsers.NewFIIStore(db, log)
+	if err != nil {
+		return nil, err
+	}
 	fetchStock := fetch.NewStockFetch(store, log, apiKey)
 	fetchFII := fetch.NewFII(parser, log)
 

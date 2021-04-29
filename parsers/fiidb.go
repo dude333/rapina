@@ -23,12 +23,12 @@ type FIIStore struct {
 }
 
 // NewFIIStore creates a new instace of FII.
-func NewFIIStore(db *sql.DB, log rapina.Logger) *FIIStore {
-	fii := &FIIStore{
+func NewFIIStore(db *sql.DB, log rapina.Logger) (*FIIStore, error) {
+	err := createAllTables(db)
+	return &FIIStore{
 		db:  db,
 		log: log,
-	}
-	return fii
+	}, err
 }
 
 //

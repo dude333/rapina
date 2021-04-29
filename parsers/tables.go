@@ -108,24 +108,34 @@ var createTableMap = map[string]string{
 	);`,
 }
 
+func allTables() []string {
+	keys := make([]string, len(createTableMap))
+	i := 0
+	for k := range createTableMap {
+		keys[i] = k
+		i++
+	}
+	return keys
+}
+
 //
 // whatTable for the data type
 //
 func whatTable(dataType string) (table string, err error) {
 	switch dataType {
-	case "BPA", "BPP", "DRE", "DFC_MD", "DFC_MI", "DVA":
+	case "dfp", "BPA", "BPP", "DRE", "DFC_MD", "DFC_MI", "DVA":
 		table = "dfp"
-	case "BPA_ITR", "BPP_ITR", "DRE_ITR", "DFC_MD_ITR", "DFC_MI_ITR", "DVA_ITR":
+	case "itr", "BPA_ITR", "BPP_ITR", "DRE_ITR", "DFC_MD_ITR", "DFC_MI_ITR", "DVA_ITR":
 		table = "itr"
-	case "FRE":
+	case "fre", "FRE":
 		table = "fre"
-	case "CODES":
+	case "codes", "CODES":
 		table = "codes"
-	case "MD5":
+	case "md5", "MD5":
 		table = "md5"
-	case "STATUS":
+	case "status", "STATUS":
 		table = "status"
-	case "COMPANIES":
+	case "companies", "COMPANIES":
 		table = "companies"
 	case "fii_details":
 		table = dataType
@@ -179,6 +189,21 @@ func createTable(db *sql.DB, dataType string) (err error) {
 		return errors.Wrap(err, "erro ao atualizar tabela "+table)
 	}
 
+	return nil
+}
+
+func createAllTables(db *sql.DB) (err error) {
+	if err := createTable(db, "status"); err != nil {
+		return err
+	}
+	for _, t := range allTables() {
+		if t == "status" {
+			continue
+		}
+		if err := createTable(db, t); err != nil {
+			return err
+		}
+	}
 	return nil
 }
 
