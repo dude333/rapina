@@ -162,7 +162,7 @@ func createTable(db *sql.DB, dataType string) (err error) {
 
 	_, err = db.Exec(createTableMap[table])
 	if err != nil {
-		return errors.Wrap(err, "erro ao criar tabela "+table)
+		return errors.Wrapf(err, "erro ao criar tabela '%s'", table)
 	}
 
 	err = createIndexes(db, table)

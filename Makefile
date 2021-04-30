@@ -2,7 +2,7 @@ BUILDDIR=./cmd/...
 SOURCEDIR=.
 SOURCES := $(shell find $(SOURCEDIR) -name '*.go')
 
-BINARYDIR=./bin
+BINARYDIR=./bin/
 BINARY=bin/rapina
 WINBINARY=bin/rapina.exe
 OSXBINARY=bin/rapina-osx

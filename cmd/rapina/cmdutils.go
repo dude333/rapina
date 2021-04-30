@@ -31,6 +31,9 @@ type Parms struct {
 // openDatabase to be used by parsers and reporting
 //
 func openDatabase() (db *sql.DB, err error) {
+	if err := os.MkdirAll(dataDir, os.ModePerm); err != nil {
+		return nil, err
+	}
 	connStr := "file:" + dataDir + "/rapina.db?cache=shared&mode=rwc&_journal_mode=WAL"
 	db, err = sql.Open("sqlite3", connStr)
 	if err != nil {
