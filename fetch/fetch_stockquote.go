@@ -97,10 +97,10 @@ func (s StockFetch) stockQuoteFromServer(code string) error {
 	s.log.Run("[ ] Armazendo cotações no banco de dados...")
 	err = s.store.CsvToDB(resp.Body, code)
 	if err != nil {
-		s.log.Ok()
+		s.log.Nok()
 		return errors.Wrap(err, "armazenando cotações")
 	}
-	s.log.Nok()
+	s.log.Ok()
 
 	return err
 }

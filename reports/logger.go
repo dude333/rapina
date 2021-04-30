@@ -3,6 +3,7 @@ package reports
 import (
 	"fmt"
 	"io"
+	"os"
 )
 
 type Logger struct {
@@ -63,9 +64,12 @@ func (l *Logger) Warn(format string, v ...interface{}) {
 	l.outputln("[WARN]  " + fmt.Sprintf(format, v...))
 }
 
-// Error message.
+// Error message. Always print to Stderr.
 func (l *Logger) Error(format string, v ...interface{}) {
-	l.outputln("[ERROR] " + fmt.Sprintf(format, v...))
+	hold := l.out
+	l.out = os.Stderr
+	l.outputln("[ERRO]  " + fmt.Sprintf(format, v...))
+	l.out = hold
 }
 
 func (l *Logger) output(s string) {

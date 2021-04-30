@@ -108,7 +108,10 @@ func (t FIITerminalReport) PrintDividends(code string, n int) error {
 	p := message.NewPrinter(language.BrazilianPortuguese)
 
 	for _, d := range *dividends {
-		q, _ := t.fetchStock.Quote(code, d.Date)
+		q, err := t.fetchStock.Quote(code, d.Date)
+		if err != nil {
+			return err
+		}
 		p.Printf("  %s     R$%8.2f     R$%8.2f ", d.Date, d.Val, q)
 		if q > 0 {
 			i := d.Val / q
@@ -128,7 +131,10 @@ func (t FIITerminalReport) CsvDividends(code string, n int) error {
 
 	p := message.NewPrinter(language.BrazilianPortuguese)
 	for _, d := range *dividends {
-		q, _ := t.fetchStock.Quote(code, d.Date)
+		q, err := t.fetchStock.Quote(code, d.Date)
+		if err != nil {
+			return err
+		}
 		var i float64
 		if q > 0 {
 			i = d.Val / q

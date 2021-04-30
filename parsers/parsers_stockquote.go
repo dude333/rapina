@@ -56,6 +56,9 @@ func (s StockStore) CsvToDB(stream io.ReadCloser, code string) error {
 		line := scanner.Text()
 		fields := strings.Split(line, ",")
 		if len(fields) != 6 {
+			if strings.Contains(line, `"Error Message": `) {
+				return rapina.ErrInvalidAPIKey
+			}
 			continue
 		}
 
