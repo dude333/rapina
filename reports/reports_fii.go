@@ -29,13 +29,13 @@ type FIITerminalReport struct {
 
 func NewFIITerminalReport(db *sql.DB, apiKey string) (*FIITerminalReport, error) {
 	log := NewLogger(nil)
-	store := parsers.NewStockStore(db, log)
-	parser, err := parsers.NewFIIStore(db, log)
+	stockParser := parsers.NewStock(db, log)
+	fiiParser, err := parsers.NewFIIStore(db, log)
 	if err != nil {
 		return nil, err
 	}
-	fetchStock := fetch.NewStockFetch(store, log, apiKey)
-	fetchFII := fetch.NewFII(parser, log)
+	fetchStock := fetch.NewStockFetch(stockParser, log, apiKey)
+	fetchFII := fetch.NewFII(fiiParser, log)
 
 	return &FIITerminalReport{
 		fetchFII:   fetchFII,
@@ -66,6 +66,8 @@ func (t FIITerminalReport) Dividends(codes []string, n int) error {
 		fmt.Println("Código,Data Com,Rendimento,Cotação,Yeld,Yeld a.a.")
 	}
 
+	// var wg sync.WaitGroup
+
 	for _, code := range codes {
 		if len(code) != 6 {
 			t.log.Error("Código inválido: %s", code)
@@ -73,17 +75,27 @@ func (t FIITerminalReport) Dividends(codes []string, n int) error {
 			continue
 		}
 
+		// wg.Add(1)
+		// go func(code string, n int) {
+		var buf *strings.Builder
 		var err error
 		switch t.reportType {
 		case Rcsv:
-			err = t.CsvDividends(code, n)
+			buf, err = t.CsvDividends(code, n)
 		default:
-			err = t.PrintDividends(code, n)
+			buf, err = t.PrintDividends(code, n)
 		}
 		if err != nil {
 			t.log.Error("%s", err)
+		} else {
+			fmt.Print(buf.String())
 		}
+		// wg.Done()
+		// }(code, n)
+
 	}
+
+	// wg.Wait()
 
 	// Footer
 	if t.reportType == Rtable {
@@ -93,56 +105,60 @@ func (t FIITerminalReport) Dividends(codes []string, n int) error {
 	return nil
 }
 
-func (t FIITerminalReport) PrintDividends(code string, n int) error {
+func (t FIITerminalReport) PrintDividends(code string, n int) (*strings.Builder, error) {
 	dividends, err := t.fetchFII.Dividends(code, n)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	fmt.Println(line)
-	fmt.Println(code)
-	fmt.Println(line)
-	fmt.Println("  DATA COM       RENDIMENTO     COTAÇÃO       YELD      YELD a.a.")
-	fmt.Println("  ----------     ----------     ----------    ------    ---------")
-
+	buf := &strings.Builder{}
 	p := message.NewPrinter(language.BrazilianPortuguese)
 
+	p.Fprintln(buf, line)
+	p.Fprintln(buf, code)
+	p.Fprintln(buf, line)
+	p.Fprintln(buf, "  DATA COM       RENDIMENTO     COTAÇÃO       YELD      YELD a.a.")
+	p.Fprintln(buf, "  ----------     ----------     ----------    ------    ---------")
+
 	for _, d := range *dividends {
+		p.Fprintf(buf, "  %s     R$%8.2f     ", d.Date, d.Val)
+
 		q, err := t.fetchStock.Quote(code, d.Date)
 		if err != nil {
-			return err
+			t.log.Error("%s (%s): %v", code, d.Date, err)
 		}
-		p.Printf("  %s     R$%8.2f     R$%8.2f ", d.Date, d.Val, q)
-		if q > 0 {
+		if q > 0 && err == nil {
 			i := d.Val / q
-			p.Printf("%8.2f%%    %8.2f%%", 100*i, 100*(math.Pow(1+i, 12)-1))
+			p.Fprintf(buf, "R$%8.2f %8.2f%%    %8.2f%%", q, 100*i, 100*(math.Pow(1+i, 12)-1))
 		}
-		p.Println()
+		p.Fprintf(buf, "\n")
 	}
 
-	return nil
+	return buf, nil
 }
 
-func (t FIITerminalReport) CsvDividends(code string, n int) error {
+func (t FIITerminalReport) CsvDividends(code string, n int) (*strings.Builder, error) {
 	dividends, err := t.fetchFII.Dividends(code, n)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
+	buf := &strings.Builder{}
 	p := message.NewPrinter(language.BrazilianPortuguese)
 	for _, d := range *dividends {
+		p.Fprintf(buf, `%s,%s,"%f",`, code, d.Date, d.Val)
+
 		q, err := t.fetchStock.Quote(code, d.Date)
 		if err != nil {
-			return err
+			t.log.Error("%s (%s): %v", code, d.Date, err)
 		}
-		var i float64
-		if q > 0 {
-			i = d.Val / q
+		if q > 0 && err == nil {
+			i := d.Val / q
+			p.Fprintf(buf, `"%f","%f%%","%f%%"\n`, q, 100*i, 100*(math.Pow(1+i, 12)-1))
+		} else {
+			p.Fprintf(buf, `"","",""\n`)
 		}
-		p.Printf(`%s,%s,"%f","%f",`, code, d.Date, d.Val, q)
-		p.Printf(`"%f%%","%f%%"`, 100*i, 100*(math.Pow(1+i, 12)-1))
-		p.Println()
 	}
 
-	return nil
+	return buf, nil
 }

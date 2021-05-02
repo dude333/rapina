@@ -10,7 +10,7 @@ type FIIParser interface {
 }
 
 type StockStore interface {
-	CsvToDB(stream io.ReadCloser, code string) error
+	Save(stream io.ReadCloser, code string) (int, error)
 	Quote(code, date string) (float64, error)
 }
 

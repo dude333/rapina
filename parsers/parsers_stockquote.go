@@ -1,13 +1,18 @@
 package parsers
 
+/*
+	TODO:
+	https://query1.finance.yahoo.com/v7/finance/download/RBVA11.SA?period1=1588395063&period2=1619931063&interval=1d&events=history&includeAdjustedClose=true
+	https://query1.finance.yahoo.com/v7/finance/download/BBPO11.SA?period1=1619654400&period2=1619740800&interval=1d&events=history&includeAdjustedClose=true
+*/
+
 import (
 	"bufio"
 	"database/sql"
-	"fmt"
 	"io"
-	"log"
 	"strconv"
 	"strings"
+	"sync"
 
 	"github.com/dude333/rapina"
 	"github.com/pkg/errors"
@@ -23,84 +28,61 @@ type stockQuote struct {
 	Volume float64
 }
 
-type StockStore struct {
+type StockParser struct {
 	db   *sql.DB
 	stmt *sql.Stmt
 	log  rapina.Logger
+	mu   sync.Mutex // ensures atomic writes to db
 }
 
-func NewStockStore(db *sql.DB, log rapina.Logger) *StockStore {
-	s := &StockStore{db: db, log: log}
+func NewStock(db *sql.DB, log rapina.Logger) *StockParser {
+	s := &StockParser{db: db, log: log}
 	return s
 }
 
 //
-// CsvToDB parses the 'stream', get the 'code' stock quotes and
-// store it on 'db'.
+// Save parses the 'stream', get the 'code' stock quotes and
+// store it on 'db'. Returns the number of registers saved.
 //
-func (s StockStore) CsvToDB(stream io.ReadCloser, code string) error {
+func (s *StockParser) Save(stream io.ReadCloser, code string) (int, error) {
 	if s.db == nil {
-		return errors.New("invalid db")
+		return 0, errors.New("bd inválido")
 	}
 	if stream == nil {
-		return errors.New("empty stream")
+		return 0, errors.New("sem dados")
 	}
 
 	if err := s.open(); err != nil {
-		return err
+		return 0, err
 	}
 	defer s.close()
 
+	// Read stream, line by line
+	var count int
 	scanner := bufio.NewScanner(stream)
 	for scanner.Scan() {
 		line := scanner.Text()
-		fields := strings.Split(line, ",")
-		if len(fields) != 6 {
-			if strings.Contains(line, `"Error Message": `) {
-				return rapina.ErrInvalidAPIKey
-			}
-			continue
-		}
 
-		var err error
-		var floats [5]float64
-		for i := 1; i <= 5; i++ {
-			floats[i-1], err = strconv.ParseFloat(fields[i], 64)
-			if err != nil {
-				break
-			}
-		}
+		q, err := quoteAlphaVantage(line, code)
 		if err != nil {
-			continue
+			continue // ignore lines with error
 		}
 
-		_ = s.store(&stockQuote{
-			Stock:  code,
-			Date:   fields[0],
-			Open:   floats[0],
-			High:   floats[1],
-			Low:    floats[2],
-			Close:  floats[3],
-			Volume: floats[4],
-		})
+		err = s.store(q)
+		if err == nil {
+			count++
+		}
 	}
 
 	if err := scanner.Err(); err != nil {
-		log.Fatal(err)
+		return count, err
 	}
 
-	return nil
+	return count, nil
 }
 
 // open prepares the insert statement.
-func (s *StockStore) open() error {
-	if s.db == nil {
-		return fmt.Errorf("db not provided")
-	}
-	if err := createTable(s.db, "stock_quotes"); err != nil {
-		return err
-	}
-
+func (s *StockParser) open() error {
 	var err error
 	insert := `INSERT OR IGNORE INTO stock_quotes 
 	(stock, date, open, high, low, close, volume) VALUES (?,?,?,?,?,?,?);`
@@ -114,12 +96,14 @@ func (s *StockStore) open() error {
 }
 
 // store stores the data using the insert statement.
-func (s StockStore) store(q *stockQuote) error {
+func (s *StockParser) store(q *stockQuote) error {
 	if s.stmt == nil {
 		return errors.New("sql statement not initalized")
 	}
 
-	_, err := s.stmt.Exec(
+	s.mu.Lock()
+
+	res, err := s.stmt.Exec(
 		q.Stock,
 		q.Date,
 		q.Open,
@@ -128,15 +112,23 @@ func (s StockStore) store(q *stockQuote) error {
 		q.Close,
 		q.Volume,
 	)
+
+	s.mu.Unlock()
+
 	if err != nil {
-		return errors.Wrap(err, "inserting stock quote")
+		return errors.Wrap(err, "salvando cotação")
+	}
+
+	n, err := res.RowsAffected()
+	if n == 0 || err != nil {
+		return errors.New("registro não salvo (duplicado)")
 	}
 
 	return nil
 }
 
 // close closes the insert statement.
-func (s StockStore) close() error {
+func (s *StockParser) close() error {
 	var err error
 	if s.stmt != nil {
 		err = s.stmt.Close()
@@ -144,15 +136,44 @@ func (s StockStore) close() error {
 	return err
 }
 
+func quoteAlphaVantage(line, code string) (*stockQuote, error) {
+	fields := strings.Split(line, ",")
+	if len(fields) != 6 {
+		return nil, errors.New("linha inválida") // ignore lines with error
+	}
+
+	var err error
+	var floats [5]float64
+	for i := 1; i <= 5; i++ {
+		floats[i-1], err = strconv.ParseFloat(fields[i], 64)
+		if err != nil {
+			return nil, errors.Wrap(err, "campo inválido")
+		}
+	}
+
+	return &stockQuote{
+		Stock:  code,
+		Date:   fields[0],
+		Open:   floats[0],
+		High:   floats[1],
+		Low:    floats[2],
+		Close:  floats[3],
+		Volume: floats[4],
+	}, nil
+}
+
 //
 // Quote returns the quote from DB.
 //
-func (s StockStore) Quote(code, date string) (float64, error) {
+func (s *StockParser) Quote(code, date string) (float64, error) {
 	query := `SELECT close FROM stock_quotes WHERE stock=$1 AND date=$2;`
 	var close float64
 	err := s.db.QueryRow(query, code, date).Scan(&close)
+	if err == sql.ErrNoRows {
+		return 0, errors.New("não encontrado no bd")
+	}
 	if err != nil {
-		return 0, errors.Wrap(err, "lendo cotação do bd")
+		return 0, errors.Wrapf(err, "lendo cotação de %s do bd", code)
 	}
 
 	return close, nil

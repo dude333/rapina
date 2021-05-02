@@ -2,6 +2,7 @@ package fetch
 
 import (
 	"crypto/tls"
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -11,12 +12,10 @@ import (
 	"github.com/pkg/errors"
 )
 
-const apiServer = "https://www.alphavantage.co/"
-
 type StockFetch struct {
 	apiKey string
 	store  rapina.StockStore
-	cache  map[string]bool
+	cache  map[string]int
 	log    rapina.Logger
 }
 
@@ -27,7 +26,7 @@ func NewStockFetch(store rapina.StockStore, log rapina.Logger, apiKey string) *S
 	return &StockFetch{
 		apiKey: apiKey,
 		store:  store,
-		cache:  make(map[string]bool),
+		cache:  make(map[string]int),
 		log:    log,
 	}
 }
@@ -36,52 +35,43 @@ func NewStockFetch(store rapina.StockStore, log rapina.Logger, apiKey string) *S
 // Date format: YYYY-MM-DD.
 func (s StockFetch) Quote(code, date string) (float64, error) {
 	if !rapina.IsDate(date) {
-		return 0, rapina.ErrInvalidDate
+		return 0, fmt.Errorf("data inválida: %s", date)
 	}
 
-	val, err := s.stockQuoteFromDB(code, date)
+	val, err := s.store.Quote(code, date)
 	if err == nil {
-		return val, nil
+		return val, nil // returning data found on db
 	}
 
-	s.log.Debug("FROM SERVER")
-	err = s.stockQuoteFromServer(code)
+	err = s.stockQuoteFromAPIServer(code)
 	if err != nil {
 		return 0, err
 	}
 
-	return s.stockQuoteFromDB(code, date)
+	return s.store.Quote(code, date)
 }
 
 //
-// stockQuoteFromServer fetches the daily time series (date, daily open, daily high,
+// stockQuoteFromAPIServer fetches the daily time series (date, daily open, daily high,
 // daily low, daily close, daily volume) of the global equity specified,
 // covering 20+ years of historical data.
 //
-func (s StockFetch) stockQuoteFromServer(code string) error {
+func (s StockFetch) stockQuoteFromAPIServer(code string) error {
 	if _, ok := s.cache[code]; ok {
 		return fmt.Errorf("cotação histórica para '%s' já foi feita", code)
 	}
-	s.cache[code] = true
 
+	s.log.Printf("[>] Baixando cotações de %s\n", code)
+
+	// Download quote for 'code'
 	tr := &http.Transport{
 		DisableCompression: true,
 		IdleConnTimeout:    30 * time.Second,
 		TLSClientConfig:    &tls.Config{InsecureSkipVerify: true},
 	}
 	client := &http.Client{Transport: tr}
-
-	v := url.Values{}
-	v.Set("function", "TIME_SERIES_DAILY")
-	v.Add("symbol", code+".SA")
-	v.Add("apikey", s.apiKey)
-	v.Add("outputsize", "full")
-	v.Add("datatype", "csv")
-
-	u := rapina.JoinURL(apiServer, "query?"+v.Encode())
-
-	s.log.Run("[ ] Baixando cotações de %v", u)
-
+	u := apiURL(APIalphavantage, code, s.apiKey)
+	s.log.Debug("%s", u)
 	resp, err := client.Get(u)
 	if err != nil {
 		return err
@@ -89,22 +79,59 @@ func (s StockFetch) stockQuoteFromServer(code string) error {
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		s.log.Nok()
 		return fmt.Errorf("%s: %s", resp.Status, u)
 	}
-	s.log.Ok()
 
-	s.log.Run("[ ] Armazendo cotações no banco de dados...")
-	err = s.store.CsvToDB(resp.Body, code)
+	s.cache[code] += 1 // mark map to avoid unnecessary downloads
+
+	// JSON means error response
+	if resp.Header.Get("Content-Type") == "application/json" {
+		jsonMap := make(map[string]interface{})
+		err := json.NewDecoder(resp.Body).Decode(&jsonMap)
+		if err != nil {
+			return err
+		}
+		return errors.New(map2str(jsonMap))
+	}
+
+	s.log.Run("Armazendo cotações no banco de dados...")
+	_, err = s.store.Save(resp.Body, code)
 	if err != nil {
 		s.log.Nok()
-		return errors.Wrap(err, "armazenando cotações")
+		return errors.Wrapf(err, "armazenando cotações de %s", code)
 	}
 	s.log.Ok()
 
 	return err
 }
 
-func (s StockFetch) stockQuoteFromDB(code, date string) (float64, error) {
-	return s.store.Quote(code, date)
+const (
+	APIalphavantage int = iota + 1
+	APIyahoo
+)
+
+func apiURL(provider int, code, apiKey string) string {
+	v := url.Values{}
+	switch provider {
+	case APIalphavantage:
+		v.Set("function", "TIME_SERIES_DAILY")
+		v.Add("symbol", code+".SA")
+		v.Add("apikey", apiKey)
+		v.Add("outputsize", "full")
+		v.Add("datatype", "csv")
+		return "https://www.alphavantage.co/query?" + v.Encode()
+
+	case APIyahoo:
+		return ""
+	}
+
+	return ""
+}
+
+func map2str(data map[string]interface{}) string {
+	var buf string
+	for k, v := range data {
+		buf += fmt.Sprintln(k+":", v)
+	}
+	return buf
 }

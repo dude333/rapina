@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+	"sync"
 
 	"github.com/dude333/rapina"
 	"github.com/pkg/errors"
@@ -20,6 +21,7 @@ var (
 type FIIStore struct {
 	db  *sql.DB
 	log rapina.Logger
+	mu  sync.Mutex // ensures atomic writes on db
 }
 
 // NewFIIStore creates a new instace of FII.
@@ -35,7 +37,7 @@ func NewFIIStore(db *sql.DB, log rapina.Logger) (*FIIStore, error) {
 // StoreFIIDetails parses the stream data into FIIDetails and returns
 // the *FIIDetails.
 //
-func (fii FIIStore) StoreFIIDetails(stream []byte) error {
+func (fii *FIIStore) StoreFIIDetails(stream []byte) error {
 	if fii.db == nil {
 		return ErrDBUnset
 	}
@@ -58,6 +60,9 @@ func (fii FIIStore) StoreFIIDetails(stream []byte) error {
 		return fmt.Errorf("wrong CNPJ: %s", x.CNPJ)
 	}
 
+	fii.mu.Lock()
+	defer fii.mu.Unlock()
+
 	insert := "INSERT OR IGNORE INTO fii_details (cnpj, acronym, trading_code) VALUES (?,?,?)"
 	_, err := fii.db.Exec(insert, x.CNPJ, x.Acronym, x.TradingCode)
 
@@ -68,7 +73,7 @@ func (fii FIIStore) StoreFIIDetails(stream []byte) error {
 // CNPJ returns the FII CNPJ for the 'code' or
 // an empty string if not found in the db.
 //
-func (fii FIIStore) CNPJ(code string) (string, error) {
+func (fii *FIIStore) CNPJ(code string) (string, error) {
 	if fii.db == nil {
 		return "", ErrDBUnset
 	}
@@ -95,7 +100,7 @@ func (fii FIIStore) CNPJ(code string) (string, error) {
 //
 // Dividend returns the dividend from the db.
 //
-func (fii FIIStore) Dividends(code, monthYear string) (*[]rapina.Dividend, error) {
+func (fii *FIIStore) Dividends(code, monthYear string) (*[]rapina.Dividend, error) {
 	const s = `SELECT trading_code, base_date, value
 	FROM fii_dividends 
 	WHERE trading_code=$1 
@@ -117,7 +122,7 @@ func (fii FIIStore) Dividends(code, monthYear string) (*[]rapina.Dividend, error
 			return nil, err
 		}
 
-		fii.log.Debug("reading: %v %v %v", tradingCode, baseDate, value)
+		// fii.log.Debug("reading: %v %v %v", tradingCode, baseDate, value)
 
 		dividends = append(dividends, rapina.Dividend{
 			Code: tradingCode,
@@ -140,7 +145,7 @@ func (fii FIIStore) Dividends(code, monthYear string) (*[]rapina.Dividend, error
 //
 // SaveDividend parses and stores the map in the db. Returns the parsed stream.
 //
-func (fii FIIStore) SaveDividend(stream map[string]string) (*rapina.Dividend, error) {
+func (fii *FIIStore) SaveDividend(stream map[string]string) (*rapina.Dividend, error) {
 	// fmt.Println("----------------------------")
 	// fmt.Printf("%+v\n\n", stream)
 
@@ -153,6 +158,9 @@ func (fii FIIStore) SaveDividend(stream map[string]string) (*rapina.Dividend, er
 	pymtDate := fixDate(mapFinder("Data do pagamento", stream))
 	val := mapFinder("Valor do provento por cota", stream)
 	fVal := comma2dot(val)
+
+	fii.mu.Lock()
+	defer fii.mu.Unlock()
 
 	const insert = `INSERT OR IGNORE INTO fii_dividends 
 	(trading_code, base_date, payment_date, value) VALUES (?,?,?,?)`
@@ -169,7 +177,7 @@ func (fii FIIStore) SaveDividend(stream map[string]string) (*rapina.Dividend, er
 	return &d, errors.Wrap(err, "inserting data on fii_dividends")
 }
 
-func (fii FIIStore) SelectFIIDetails(code string) (*rapina.FIIDetails, error) {
+func (fii *FIIStore) SelectFIIDetails(code string) (*rapina.FIIDetails, error) {
 	if fii.db == nil {
 		return nil, ErrDBUnset
 	}
