@@ -12,6 +12,13 @@ import (
 	"github.com/pkg/errors"
 )
 
+// API providers
+const (
+	APInone = iota
+	APIalphavantage
+	APIyahoo
+)
+
 type StockFetch struct {
 	apiKey string
 	store  rapina.StockStore
@@ -23,6 +30,7 @@ type StockFetch struct {
 // NewStockFetch returns a new instance of *StockServer
 //
 func NewStockFetch(store rapina.StockStore, log rapina.Logger, apiKey string) *StockFetch {
+
 	return &StockFetch{
 		apiKey: apiKey,
 		store:  store,
@@ -43,9 +51,14 @@ func (s StockFetch) Quote(code, date string) (float64, error) {
 		return val, nil // returning data found on db
 	}
 
-	err = s.stockQuoteFromAPIServer(code)
-	if err != nil {
-		return 0, err
+	err = s.stockQuoteFromAPIServer(code, date, APIyahoo)
+	if err != nil && s.apiKey != "" {
+		// Fallback to Alpha Vantage if Yahoo fails
+		s.log.Debug("Cotação não encontrada no Yahoo, tentando no Alpha Vantage")
+		err = s.stockQuoteFromAPIServer(code, date, APIalphavantage)
+		if err != nil {
+			return 0, err
+		}
 	}
 
 	return s.store.Quote(code, date)
@@ -56,9 +69,10 @@ func (s StockFetch) Quote(code, date string) (float64, error) {
 // daily low, daily close, daily volume) of the global equity specified,
 // covering 20+ years of historical data.
 //
-func (s StockFetch) stockQuoteFromAPIServer(code string) error {
-	if _, ok := s.cache[code]; ok {
-		return fmt.Errorf("cotação histórica para '%s' já foi feita", code)
+func (s StockFetch) stockQuoteFromAPIServer(code, date string, apiProvider int) error {
+	if v := s.cache[code]; v == APIalphavantage && apiProvider == APIalphavantage {
+		// return fmt.Errorf("cotação histórica para '%s' já foi feita", code)
+		return nil // silent return if this fetch has been run already
 	}
 
 	s.log.Printf("[>] Baixando cotações de %s\n", code)
@@ -70,8 +84,10 @@ func (s StockFetch) stockQuoteFromAPIServer(code string) error {
 		TLSClientConfig:    &tls.Config{InsecureSkipVerify: true},
 	}
 	client := &http.Client{Transport: tr}
-	u := apiURL(APIalphavantage, code, s.apiKey)
-	s.log.Debug("%s", u)
+	u := apiURL(apiProvider, s.apiKey, code, date)
+	if u == "" {
+		return errors.New("URL do API server")
+	}
 	resp, err := client.Get(u)
 	if err != nil {
 		return err
@@ -79,10 +95,10 @@ func (s StockFetch) stockQuoteFromAPIServer(code string) error {
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("%s: %s", resp.Status, u)
+		return fmt.Errorf("%s", resp.Status)
 	}
 
-	s.cache[code] += 1 // mark map to avoid unnecessary downloads
+	s.cache[code] = apiProvider // mark map to avoid unnecessary downloads
 
 	// JSON means error response
 	if resp.Header.Get("Content-Type") == "application/json" {
@@ -105,12 +121,7 @@ func (s StockFetch) stockQuoteFromAPIServer(code string) error {
 	return err
 }
 
-const (
-	APIalphavantage int = iota + 1
-	APIyahoo
-)
-
-func apiURL(provider int, code, apiKey string) string {
+func apiURL(provider int, apiKey, code, date string) string {
 	v := url.Values{}
 	switch provider {
 	case APIalphavantage:
@@ -122,7 +133,19 @@ func apiURL(provider int, code, apiKey string) string {
 		return "https://www.alphavantage.co/query?" + v.Encode()
 
 	case APIyahoo:
-		return ""
+		const layout = "2006-01-02 15:04:05 -0700 MST"
+		t1, err1 := time.Parse(layout, date+" 00:00:00 -0300 GMT")
+		t2, err2 := time.Parse(layout, date+" 23:59:59 -0300 GMT")
+		if err1 != nil || err2 != nil {
+			return ""
+		}
+		v.Set("period1", fmt.Sprint(t1.Unix()))
+		v.Add("period2", fmt.Sprint(t2.Unix()))
+		v.Add("interval", "1d")
+		v.Add("events", "history")
+		v.Add("includeAdjustedClose", "true")
+		return fmt.Sprintf("https://query1.finance.yahoo.com/v7/finance/download/%s.SA?%s",
+			code, v.Encode())
 	}
 
 	return ""

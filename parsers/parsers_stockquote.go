@@ -41,6 +41,23 @@ func NewStock(db *sql.DB, log rapina.Logger) *StockParser {
 }
 
 //
+// Quote returns the quote from DB.
+//
+func (s *StockParser) Quote(code, date string) (float64, error) {
+	query := `SELECT close FROM stock_quotes WHERE stock=$1 AND date=$2;`
+	var close float64
+	err := s.db.QueryRow(query, code, date).Scan(&close)
+	if err == sql.ErrNoRows {
+		return 0, errors.New("não encontrado no bd")
+	}
+	if err != nil {
+		return 0, errors.Wrapf(err, "lendo cotação de %s do bd", code)
+	}
+
+	return close, nil
+}
+
+//
 // Save parses the 'stream', get the 'code' stock quotes and
 // store it on 'db'. Returns the number of registers saved.
 //
@@ -58,12 +75,26 @@ func (s *StockParser) Save(stream io.ReadCloser, code string) (int, error) {
 	defer s.close()
 
 	// Read stream, line by line
-	var count int
+	var count, prov int
+	isHeader := true
 	scanner := bufio.NewScanner(stream)
 	for scanner.Scan() {
 		line := scanner.Text()
 
-		q, err := quoteAlphaVantage(line, code)
+		if isHeader {
+			prov = provider(line)
+			isHeader = false
+			continue
+		}
+
+		var q *stockQuote
+		var err error
+		switch prov {
+		case alphaVantage:
+			q, err = parseAlphaVantage(line, code)
+		case yahoo:
+			q, err = parseYahoo(line, code)
+		}
 		if err != nil {
 			continue // ignore lines with error
 		}
@@ -136,12 +167,33 @@ func (s *StockParser) close() error {
 	return err
 }
 
-func quoteAlphaVantage(line, code string) (*stockQuote, error) {
+// API providers.
+const (
+	none int = iota
+	alphaVantage
+	yahoo
+)
+
+// provider returns stream type based on header
+func provider(header string) int {
+	if header == "timestamp,open,high,low,close,volume" {
+		return alphaVantage
+	}
+	if header == "Date,Open,High,Low,Close,Adj Close,Volume" {
+		return yahoo
+	}
+	return none
+}
+
+// parseAlphaVantage parses lines downloaded from Alpha Vantage API server
+// and returns *stockQuote for 'code'.
+func parseAlphaVantage(line, code string) (*stockQuote, error) {
 	fields := strings.Split(line, ",")
 	if len(fields) != 6 {
 		return nil, errors.New("linha inválida") // ignore lines with error
 	}
 
+	// Columns: timestamp,open,high,low,close,volume
 	var err error
 	var floats [5]float64
 	for i := 1; i <= 5; i++ {
@@ -162,19 +214,31 @@ func quoteAlphaVantage(line, code string) (*stockQuote, error) {
 	}, nil
 }
 
-//
-// Quote returns the quote from DB.
-//
-func (s *StockParser) Quote(code, date string) (float64, error) {
-	query := `SELECT close FROM stock_quotes WHERE stock=$1 AND date=$2;`
-	var close float64
-	err := s.db.QueryRow(query, code, date).Scan(&close)
-	if err == sql.ErrNoRows {
-		return 0, errors.New("não encontrado no bd")
-	}
-	if err != nil {
-		return 0, errors.Wrapf(err, "lendo cotação de %s do bd", code)
+// parseYahoo parses lines downloaded from Yahoo Finance API server
+// and returns *stockQuote for 'code'.
+func parseYahoo(line, code string) (*stockQuote, error) {
+	fields := strings.Split(line, ",")
+	if len(fields) != 7 {
+		return nil, errors.New("linha inválida") // ignore lines with error
 	}
 
-	return close, nil
+	// Columns: Date,Open,High,Low,Close,Adj Close,Volume
+	var err error
+	var floats [6]float64
+	for i := 1; i <= 6; i++ {
+		floats[i-1], err = strconv.ParseFloat(fields[i], 64)
+		if err != nil {
+			return nil, errors.Wrap(err, "campo inválido")
+		}
+	}
+
+	return &stockQuote{
+		Stock:  code,
+		Date:   fields[0],
+		Open:   floats[0],
+		High:   floats[1],
+		Low:    floats[2],
+		Close:  floats[3],
+		Volume: floats[5],
+	}, nil
 }

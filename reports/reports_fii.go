@@ -125,7 +125,7 @@ func (t FIITerminalReport) PrintDividends(code string, n int) (*strings.Builder,
 
 		q, err := t.fetchStock.Quote(code, d.Date)
 		if err != nil {
-			t.log.Error("%s (%s): %v", code, d.Date, err)
+			t.log.Error("Cotação de %s (%s): %v", code, d.Date, err)
 		}
 		if q > 0 && err == nil {
 			i := d.Val / q
@@ -150,7 +150,7 @@ func (t FIITerminalReport) CsvDividends(code string, n int) (*strings.Builder, e
 
 		q, err := t.fetchStock.Quote(code, d.Date)
 		if err != nil {
-			t.log.Error("%s (%s): %v", code, d.Date, err)
+			t.log.Error("Cotação de %s (%s): %v", code, d.Date, err)
 		}
 		if q > 0 && err == nil {
 			i := d.Val / q
