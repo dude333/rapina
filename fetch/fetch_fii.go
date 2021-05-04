@@ -40,6 +40,9 @@ func NewFII(parser rapina.FIIParser, log rapina.Logger) *FII {
 }
 
 type id int
+
+// Report holds the result of all documents filtered by a criteria defined by a
+// http.Get on the B3 server.
 type Report struct {
 	Data []docID `json:"data"`
 }
@@ -215,7 +218,7 @@ func (fii FII) dividendsFromServer(code string, n int) (*[]rapina.Dividend, erro
 }
 
 //
-// FetchFIIDetails returns the FII CNPJ from DB. If not found:
+// CNPJ returns the FII CNPJ from DB. If not found:
 // fetches from server, stores it in the DB and returns the CNPJ.
 //
 func (fii FII) CNPJ(fiiCode string) (string, error) {

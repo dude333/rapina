@@ -22,18 +22,19 @@ const (
 	APIyahoo
 )
 
+// StockFetch implements a fetcher stock quotes.
 type StockFetch struct {
-	apiKey  string
-	store   rapina.StockStore
-	cache   map[string]int
-	dataDir string // working directory where files will be stored to be parsed
+	apiKey  string // API key for Alpha Vantage API server
+	store   rapina.StockParser
+	cache   map[string]int // Cache to avoid duplicated fetch on Alpha Vantage server
+	dataDir string         // working directory where files will be stored to be parsed
 	log     rapina.Logger
 }
 
 //
-// NewStockFetch returns a new instance of *StockServer
+// NewStock returns a new instance of *StockServer
 //
-func NewStockFetch(store rapina.StockStore, log rapina.Logger, apiKey, dataDir string) *StockFetch {
+func NewStock(store rapina.StockParser, log rapina.Logger, apiKey, dataDir string) *StockFetch {
 	return &StockFetch{
 		apiKey:  apiKey,
 		store:   store,

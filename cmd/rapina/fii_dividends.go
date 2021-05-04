@@ -64,7 +64,7 @@ func FIIDividends(parms map[string]string, codes []string, n int) error {
 		return err
 	}
 
-	r, err := reports.NewFIITerminalReport(db, viper.GetString("apikey"), dataDir)
+	r, err := reports.NewFIITerminal(db, viper.GetString("apikey"), dataDir)
 	if err != nil {
 		return err
 	}

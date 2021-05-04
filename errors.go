@@ -2,6 +2,7 @@ package rapina
 
 import "errors"
 
+// Error codes
 var (
 	ErrRecordExists   = errors.New("insert ignored, register already exists")
 	ErrFileNotUpdated = errors.New("file not updated")

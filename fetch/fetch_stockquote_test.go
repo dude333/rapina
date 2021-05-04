@@ -28,7 +28,7 @@ func (m MockStockFetch) Quote(code, date string) (float64, error) {
 func TestStockFetch_Quote(t *testing.T) {
 	type fields struct {
 		apiKey string
-		store  rapina.StockStore
+		store  rapina.StockParser
 	}
 	type args struct {
 		code string

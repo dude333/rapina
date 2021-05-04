@@ -38,12 +38,14 @@ type FIIDetails struct {
 	} `json:"shareHolder"`
 }
 
+// Quote contains the stock 'Code', and the 'Date' for the stock quote 'Val'.
 type Quote struct {
 	Code string
 	Date string
 	Val  float64
 }
 
+// Dividend contains the stock 'Code', and the 'Date' for the stock dividend 'Val'.
 type Dividend struct {
 	Code string
 	Date string

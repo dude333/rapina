@@ -36,7 +36,8 @@ func IsDate(date string) bool {
 	return true
 }
 
-func IsUrl(str string) bool {
+// IsURL returns true if 'str' is a valid URL.
+func IsURL(str string) bool {
 	u, err := url.Parse(str)
 	return err == nil && u.Scheme != "" && u.Host != ""
 }

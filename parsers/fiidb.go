@@ -18,16 +18,17 @@ var (
 	ErrNotFound = errors.New("not found")
 )
 
-type FIIStore struct {
+// FIIParser implements sqlite storage for a rapina.FIIParser object.
+type FIIParser struct {
 	db  *sql.DB
 	log rapina.Logger
 	mu  sync.Mutex // ensures atomic writes on db
 }
 
-// NewFIIStore creates a new instace of FII.
-func NewFIIStore(db *sql.DB, log rapina.Logger) (*FIIStore, error) {
+// NewFII creates a new instace of FII.
+func NewFII(db *sql.DB, log rapina.Logger) (*FIIParser, error) {
 	err := createAllTables(db)
-	return &FIIStore{
+	return &FIIParser{
 		db:  db,
 		log: log,
 	}, err
@@ -37,7 +38,7 @@ func NewFIIStore(db *sql.DB, log rapina.Logger) (*FIIStore, error) {
 // StoreFIIDetails parses the stream data into FIIDetails and returns
 // the *FIIDetails.
 //
-func (fii *FIIStore) StoreFIIDetails(stream []byte) error {
+func (fii *FIIParser) StoreFIIDetails(stream []byte) error {
 	if fii.db == nil {
 		return ErrDBUnset
 	}
@@ -73,7 +74,7 @@ func (fii *FIIStore) StoreFIIDetails(stream []byte) error {
 // CNPJ returns the FII CNPJ for the 'code' or
 // an empty string if not found in the db.
 //
-func (fii *FIIStore) CNPJ(code string) (string, error) {
+func (fii *FIIParser) CNPJ(code string) (string, error) {
 	if fii.db == nil {
 		return "", ErrDBUnset
 	}
@@ -98,9 +99,9 @@ func (fii *FIIStore) CNPJ(code string) (string, error) {
 }
 
 //
-// Dividend returns the dividend from the db.
+// Dividends returns the dividend from the db.
 //
-func (fii *FIIStore) Dividends(code, monthYear string) (*[]rapina.Dividend, error) {
+func (fii *FIIParser) Dividends(code, monthYear string) (*[]rapina.Dividend, error) {
 	const s = `SELECT trading_code, base_date, value
 	FROM fii_dividends 
 	WHERE trading_code=$1 
@@ -145,7 +146,7 @@ func (fii *FIIStore) Dividends(code, monthYear string) (*[]rapina.Dividend, erro
 //
 // SaveDividend parses and stores the map in the db. Returns the parsed stream.
 //
-func (fii *FIIStore) SaveDividend(stream map[string]string) (*rapina.Dividend, error) {
+func (fii *FIIParser) SaveDividend(stream map[string]string) (*rapina.Dividend, error) {
 	// fmt.Println("----------------------------")
 	// fmt.Printf("%+v\n\n", stream)
 
@@ -177,7 +178,7 @@ func (fii *FIIStore) SaveDividend(stream map[string]string) (*rapina.Dividend, e
 	return &d, errors.Wrap(err, "inserting data on fii_dividends")
 }
 
-func (fii *FIIStore) SelectFIIDetails(code string) (*rapina.FIIDetails, error) {
+func (fii *FIIParser) SelectFIIDetails(code string) (*rapina.FIIDetails, error) {
 	if fii.db == nil {
 		return nil, ErrDBUnset
 	}

@@ -26,7 +26,7 @@ type jsonData struct {
 }
 
 func TestHTTPFetch_JSON(t *testing.T) {
-	h := NewHTTPFetch()
+	h := NewHTTP()
 
 	var got jsonData
 

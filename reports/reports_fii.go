@@ -15,29 +15,32 @@ import (
 
 var line = strings.Repeat("-", 67)
 
+// Type of report output
 const (
 	Rtable = iota + 1
 	Rcsv
 )
 
-type FIITerminalReport struct {
+// FIITerminal implements reports related to FII funds on the terminal.
+type FIITerminal struct {
 	fetchFII   *fetch.FII
 	fetchStock *fetch.StockFetch
 	log        *Logger
 	reportType int
 }
 
-func NewFIITerminalReport(db *sql.DB, apiKey, dataDir string) (*FIITerminalReport, error) {
+// NewFIITerminal creates a new instace of a FIITerminal
+func NewFIITerminal(db *sql.DB, apiKey, dataDir string) (*FIITerminal, error) {
 	log := NewLogger(nil)
 	stockParser := parsers.NewStock(db, log)
-	fiiParser, err := parsers.NewFIIStore(db, log)
+	fiiParser, err := parsers.NewFII(db, log)
 	if err != nil {
 		return nil, err
 	}
-	fetchStock := fetch.NewStockFetch(stockParser, log, apiKey, dataDir)
+	fetchStock := fetch.NewStock(stockParser, log, apiKey, dataDir)
 	fetchFII := fetch.NewFII(fiiParser, log)
 
-	return &FIITerminalReport{
+	return &FIITerminal{
 		fetchFII:   fetchFII,
 		fetchStock: fetchStock,
 		log:        log,
@@ -45,7 +48,8 @@ func NewFIITerminalReport(db *sql.DB, apiKey, dataDir string) (*FIITerminalRepor
 	}, nil
 }
 
-func (t *FIITerminalReport) SetParms(parms map[string]string) {
+// SetParms set the terminal reports parameters.
+func (t *FIITerminal) SetParms(parms map[string]string) {
 	if _, ok := parms["verbose"]; ok {
 		t.log.SetOut(os.Stderr)
 	}
@@ -59,7 +63,8 @@ func (t *FIITerminalReport) SetParms(parms map[string]string) {
 	}
 }
 
-func (t FIITerminalReport) Dividends(codes []string, n int) error {
+// Dividends prints the dividends report on terminal.
+func (t FIITerminal) Dividends(codes []string, n int) error {
 
 	// Header
 	if t.reportType == Rcsv {
@@ -81,16 +86,16 @@ func (t FIITerminalReport) Dividends(codes []string, n int) error {
 		var err error
 		switch t.reportType {
 		case Rcsv:
-			buf, err = t.CsvDividends(code, n)
+			buf, err = t.csvDividends(code, n)
 		default:
-			buf, err = t.PrintDividends(code, n)
+			buf, err = t.printDividends(code, n)
 		}
 		if err != nil {
 			t.log.Error("%s", err)
 		} else {
 			fmt.Print(buf.String())
 		}
-		// wg.Done()
+		// 	wg.Done()
 		// }(code, n)
 
 	}
@@ -105,7 +110,7 @@ func (t FIITerminalReport) Dividends(codes []string, n int) error {
 	return nil
 }
 
-func (t FIITerminalReport) PrintDividends(code string, n int) (*strings.Builder, error) {
+func (t FIITerminal) printDividends(code string, n int) (*strings.Builder, error) {
 	dividends, err := t.fetchFII.Dividends(code, n)
 	if err != nil {
 		return nil, err
@@ -137,7 +142,7 @@ func (t FIITerminalReport) PrintDividends(code string, n int) (*strings.Builder,
 	return buf, nil
 }
 
-func (t FIITerminalReport) CsvDividends(code string, n int) (*strings.Builder, error) {
+func (t FIITerminal) csvDividends(code string, n int) (*strings.Builder, error) {
 	dividends, err := t.fetchFII.Dividends(code, n)
 	if err != nil {
 		return nil, err

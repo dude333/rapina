@@ -6,15 +6,18 @@ import (
 	"time"
 )
 
+// HTTPFetch implements a generic HTTP fetcher.
 type HTTPFetch struct {
 	client *http.Client
 }
 
-func NewHTTPFetch() *HTTPFetch {
+// NewHTTP creates a new HTTPFetch instance.
+func NewHTTP() *HTTPFetch {
 	c := &http.Client{Timeout: 10 * time.Second}
 	return &HTTPFetch{client: c}
 }
 
+// JSON handles json responses.
 func (h HTTPFetch) JSON(url string, target interface{}) error {
 	r, err := h.client.Get(url)
 	if err != nil {
