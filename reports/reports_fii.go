@@ -6,7 +6,9 @@ import (
 	"math"
 	"os"
 	"strings"
+	"sync"
 
+	"github.com/dude333/rapina"
 	"github.com/dude333/rapina/fetch"
 	"github.com/dude333/rapina/parsers"
 	"golang.org/x/text/language"
@@ -31,6 +33,7 @@ type FIITerminal struct {
 
 // NewFIITerminal creates a new instace of a FIITerminal
 func NewFIITerminal(db *sql.DB, apiKey, dataDir string) (*FIITerminal, error) {
+	db.SetMaxOpenConns(1)
 	log := NewLogger(nil)
 	stockParser := parsers.NewStock(db, log)
 	fiiParser, err := parsers.NewFII(db, log)
@@ -71,36 +74,52 @@ func (t FIITerminal) Dividends(codes []string, n int) error {
 		fmt.Println("Código,Data Com,Rendimento,Cotação,Yeld,Yeld a.a.")
 	}
 
-	// var wg sync.WaitGroup
-
+	// Remove codes
+	c := make([]string, 0, len(codes))
 	for _, code := range codes {
-		if len(code) != 6 {
+		if len(code) == 6 {
+			c = append(c, code)
+		} else {
 			t.log.Error("Código inválido: %s", code)
 			t.log.Info("Padrão experado: ABCD11")
+		}
+	}
+	codes = c
+
+	dividends := make(map[string]*[]rapina.Dividend, len(codes))
+
+	var wg sync.WaitGroup
+	for _, code := range codes {
+		wg.Add(1)
+		go func(code string, n int) {
+			div, err := t.fetchFII.Dividends(code, n)
+			if err != nil {
+				t.log.Error("%s dividendos: %v", code, err)
+			}
+			dividends[code] = div
+			wg.Done()
+		}(code, n)
+	}
+	wg.Wait()
+
+	for _, code := range codes {
+		if _, ok := dividends[code]; !ok {
 			continue
 		}
-
-		// wg.Add(1)
-		// go func(code string, n int) {
 		var buf *strings.Builder
 		var err error
 		switch t.reportType {
 		case Rcsv:
-			buf, err = t.csvDividends(code, n)
+			buf, err = t.csvDividends(code, dividends[code])
 		default:
-			buf, err = t.printDividends(code, n)
+			buf, err = t.printDividends(code, dividends[code])
 		}
 		if err != nil {
 			t.log.Error("%s", err)
 		} else {
-			fmt.Print(buf.String())
+			fmt.Print(buf)
 		}
-		// 	wg.Done()
-		// }(code, n)
-
 	}
-
-	// wg.Wait()
 
 	// Footer
 	if t.reportType == Rtable {
@@ -110,12 +129,7 @@ func (t FIITerminal) Dividends(codes []string, n int) error {
 	return nil
 }
 
-func (t FIITerminal) printDividends(code string, n int) (*strings.Builder, error) {
-	dividends, err := t.fetchFII.Dividends(code, n)
-	if err != nil {
-		return nil, err
-	}
-
+func (t FIITerminal) printDividends(code string, dividends *[]rapina.Dividend) (*strings.Builder, error) {
 	buf := &strings.Builder{}
 	p := message.NewPrinter(language.BrazilianPortuguese)
 
@@ -136,18 +150,13 @@ func (t FIITerminal) printDividends(code string, n int) (*strings.Builder, error
 			i := d.Val / q
 			p.Fprintf(buf, "R$%8.2f %8.2f%%    %8.2f%%", q, 100*i, 100*(math.Pow(1+i, 12)-1))
 		}
-		p.Fprintf(buf, "\n")
+		buf.WriteByte('\n')
 	}
 
 	return buf, nil
 }
 
-func (t FIITerminal) csvDividends(code string, n int) (*strings.Builder, error) {
-	dividends, err := t.fetchFII.Dividends(code, n)
-	if err != nil {
-		return nil, err
-	}
-
+func (t FIITerminal) csvDividends(code string, dividends *[]rapina.Dividend) (*strings.Builder, error) {
 	buf := &strings.Builder{}
 	p := message.NewPrinter(language.BrazilianPortuguese)
 	for _, d := range *dividends {
@@ -159,10 +168,11 @@ func (t FIITerminal) csvDividends(code string, n int) (*strings.Builder, error) 
 		}
 		if q > 0 && err == nil {
 			i := d.Val / q
-			p.Fprintf(buf, `"%f","%f%%","%f%%"\n`, q, 100*i, 100*(math.Pow(1+i, 12)-1))
+			p.Fprintf(buf, `"%f","%f%%","%f%%"`, q, 100*i, 100*(math.Pow(1+i, 12)-1))
 		} else {
-			p.Fprintf(buf, `"","",""\n`)
+			buf.WriteString(`"","",""`)
 		}
+		buf.WriteByte('\n')
 	}
 
 	return buf, nil
