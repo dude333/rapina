@@ -6,10 +6,13 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"os"
 	"time"
 
 	"github.com/dude333/rapina"
 	"github.com/pkg/errors"
+	"golang.org/x/text/encoding/charmap"
+	"golang.org/x/text/transform"
 )
 
 // API providers
@@ -20,22 +23,23 @@ const (
 )
 
 type StockFetch struct {
-	apiKey string
-	store  rapina.StockStore
-	cache  map[string]int
-	log    rapina.Logger
+	apiKey  string
+	store   rapina.StockStore
+	cache   map[string]int
+	dataDir string // working directory where files will be stored to be parsed
+	log     rapina.Logger
 }
 
 //
 // NewStockFetch returns a new instance of *StockServer
 //
-func NewStockFetch(store rapina.StockStore, log rapina.Logger, apiKey string) *StockFetch {
-
+func NewStockFetch(store rapina.StockStore, log rapina.Logger, apiKey, dataDir string) *StockFetch {
 	return &StockFetch{
-		apiKey: apiKey,
-		store:  store,
-		cache:  make(map[string]int),
-		log:    log,
+		apiKey:  apiKey,
+		store:   store,
+		cache:   make(map[string]int),
+		dataDir: dataDir,
+		log:     log,
 	}
 }
 
@@ -51,17 +55,62 @@ func (s StockFetch) Quote(code, date string) (float64, error) {
 		return val, nil // returning data found on db
 	}
 
-	err = s.stockQuoteFromAPIServer(code, date, APIyahoo)
+	// Load quotes from B3, fallback to Yahoo Finance and Alpha Vantage on error
+	err = s.stockQuoteFromB3(date)
+	if err != nil {
+		err = s.stockQuoteFromAPIServer(code, date, APIyahoo)
+	}
 	if err != nil && s.apiKey != "" {
-		// Fallback to Alpha Vantage if Yahoo fails
-		s.log.Debug("Cotação não encontrada no Yahoo, tentando no Alpha Vantage")
 		err = s.stockQuoteFromAPIServer(code, date, APIalphavantage)
-		if err != nil {
-			return 0, err
-		}
+	}
+	if err != nil {
+		return 0, err
 	}
 
 	return s.store.Quote(code, date)
+}
+
+//
+// stockQuoteFromB3 downloads the quotes for all companies for the given date,
+// where 'date' format is YYYY-MM-DD.
+//
+func (s StockFetch) stockQuoteFromB3(date string) error {
+	dataDir := ".data"
+
+	// Convert date string from YYYY-MM-DD to DDMMYYYY
+	if len(date) != len("2021-05-03") {
+		return fmt.Errorf("data com formato inválido: %s", date)
+	}
+	conv := date[8:10] + date[5:7] + date[0:4]
+	url := fmt.Sprintf(`http://bvmf.bmfbovespa.com.br/InstDados/SerHist/COTAHIST_D%s.ZIP`,
+		conv)
+	// Download ZIP file and unzips its files
+	zip := fmt.Sprintf("%s/COTAHIST_D%s.ZIP", dataDir, conv)
+	files, err := fetchFiles(url, dataDir, zip)
+	if err != nil {
+		return err
+	}
+
+	// Delete files on return
+	defer filesCleanup(files)
+
+	// Parse and store files content
+	for _, f := range files {
+		fh, err := os.Open(f)
+		if err != nil {
+			return errors.Wrapf(err, "abrindo arquivo %s", f)
+		}
+		defer fh.Close()
+
+		dec := transform.NewReader(fh, charmap.ISO8859_1.NewDecoder())
+
+		_, err = s.store.Save(dec, "")
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 //

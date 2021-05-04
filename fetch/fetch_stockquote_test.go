@@ -12,8 +12,12 @@ type MockStockFetch struct {
 	// store rapina.StockStore
 }
 
-func (m MockStockFetch) Save(stream io.ReadCloser, code string) (int, error) {
+func (m MockStockFetch) Save(stream io.Reader, code string) (int, error) {
 	return 1, nil
+}
+
+func (m MockStockFetch) SaveB3Quotes(filename string) error {
+	return nil
 }
 
 func (m MockStockFetch) Quote(code, date string) (float64, error) {

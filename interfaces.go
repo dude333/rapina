@@ -10,7 +10,8 @@ type FIIParser interface {
 }
 
 type StockStore interface {
-	Save(stream io.ReadCloser, code string) (int, error)
+	Save(stream io.Reader, code string) (int, error)
+	SaveB3Quotes(filename string) error
 	Quote(code, date string) (float64, error)
 }
 

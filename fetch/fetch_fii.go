@@ -76,13 +76,11 @@ type fiiYeld struct {
 func (fii FII) Dividends(code string, n int) (*[]rapina.Dividend, error) {
 	dividends, months, err := fii.dividendsFromDB(code, n)
 	if err == nil {
-		fii.log.Debug("FROM DB (n=%v months=%v)", n, months)
 		if months >= n {
 			return dividends, err
 		}
 	}
 
-	fii.log.Debug("FROM SERVER (%v)", err)
 	dividends, err = fii.dividendsFromServer(code, n)
 
 	return dividends, err

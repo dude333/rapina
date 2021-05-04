@@ -27,14 +27,14 @@ type FIITerminalReport struct {
 	reportType int
 }
 
-func NewFIITerminalReport(db *sql.DB, apiKey string) (*FIITerminalReport, error) {
+func NewFIITerminalReport(db *sql.DB, apiKey, dataDir string) (*FIITerminalReport, error) {
 	log := NewLogger(nil)
 	stockParser := parsers.NewStock(db, log)
 	fiiParser, err := parsers.NewFIIStore(db, log)
 	if err != nil {
 		return nil, err
 	}
-	fetchStock := fetch.NewStockFetch(stockParser, log, apiKey)
+	fetchStock := fetch.NewStockFetch(stockParser, log, apiKey, dataDir)
 	fetchFII := fetch.NewFII(fiiParser, log)
 
 	return &FIITerminalReport{

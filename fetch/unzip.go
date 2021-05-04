@@ -88,7 +88,7 @@ func valid(filename string) bool {
 		return false
 	}
 
-	list := []string{"_bpa_", "_bpp_", "_dfc_", "_dre_", "_dva_", "fre_"}
+	list := []string{"_bpa_", "_bpp_", "_dfc_", "_dre_", "_dva_", "fre_", "cotahist_"}
 
 	for _, item := range list {
 		if strings.Contains(n, item) {
