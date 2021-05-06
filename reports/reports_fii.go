@@ -21,14 +21,15 @@ var line = strings.Repeat("-", 67)
 const (
 	Rtable = iota + 1
 	Rcsv
+	Rcsvrend
 )
 
 // FIITerminal implements reports related to FII funds on the terminal.
 type FIITerminal struct {
-	fetchFII   *fetch.FII
-	fetchStock *fetch.StockFetch
-	log        *Logger
-	reportType int
+	fetchFII     *fetch.FII
+	fetchStock   *fetch.StockFetch
+	log          *Logger
+	reportFormat int
 }
 
 // NewFIITerminal creates a new instace of a FIITerminal
@@ -44,10 +45,10 @@ func NewFIITerminal(db *sql.DB, apiKey, dataDir string) (*FIITerminal, error) {
 	fetchFII := fetch.NewFII(fiiParser, log)
 
 	return &FIITerminal{
-		fetchFII:   fetchFII,
-		fetchStock: fetchStock,
-		log:        log,
-		reportType: Rtable,
+		fetchFII:     fetchFII,
+		fetchStock:   fetchStock,
+		log:          log,
+		reportFormat: Rtable,
 	}, nil
 }
 
@@ -56,12 +57,14 @@ func (t *FIITerminal) SetParms(parms map[string]string) {
 	if _, ok := parms["verbose"]; ok {
 		t.log.SetOut(os.Stderr)
 	}
-	if r, ok := parms["type"]; ok {
+	if r, ok := parms["format"]; ok {
 		switch r {
 		case "table", "tabela", "tab":
-			t.reportType = Rtable
+			t.reportFormat = Rtable
 		case "csv":
-			t.reportType = Rcsv
+			t.reportFormat = Rcsv
+		case "csvrend":
+			t.reportFormat = Rcsvrend
 		}
 	}
 }
@@ -70,8 +73,15 @@ func (t *FIITerminal) SetParms(parms map[string]string) {
 func (t FIITerminal) Dividends(codes []string, n int) error {
 
 	// Header
-	if t.reportType == Rcsv {
+	if t.reportFormat == Rcsv {
 		fmt.Println("Código,Data Com,Rendimento,Cotação,Yeld,Yeld a.a.")
+	}
+	if t.reportFormat == Rcsvrend {
+		fmt.Print(`Código/Data-Com`)
+		for _, date := range revMonthsFromToday(n) {
+			fmt.Printf(",%s", date)
+		}
+		fmt.Println()
 	}
 
 	// Remove codes
@@ -108,9 +118,11 @@ func (t FIITerminal) Dividends(codes []string, n int) error {
 		}
 		var buf *strings.Builder
 		var err error
-		switch t.reportType {
+		switch t.reportFormat {
 		case Rcsv:
 			buf, err = t.csvDividends(code, dividends[code])
+		case Rcsvrend:
+			buf, err = t.csvDividendsOnly(code, n, dividends[code])
 		default:
 			buf, err = t.printDividends(code, dividends[code])
 		}
@@ -122,7 +134,7 @@ func (t FIITerminal) Dividends(codes []string, n int) error {
 	}
 
 	// Footer
-	if t.reportType == Rtable {
+	if t.reportFormat == Rtable {
 		fmt.Println(line)
 	}
 
@@ -176,4 +188,37 @@ func (t FIITerminal) csvDividends(code string, dividends *[]rapina.Dividend) (*s
 	}
 
 	return buf, nil
+}
+
+func (t FIITerminal) csvDividendsOnly(code string, n int, dividends *[]rapina.Dividend) (*strings.Builder, error) {
+	buf := &strings.Builder{}
+	p := message.NewPrinter(language.BrazilianPortuguese)
+	buf.WriteString(code)
+
+	for _, month := range revMonthsFromToday(n) {
+		found := false
+		for _, div := range *dividends {
+			if div.Date[0:len("YYYY-MM")] == month {
+				p.Fprintf(buf, `,"%f"`, div.Val)
+				found = true
+				break
+			}
+		}
+		if !found {
+			buf.WriteString(`,""`)
+		}
+
+	}
+	buf.WriteByte('\n')
+
+	return buf, nil
+}
+
+func revMonthsFromToday(n int) []string {
+	rev := make([]string, 0, n)
+	dates := rapina.MonthsFromToday(n)
+	for i := len(dates) - 1; i >= 0; i-- {
+		rev = append(rev, dates[i][0:len("YYYY-MM")])
+	}
+	return rev
 }
