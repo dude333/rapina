@@ -9,5 +9,5 @@ const (
 	Fnum = "num"
 
 	// fiiDividendsCmd
-	Ftype = "type"
+	Fformat = "format"
 )

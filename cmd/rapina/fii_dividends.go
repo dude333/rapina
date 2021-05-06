@@ -30,12 +30,12 @@ var fiiDividendsCmd = &cobra.Command{
 		// Verbose
 		v, err := cmd.Flags().GetBool(Fverbose)
 		if err == nil && v {
-			parms["verbose"] = "true"
+			parms[Fverbose] = "true"
 		}
-		// Report type
-		t, err := cmd.Flags().GetString(Ftype)
-		if err == nil && t != "" {
-			parms["type"] = t
+		// Report format
+		f, err := cmd.Flags().GetString(Fformat)
+		if err == nil && f != "" {
+			parms[Fformat] = f
 		}
 
 		if err := FIIDividends(parms, args, n); err != nil {
@@ -47,7 +47,7 @@ var fiiDividendsCmd = &cobra.Command{
 
 func init() {
 	fiiCmd.AddCommand(fiiDividendsCmd)
-	fiiDividendsCmd.Flags().StringP(Ftype, "t", "table", "tipo de relatório: tabela|csv")
+	fiiDividendsCmd.Flags().StringP(Fformat, "f", "tabela", "formato do relatório: tabela|csv|csvrend")
 }
 
 //
