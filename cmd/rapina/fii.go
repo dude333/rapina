@@ -8,6 +8,11 @@ import (
 	"github.com/spf13/cobra"
 )
 
+type fiiFlags struct {
+	num       int // number of months since current
+	dividends fiiDividendsFlags
+}
+
 // fiiCmd represents the fii command
 var fiiCmd = &cobra.Command{
 	Use:   "fii",
@@ -20,5 +25,6 @@ var fiiCmd = &cobra.Command{
 
 func init() {
 	rootCmd.AddCommand(fiiCmd)
-	fiiCmd.PersistentFlags().IntP(Fnum, "n", 1, "número de meses desde o último disponível")
+	fiiCmd.PersistentFlags().IntVarP(&flags.fii.num,
+		Fnum, "n", 1, "número de meses desde o último disponível")
 }

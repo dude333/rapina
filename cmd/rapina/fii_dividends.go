@@ -13,6 +13,10 @@ import (
 	"github.com/spf13/viper"
 )
 
+type fiiDividendsFlags struct {
+	format string // output format of the report
+}
+
 // fiiDividendsCmd represents the rendimentos command
 var fiiDividendsCmd = &cobra.Command{
 	Use:     "rendimentos",
@@ -22,21 +26,18 @@ var fiiDividendsCmd = &cobra.Command{
 	Long:    `Lista os rendimentos de um Fundos de Investiment Imobiliários (FII).`,
 	Run: func(cmd *cobra.Command, args []string) {
 		// Number of reports
-		n, err := cmd.Flags().GetInt(Fnum)
-		if err != nil || n <= 0 {
+		n := flags.fii.num
+		if n <= 0 {
 			n = 1
 		}
+
 		parms := make(map[string]string)
 		// Verbose
-		v, err := cmd.Flags().GetBool(Fverbose)
-		if err == nil && v {
+		if flags.verbose {
 			parms[Fverbose] = "true"
 		}
 		// Report format
-		f, err := cmd.Flags().GetString(Fformat)
-		if err == nil && f != "" {
-			parms[Fformat] = f
-		}
+		parms[Fformat] = flags.fii.dividends.format
 
 		if err := FIIDividends(parms, args, n); err != nil {
 			log.Println(err)
@@ -47,7 +48,8 @@ var fiiDividendsCmd = &cobra.Command{
 
 func init() {
 	fiiCmd.AddCommand(fiiDividendsCmd)
-	fiiDividendsCmd.Flags().StringP(Fformat, "f", "tabela", "formato do relatório: tabela|csv|csvrend")
+	fiiDividendsCmd.Flags().StringVarP(&flags.fii.dividends.format, Fformat,
+		"f", "tabela", "formato do relatório: tabela|csv|csvrend")
 }
 
 //

@@ -1,0 +1,32 @@
+{{define "body"}}
+
+<h2>Rendimentos dos FII</h2>
+
+{{range .}}
+<h3><small>&#9654;</small> {{.Code}}</h3>
+<table>
+  <thead>
+    <tr>
+      <th>Data Com</th>
+      <th>Rendimento</th>
+      <th>Cotação</th>
+      <th>Yeld a.m.</th>
+      <th>Yeld a.a.</th>
+    </tr>
+  </thead>
+  <tbody>
+    {{range .Values}}
+    <tr>
+      <td class="date">{{.Date}}</td>
+      <td class="currency">R$ {{ptFmtFloat .Dividend}}</td>
+      <td class="currency">R$ {{ptFmtFloat .Quote}}</td>
+      <td class="percent">{{ptFmtFloat .Yeld}}%</td>
+      <td class="percent">{{ptFmtFloat .YeldYear}}%</td>
+    </tr>
+    {{end}}
+  </tbody>
+</table>
+
+{{end}}
+
+{{end}}

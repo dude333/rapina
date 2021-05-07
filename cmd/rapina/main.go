@@ -29,6 +29,12 @@ import (
 	"github.com/spf13/viper"
 )
 
+var flags = struct {
+	verbose bool
+	fii     fiiFlags
+	server  serverFlags
+}{}
+
 var cfgFile string
 
 // rootCmd represents the base command when called without any subcommands
@@ -64,7 +70,7 @@ func init() {
 
 	// Cobra also supports local flags, which will only run
 	// when this action is called directly.
-	rootCmd.PersistentFlags().BoolP(Fverbose, "v", false, "Mostrar mensagens de execução")
+	rootCmd.PersistentFlags().BoolVarP(&flags.verbose, Fverbose, "v", false, "Mostrar mensagens de execução")
 
 	str := `Uso:{{if .Runnable}}
   {{.UseLine}}{{end}}{{if .HasAvailableSubCommands}}
