@@ -19,27 +19,33 @@
 
   function submitOnShiftEnter(event) {
     if (event.which === 13 && event.shiftKey) {
-      event.target.form.dispatchEvent(new Event("submit", {
-        cancelable: true
-      }));
       event.preventDefault();
+      localStorage.setItem("textarea_text", event.target.value);
+      event.target.form.submit();
     }
   }
+
+  window.onload = function () {
+    document.getElementById("codes").value = localStorage.textarea_text || "";
+    document.getElementById("codes").onchange = () => {
+      localStorage.setItem("textarea_text", event.target.value);
+    }
+  };
 </script>
 
 <h2>Rendimentos dos FII</h2>
 
-<form method="POST">
+<form id="fii_form" method="POST">
   <label>
     C&oacute;digos:
   </label>
-  <!-- <input type="text" id="codes" name="codes" required minlength="6" size="42" value={{.Codes}}> -->
   <textarea id="codes" name="codes" minlength="6" rows="1" cols="40" required autofocus
     onkeypress="submitOnShiftEnter(event)">{{.Codes}}</textarea>
   <label>
     Meses:
   </label>
-  <input type="text" id="months" name="months" required size="2" value={{.Months}} style="text-align: center;" />
+  <input type="text" id="months" name="months" required size="2" value="{{if .Months}}{{.Months}}{{else}}6{{end}}"
+    style="text-align: center;" />
   <input type="submit" value="Ok" />
 </form>
 
