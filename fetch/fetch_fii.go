@@ -15,7 +15,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
-	"log"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -114,9 +113,43 @@ func (fii FII) dividendsFromDB(code string, n int) (*[]rapina.Dividend, int, err
 // Dividends gets the report IDs for one company ('cnpj') and then the
 // yeld montlhy report for 'n' months, starting from the latest released.
 //
-func (fii FII) dividendsFromServer(code string, n int) (*[]rapina.Dividend, error) {
+// If the number of reports does not match n, it'll retry with a bigger n as
+// sometimes reports from follow-on offerings (FPO).
+//
+func (fii *FII) dividendsFromServer(code string, n int) (*[]rapina.Dividend, error) {
+	if n > 200 {
+		n = 200
+	}
+	nn := n
+	lastLen := -1
+	dividends := &[]rapina.Dividend{}
+
+	for len(*dividends) < n && lastLen != len(*dividends) && nn <= 200 {
+		fii.log.Info("Relatórios de dividendos: %s (n=%d nn=%d len(dividends)=%d)",
+			code, n, nn, len(*dividends))
+
+		ids, err := fii.reportIDs(code, nn)
+		if err != nil {
+			return nil, err
+		}
+		dividends, err = fii.dividendReport(code, ids)
+		if err != nil {
+			return nil, err
+		}
+
+		lastLen = len(*dividends)
+		nn += 2 * (n - len(*dividends))
+	}
+
+	return dividends, nil
+}
+
+//
+// reportIDs gets the 'n' latest report IDs for one company 'code'.
+//
+func (fii *FII) reportIDs(code string, n int) ([]id, error) {
 	var ids []id
-	yeld := make(map[string]string, n)
+
 	if n <= 0 {
 		n = 1
 	}
@@ -127,7 +160,7 @@ func (fii FII) dividendsFromServer(code string, n int) (*[]rapina.Dividend, erro
 	})
 
 	c.OnRequest(func(r *colly.Request) {
-		r.Headers.Set("Accept", "text/html, application/json")
+		r.Headers.Set("Accept", "application/json")
 	})
 
 	c.OnError(func(r *colly.Response, err error) {
@@ -161,7 +194,7 @@ func (fii FII) dividendsFromServer(code string, n int) (*[]rapina.Dividend, erro
 	v := url.Values{
 		"d":                    []string{"2"},
 		"s":                    []string{"0"},
-		"l":                    []string{strconv.Itoa(n)}, // months
+		"l":                    []string{strconv.Itoa(n)}, // 'n' latest reports
 		"o[0][dataEntrega]":    []string{"desc"},
 		"tipoFundo":            []string{"1"},
 		"cnpjFundo":            []string{cnpj},
@@ -178,6 +211,28 @@ func (fii FII) dividendsFromServer(code string, n int) (*[]rapina.Dividend, erro
 	if err := c.Visit(u); err != nil {
 		return nil, err
 	}
+
+	return ids, nil
+}
+
+//
+// dividendReport parses the dividend reports and return their dividends.
+//
+func (fii *FII) dividendReport(code string, ids []id) (*[]rapina.Dividend, error) {
+	yeld := make(map[string]string, len(ids))
+
+	c := colly.NewCollector()
+	c.WithTransport(&http.Transport{
+		TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+	})
+
+	c.OnRequest(func(r *colly.Request) {
+		r.Headers.Set("Accept", "text/html")
+	})
+
+	c.OnError(func(r *colly.Response, err error) {
+		fii.log.Error("Request URL: %v failed with response: %v\nError: %v", r.Request.URL, string(r.Body), err)
+	})
 
 	// Handles the html report
 	c.OnHTML("tr", func(e *colly.HTMLElement) {
@@ -197,15 +252,15 @@ func (fii FII) dividendsFromServer(code string, n int) (*[]rapina.Dividend, erro
 	})
 
 	// Get the yeld monthly report given the list of 'report IDs' -- returns HTML
-	dividends := make([]rapina.Dividend, 0, n)
-	for _, i := range ids {
-		u = fmt.Sprintf("https://fnet.bmfbovespa.com.br/fnet/publico/exibirDocumento?id=%d&cvm=true", i)
+	dividends := make([]rapina.Dividend, 0, len(ids))
+	for _, id := range ids {
+		u := fmt.Sprintf("https://fnet.bmfbovespa.com.br/fnet/publico/exibirDocumento?id=%d&cvm=true", id)
 		if err := c.Visit(u); err != nil {
 			return nil, err
 		}
 		d, err := fii.parser.SaveDividend(yeld)
 		if err != nil {
-			log.Println("[x]", err)
+			fii.log.Error("%v", err)
 			continue
 		}
 		// fmt.Println("from server", d.Code, d.Date, d.Val)
@@ -221,7 +276,7 @@ func (fii FII) dividendsFromServer(code string, n int) (*[]rapina.Dividend, erro
 // CNPJ returns the FII CNPJ from DB. If not found:
 // fetches from server, stores it in the DB and returns the CNPJ.
 //
-func (fii FII) CNPJ(fiiCode string) (string, error) {
+func (fii *FII) CNPJ(fiiCode string) (string, error) {
 	if len(fiiCode) != 4 && len(fiiCode) != 6 {
 		return "", fmt.Errorf("wrong code '%s'", fiiCode)
 	}
