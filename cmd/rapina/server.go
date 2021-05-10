@@ -5,13 +5,14 @@ Distributed under the MIT License.
 package main
 
 import (
+	"log"
+
 	"github.com/dude333/rapina/reports"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
 
 type serverFlags struct {
-	num int
 }
 
 // serverCmd represents the server command
@@ -20,23 +21,20 @@ var serverCmd = &cobra.Command{
 	Short: "Inicia o servidor web",
 	Long:  `Comando para iniciar o servidor para a exibição dos dados via web browser.`,
 	Run: func(cmd *cobra.Command, args []string) {
-		// Number of reports
-		n := flags.server.num
-		if n <= 0 {
-			n = 1
+		err := server(nil)
+		if err != nil {
+			log.Println(err)
 		}
-
-		server(args, n, nil)
 	},
 }
 
 func init() {
 	rootCmd.AddCommand(serverCmd)
-	serverCmd.Flags().IntVarP(&flags.server.num,
-		Fnum, "n", 1, "número de meses desde o último disponível")
+	// serverCmd.Flags().IntVarP(&flags.server.num,
+	// 	Fnum, "n", 1, "número de meses desde o último disponível")
 }
 
-func server(codes []string, n int, parms map[string]string) error {
+func server(parms map[string]string) error {
 
 	db, err := openDatabase()
 	if err != nil {
@@ -44,8 +42,6 @@ func server(codes []string, n int, parms map[string]string) error {
 	}
 
 	reports.HTMLServer(
-		codes,
-		n,
 		reports.WithDB(db),
 		reports.WithAPIKey(viper.GetString("apikey")),
 		reports.WithDataDir(dataDir))

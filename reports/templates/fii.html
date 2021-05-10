@@ -1,10 +1,54 @@
 {{define "body"}}
 
+<script type="text/javascript">
+  function toggle(event, id) {
+    const e = document.getElementById(id);
+    if (e.style.display == "none") {
+      e.style.display = "block";
+      e.style.opacity = 1;
+      event.target.querySelector("span").innerHTML = "&#11206;";
+    } else {
+      e.style.opacity = 0;
+      event.target.querySelector("span").innerHTML = "&#11208;";
+      window.setTimeout(
+        function removethis() {
+          e.style.display = 'none';
+        }, 100);
+    }
+  }
+
+  function submitOnShiftEnter(event) {
+    if (event.which === 13 && event.shiftKey) {
+      event.target.form.dispatchEvent(new Event("submit", {
+        cancelable: true
+      }));
+      event.preventDefault();
+    }
+  }
+</script>
+
 <h2>Rendimentos dos FII</h2>
 
-{{range .}}
-<h3><small>&#9654;</small> {{.Code}}</h3>
-<table>
+<form method="POST">
+  <label>
+    C&oacute;digos:
+  </label>
+  <!-- <input type="text" id="codes" name="codes" required minlength="6" size="42" value={{.Codes}}> -->
+  <textarea id="codes" name="codes" minlength="6" rows="1" cols="40" required autofocus
+    onkeypress="submitOnShiftEnter(event)">{{.Codes}}</textarea>
+  <label>
+    Meses:
+  </label>
+  <input type="text" id="months" name="months" required size="2" value={{.Months}} style="text-align: center;" />
+  <input type="submit" value="Ok" />
+</form>
+
+
+{{range .Data}}
+<h3 onclick="toggle(event, '{{.Code}}');">
+  <span>&#11206;</span> {{.Code}}
+</h3>
+<table id="{{.Code}}" class="report">
   <thead>
     <tr>
       <th>Data Com</th>

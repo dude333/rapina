@@ -7,7 +7,10 @@ import (
 	"log"
 	"math"
 	"net/http"
+	"os"
 	"path/filepath"
+	"strconv"
+	"strings"
 
 	"github.com/dude333/rapina/fetch"
 	"github.com/dude333/rapina/parsers"
@@ -52,7 +55,7 @@ func initServer(opts ...ServerOption) (*Server, error) {
 	}
 
 	srv.db.SetMaxOpenConns(1)
-	log := NewLogger(nil)
+	log := NewLogger(os.Stderr)
 	stockParser := parsers.NewStock(srv.db, log)
 	fiiParser, err := parsers.NewFII(srv.db, log)
 	if err != nil {
@@ -70,14 +73,14 @@ func initServer(opts ...ServerOption) (*Server, error) {
 
 // HTMLServer based on
 // https://www.alexedwards.net/blog/serving-static-sites-with-go
-func HTMLServer(codes []string, n int, opts ...ServerOption) {
+func HTMLServer(opts ...ServerOption) {
 	srv, err := initServer(opts...)
 	if err != nil {
 		log.Fatal(err)
 	}
 
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		serveTemplate(w, r, srv, codes, n)
+		serveTemplate(w, r, srv)
 	})
 
 	log.Println("Listening on :3000...")
@@ -87,7 +90,7 @@ func HTMLServer(codes []string, n int, opts ...ServerOption) {
 	}
 }
 
-func serveTemplate(w http.ResponseWriter, r *http.Request, srv *Server, codes []string, n int) {
+func serveTemplate(w http.ResponseWriter, r *http.Request, srv *Server) {
 	lp := filepath.Join("templates", "layout.html")
 	fp := filepath.Join("templates", filepath.Clean(r.URL.Path))
 	if fp == "templates" {
@@ -104,9 +107,23 @@ func serveTemplate(w http.ResponseWriter, r *http.Request, srv *Server, codes []
 		return
 	}
 
-	data := fiiDividends(srv, codes, n)
+	var payload struct {
+		Codes  string
+		Months int
+		Data   interface{}
+	}
+	if strings.Contains(fp, "fii.html") && r.Method == http.MethodPost {
+		codes := parseCodes(r.FormValue("codes"))
+		months, err := strconv.Atoi(r.FormValue("months"))
+		if err != nil {
+			months = 1
+		}
+		payload.Codes = strings.Join(codes, " ")
+		payload.Months = months
+		payload.Data = fiiDividends(srv, codes, months)
+	}
 
-	err = tmpl.ExecuteTemplate(w, "layout", data)
+	err = tmpl.ExecuteTemplate(w, "layout", payload)
 	if err != nil {
 		log.Println(err)
 	}
@@ -128,6 +145,7 @@ func fiiDividends(srv *Server, codes []string, n int) *[]data {
 	var dataset []data
 
 	for _, code := range codes {
+		code = strings.ToUpper(code)
 		values := make([]value, 0, n)
 
 		div, err := srv.fetchFII.Dividends(code, n)
@@ -160,6 +178,7 @@ func fiiDividends(srv *Server, codes []string, n int) *[]data {
 			Code:   code,
 			Values: values,
 		}
+
 		dataset = append(dataset, d)
 	}
 
@@ -169,4 +188,20 @@ func fiiDividends(srv *Server, codes []string, n int) *[]data {
 func ptFmtFloat(f float64) string {
 	p := message.NewPrinter(language.BrazilianPortuguese)
 	return p.Sprintf("%.2f", f)
+}
+
+func split(r rune) bool {
+	return r == ' ' || r == ',' || r == ';' || r == '\n'
+}
+
+func parseCodes(text string) []string {
+	var codes []string
+	for _, field := range strings.FieldsFunc(text, split) {
+		field = strings.TrimSpace(field)
+		if len(field) == len("ABCD11") {
+			codes = append(codes, field)
+		}
+	}
+
+	return codes
 }
