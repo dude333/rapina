@@ -71,8 +71,7 @@ func initServer(opts ...ServerOption) (*Server, error) {
 	return &srv, nil
 }
 
-// HTMLServer based on
-// https://www.alexedwards.net/blog/serving-static-sites-with-go
+// HTMLServer is a very basic html server to show the reports.
 func HTMLServer(opts ...ServerOption) {
 	srv, err := initServer(opts...)
 	if err != nil {
@@ -101,7 +100,7 @@ func serveTemplate(w http.ResponseWriter, r *http.Request, srv *Server) {
 
 	tmpl, err := template.New("").Funcs(template.FuncMap{
 		"ptFmtFloat": ptFmtFloat,
-	}).ParseFiles(lp, fp)
+	}).ParseFS(_fs, lp, fp)
 	if err != nil {
 		log.Println(err)
 		return

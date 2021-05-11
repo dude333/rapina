@@ -285,7 +285,6 @@ func (fii *FII) Details(fiiCode string) (*rapina.FIIDetails, error) {
 
 	details, err := fii.parser.Details(fiiCode)
 	if err == nil && details.DetailFund.CNPJ != "" {
-		fii.log.Debug("CPNJ encontrado: %s", details.DetailFund.CNPJ)
 		return details, nil
 	}
 
