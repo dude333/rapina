@@ -15,7 +15,7 @@ import "io"
 // SaveDividend parses and stores a fetched stream with dividends data and
 // returns a structured dividend object.
 type FIIParser interface {
-	CNPJ(code string) (string, error)
+	Details(code string) (*FIIDetails, error)
 	StoreFIIDetails(stream []byte) error
 	Dividends(code, monthYear string) (*[]Dividend, error)
 	SaveDividend(stream map[string]string) (*Dividend, error)

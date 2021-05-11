@@ -64,38 +64,48 @@ func (fii *FIIParser) StoreFIIDetails(stream []byte) error {
 	fii.mu.Lock()
 	defer fii.mu.Unlock()
 
-	insert := "INSERT OR IGNORE INTO fii_details (cnpj, acronym, trading_code) VALUES (?,?,?)"
-	_, err := fii.db.Exec(insert, x.CNPJ, x.Acronym, x.TradingCode)
+	insert := `INSERT OR IGNORE INTO fii_details 
+		(cnpj, acronym, trading_code, json) 
+		VALUES (?,?,?,?);`
+	_, err := fii.db.Exec(insert,
+		x.CNPJ, x.Acronym, x.TradingCode, stream)
 
 	return err
 }
 
 //
-// CNPJ returns the FII CNPJ for the 'code' or
+// Details returns the FII Details for the 'code' or
 // an empty string if not found in the db.
 //
-func (fii *FIIParser) CNPJ(code string) (string, error) {
+func (fii *FIIParser) Details(code string) (*rapina.FIIDetails, error) {
+	details := rapina.FIIDetails{}
+
 	if fii.db == nil {
-		return "", ErrDBUnset
+		return nil, ErrDBUnset
 	}
 
 	var query string
 	if len(code) == 4 {
-		query = `SELECT cnpj FROM fii_details WHERE acronym=?`
+		query = `SELECT json FROM fii_details WHERE acronym=?`
 	} else if len(code) == 6 {
-		query = `SELECT cnpj FROM fii_details WHERE trading_code=?`
+		query = `SELECT json FROM fii_details WHERE trading_code=?`
 	} else {
-		return "", fmt.Errorf("invalid code '%s'", code)
+		return nil, fmt.Errorf("invalid code '%s'", code)
 	}
 
-	var cnpj string
+	var jsonStr []byte
 	row := fii.db.QueryRow(query, code)
-	err := row.Scan(&cnpj)
+	err := row.Scan(&jsonStr)
 	if err != nil && err != sql.ErrNoRows {
-		return "", err
+		return nil, err
 	}
 
-	return cnpj, nil
+	if err := json.Unmarshal(jsonStr, &details); err != nil {
+		fii.log.Error("FII details [%v]: %s\n", err, string(jsonStr))
+		return nil, errors.Wrap(err, "json unmarshal")
+	}
+
+	return &details, nil
 }
 
 //

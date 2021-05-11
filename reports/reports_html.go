@@ -131,6 +131,7 @@ func serveTemplate(w http.ResponseWriter, r *http.Request, srv *Server) {
 
 type data struct {
 	Code   string
+	Name   string
 	Values []value
 }
 type value struct {
@@ -174,8 +175,17 @@ func fiiDividends(srv *Server, codes []string, n int) *[]data {
 			values = append(values, v)
 		}
 
+		details, err := srv.fetchFII.Details(code)
+		var name string
+		if err == nil {
+			name = details.DetailFund.CompanyName
+		} else {
+			srv.log.Debug("Nome não encontrado: %v", err)
+		}
+
 		d := data{
 			Code:   code,
+			Name:   name,
 			Values: values,
 		}
 

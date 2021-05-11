@@ -187,10 +187,12 @@ func (fii *FII) reportIDs(code string, n int) ([]id, error) {
 
 	// Parameters to list the report IDs for the last 'n' dividend reports
 	timestamp := strconv.FormatInt(int64(time.Now().UnixNano()/1e6), 10)
-	cnpj, err := fii.CNPJ(code)
+	d, err := fii.Details(code)
 	if err != nil {
+		fii.log.Debug("[reportID] error on fii.Details(%s): %v", code, err)
 		return nil, err
 	}
+	cnpj := d.DetailFund.CNPJ
 	v := url.Values{
 		"d":                    []string{"2"},
 		"s":                    []string{"0"},
@@ -273,21 +275,21 @@ func (fii *FII) dividendReport(code string, ids []id) (*[]rapina.Dividend, error
 }
 
 //
-// CNPJ returns the FII CNPJ from DB. If not found:
-// fetches from server, stores it in the DB and returns the CNPJ.
+// Details returns the FII Details from DB. If not found:
+// fetches from server, stores it in the DB and returns the Details.
 //
-func (fii *FII) CNPJ(fiiCode string) (string, error) {
+func (fii *FII) Details(fiiCode string) (*rapina.FIIDetails, error) {
 	if len(fiiCode) != 4 && len(fiiCode) != 6 {
-		return "", fmt.Errorf("wrong code '%s'", fiiCode)
+		return nil, fmt.Errorf("wrong code '%s'", fiiCode)
 	}
 
-	cnpj, err := fii.parser.CNPJ(fiiCode)
-	if err != nil {
-		return "", err
+	details, err := fii.parser.Details(fiiCode)
+	if err == nil && details.DetailFund.CNPJ != "" {
+		fii.log.Debug("CPNJ encontrado: %s", details.DetailFund.CNPJ)
+		return details, nil
 	}
-	if cnpj != "" {
-		return cnpj, nil
-	}
+
+	fii.log.Debug("FII details não encontrado no bd. Consultando web...")
 
 	// Fetch from server if not found in the database
 	data := fmt.Sprintf(`{"typeFund":7,"cnpj":"0","identifierFund":"%s"}`, fiiCode[0:4])
@@ -306,20 +308,23 @@ func (fii *FII) CNPJ(fiiCode string) (string, error) {
 
 	resp, err := client.Get(fundDetailURL)
 	if err != nil {
-		return "", err
+		return details, err
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != 200 {
-		return "", fmt.Errorf("%s: %s", resp.Status, fundDetailURL)
+		return details, fmt.Errorf("%s: %s", resp.Status, fundDetailURL)
 	}
 
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
-		return "", errors.Wrap(err, "read body")
+		return details, errors.Wrap(err, "read body")
 	}
 
-	_ = fii.parser.StoreFIIDetails(body)
+	err = fii.parser.StoreFIIDetails(body)
+	if err != nil {
+		return details, errors.Wrap(err, "store details")
+	}
 
-	return fii.parser.CNPJ(fiiCode)
+	return fii.parser.Details(fiiCode)
 }

@@ -79,7 +79,8 @@ var createTableMap = map[string]string{
 	(
 		cnpj TEXT NOT NULL PRIMARY KEY,
 		acronym varchar(4),
-		trading_code varchar(6)
+		trading_code varchar(6),
+		json varchar
 	);`,
 
 	"stock_quotes": `CREATE TABLE IF NOT EXISTS stock_quotes

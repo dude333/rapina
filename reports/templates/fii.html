@@ -2,18 +2,33 @@
 
 <script type="text/javascript">
   function toggle(event, id) {
+    console.log("=>", event.target.tagName)
     const e = document.getElementById(id);
     if (e.style.display == "none") {
       e.style.display = "block";
       e.style.opacity = 1;
-      event.target.querySelector("span").innerHTML = "&#11206;";
+      setToggleText(event.target, "&#11206;")
     } else {
       e.style.opacity = 0;
-      event.target.querySelector("span").innerHTML = "&#11208;";
+      setToggleText(event.target, "&#11208;")
       window.setTimeout(
         function removethis() {
           e.style.display = 'none';
         }, 100);
+    }
+  }
+
+  function setToggleText(target, text) {
+    switch (target.tagName) {
+      case "SPAN":
+        target.innerHTML = text;
+        break;
+      case "H3":
+        event.target.querySelector("span").innerHTML = text;
+        break;
+      case "SMALL":
+        event.target.parentNode.querySelector("span").innerHTML = text;
+        break;
     }
   }
 
@@ -53,6 +68,7 @@
 {{range .Data}}
 <h3 onclick="toggle(event, '{{.Code}}');">
   <span>&#11206;</span> {{.Code}}
+  <small style="color: royalblue; padding-left: 2em;">{{.Name}}</small>
 </h3>
 <table id="{{.Code}}" class="report">
   <thead>
