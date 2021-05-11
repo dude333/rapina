@@ -7,7 +7,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        go: ['1.16', '1.14', '1.13']
+        go: ['1.16']
         platform: [ubuntu-latest, windows-latest]
     runs-on: ${{ matrix.platform }}
     steps:
@@ -58,7 +58,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        go_version: [ 1.14.x ]
+        go_version: [ 1.16.x ]
 
     runs-on: ubuntu-latest
 
@@ -76,7 +76,7 @@ jobs:
         with:
           xgo_version: latest
           go_version: ${{ matrix.go_version }}
-          pkg: cli
+          pkg: cmd/rapina
           dest: build
           prefix: rapina-${{ steps.tag.outputs.tag }}
           targets: windows/386,windows/amd64,linux/386,linux/amd64,darwin/386,darwin/amd64
