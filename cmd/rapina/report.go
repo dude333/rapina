@@ -81,7 +81,7 @@ func report(company string) {
 	r["ExtraRatios"] = extraRatios
 	r["ShowShares"] = showShares
 	r["Fleuriet"] = fleuriet
-	r["Sector"] = !omitSector
+	r["PrintSector"] = !omitSector
 
 	parms := Parms{
 		Company:   company,
@@ -159,12 +159,13 @@ func Report(p Parms) (err error) {
 		return err
 	}
 
-	parms := reports.Parms{
-		DB:       db,
-		Company:  p.Company,
-		Filename: file,
-		YamlFile: p.YamlFile,
-		Reports:  p.Reports,
+	parms := map[string]interface{}{
+		"db":       db,
+		"dataDir":  dataDir,
+		"company":  p.Company,
+		"filename": file,
+		"yamlFile": p.YamlFile,
+		"reports":  p.Reports,
 	}
 	return reports.Report(parms)
 }

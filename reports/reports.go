@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
+	"path"
 	"strconv"
 	"strings"
 
@@ -32,45 +33,80 @@ type metric struct {
 
 // report parameters used in most functions
 type report struct {
-	// Sqlite3 handle passed by the caller
-	db *sql.DB
-
-	// yamlFile contains the sector data for all companies
-	yamlFile string
-
 	// average metric values/year. Index 0: year, index 1: metric
 	average [][]float32
 
 	// groups that will be printed on the output xlsx
+	//   - ExtraRatios: enables some extra financial ratios on report
+	//   - ShowShares: shows the number of shares and free float on report
+	//   - Sector: creates a sheet with the sector report
 	groups map[int]bool
+
+	// if true will print the reports for comanpanies in the same sector
+	printSector bool
+
+	/* Parameters from caller */
+	dataDir  string  // Directory for temporary data
+	db       *sql.DB // Sqlite3 handler
+	company  string  // company name to be processed
+	filename string  // path and filename of the output xlsx
+	yamlFile string  // file with the companies' sectors
+}
+
+func initReport(parms map[string]interface{}) *report {
+	var r report
+
+	r.dataDir = path.Join(".", "data")
+	if v, ok := parms["dataDir"]; ok {
+		r.dataDir = v.(string)
+	}
+	if v, ok := parms["db"]; ok {
+		r.db = v.(*sql.DB)
+	}
+	if v, ok := parms["company"]; ok {
+		r.company = v.(string)
+	}
+	if v, ok := parms["filename"]; ok {
+		r.filename = v.(string)
+	}
+	if v, ok := parms["yamlFile"]; ok {
+		r.yamlFile = v.(string)
+	}
+	if v, ok := parms["reports"]; ok {
+		p := v.(map[string]bool)
+		r.groups = make(map[int]bool, 4)
+		r.groups[grpAccts] = true
+		r.groups[grpShares] = p["ShowShares"]
+		r.groups[grpExtra] = p["ExtraRatios"]
+		r.groups[grpFleuriet] = p["Fleuriet"]
+
+		r.printSector = true
+		if v, ok := p["PrintSector"]; ok {
+			r.printSector = v
+		}
+	}
+
+	return &r
 }
 
 //
 // Report of company data from DB to Excel
 //
-func Report(p Parms) error {
-	cid, err := cid(p.DB, p.Company)
-	if err != nil {
-		return fmt.Errorf("empresa '%s' não encontrada no banco de dados", p.Company)
-	}
-
+func Report(p map[string]interface{}) error {
 	// Initialize report object
-	r := report{
-		db:       p.DB,
-		yamlFile: p.YamlFile,
+	r := initReport(p)
+
+	cid, err := cid(r.db, r.company)
+	if err != nil {
+		return fmt.Errorf("empresa '%s' não encontrada no banco de dados", r.company)
 	}
-	r.groups = make(map[int]bool, 3)
-	r.groups[grpAccts] = true
-	r.groups[grpShares] = p.Reports["ShowShares"]
-	r.groups[grpExtra] = p.Reports["ExtraRatios"]
-	r.groups[grpFleuriet] = p.Reports["Fleuriet"]
 
 	e := newExcel()
-	sheet, _ := e.newSheet(p.Company)
+	sheet, _ := e.newSheet(r.company)
 
 	// Company name
 	sheet.mergeCell("A1", "B1")
-	sheet.print("A1", &[]string{p.Company}, LEFT, true)
+	sheet.print("A1", &[]string{r.company}, LEFT, true)
 
 	// ACCOUNT NUMBERING AND DESCRIPTION (COLS A AND B) ===============\/
 	accounts, _ := r.accountsItems(cid)
@@ -222,20 +258,20 @@ func Report(p Parms) error {
 	sheet.autoWidth()
 
 	// SECTOR REPORT
-	if p.Reports["Sector"] {
+	if r.printSector {
 		sheet2, err := e.newSheet("SETOR")
 		if err == nil {
 			_ = sheet2.xlsx.SetSheetViewOptions(sheet2.name, 0,
 				excelize.ShowGridLines(false),
 				excelize.ZoomScale(80),
 			)
-			_ = r.sectorReport(sheet2, p.Company)
+			_ = r.sectorReport(sheet2, r.company)
 		}
 	}
 
-	err = e.saveAndCloseExcel(p.Filename)
+	err = e.saveAndCloseExcel(r.filename)
 	if err == nil {
-		fmt.Printf("[√] Dados salvos em %s\n", p.Filename)
+		fmt.Printf("[√] Dados salvos em %s\n", r.filename)
 	}
 
 	return err
