@@ -7,6 +7,7 @@ import (
 	"log"
 	"math"
 	"net/http"
+	"net/url"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -129,9 +130,10 @@ func serveTemplate(w http.ResponseWriter, r *http.Request, srv *Server) {
 }
 
 type data struct {
-	Code   string
-	Name   string
-	Values []value
+	Code    string
+	Name    string
+	Website string
+	Values  []value
 }
 type value struct {
 	Date     string
@@ -174,18 +176,23 @@ func fiiDividends(srv *Server, codes []string, n int) *[]data {
 			values = append(values, v)
 		}
 
+		// FII details, if found
 		details, err := srv.fetchFII.Details(code)
-		var name string
+		var name, a string
 		if err == nil {
 			name = details.DetailFund.CompanyName
-		} else {
-			srv.log.Debug("Nome não encontrado: %v", err)
+			u, err := url.Parse(details.DetailFund.WebSite)
+			if err == nil && u.Scheme == "" {
+				u.Scheme = "https"
+				a = u.String()
+			}
 		}
 
 		d := data{
-			Code:   code,
-			Name:   name,
-			Values: values,
+			Code:    code,
+			Name:    name,
+			Website: a,
+			Values:  values,
 		}
 
 		dataset = append(dataset, d)

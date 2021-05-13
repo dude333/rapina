@@ -2,7 +2,7 @@
 
 <script type="text/javascript">
   function toggle(event, id) {
-    console.log("=>", event.target.tagName)
+    if (event.target.tagName == "A") return;
     const e = document.getElementById(id);
     if (e.style.display == "none") {
       e.style.display = "block";
@@ -66,9 +66,9 @@
 
 
 {{range .Data}}
-<h3 onclick="toggle(event, '{{.Code}}');">
+<h3 onclick="toggle(event, '{{.Code}}');" style="cursor: default;">
   <span>&#11206;</span> {{.Code}}
-  <small style="color: royalblue; padding-left: 2em;">{{.Name}}</small>
+  <a href="{{.Website}}" target="_blank" class="small blue">{{.Name}}</a>
 </h3>
 <table id="{{.Code}}" class="report">
   <thead>
