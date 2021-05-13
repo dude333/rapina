@@ -118,3 +118,37 @@ func TestMonthsFromToday(t *testing.T) {
 		})
 	}
 }
+
+func TestLastBusinessDayOfYear(t *testing.T) {
+	type args struct {
+		year int
+	}
+	tests := []struct {
+		name string
+		args args
+		want string
+	}{
+		{
+			name: "2020",
+			args: args{2020},
+			want: "2020-12-31",
+		},
+		{
+			name: "2017",
+			args: args{2017},
+			want: "2017-12-29",
+		},
+		{
+			name: "2016",
+			args: args{2016},
+			want: "2016-12-30",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := LastBusinessDayOfYear(tt.args.year); got != tt.want {
+				t.Errorf("LastBusinessDayOfYear() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}

@@ -71,3 +71,18 @@ func MonthsFromToday(n int) []string {
 
 	return monthYears
 }
+
+// LastBusinessDayOfYear returns the last business day of the 'year'.
+// Returns date as YYYY-MM-DD.
+func LastBusinessDayOfYear(year int) string {
+	date := time.Date(year, time.December, 31, 12, 0, 0, 0, time.UTC)
+
+	if date.Weekday() == time.Saturday {
+		date = date.AddDate(0, 0, -1)
+	}
+	if date.Weekday() == time.Sunday {
+		date = date.AddDate(0, 0, -2)
+	}
+
+	return date.Format("2006-01-02")
+}
