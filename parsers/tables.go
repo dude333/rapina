@@ -9,6 +9,7 @@ import (
 
 const currentDbVersion = 210305
 const currentFIIDbVersion = 210426
+const currentStockCodesVersion = 210305
 const currentStockQuotesVersion = 210305
 
 var createTableMap = map[string]string{
@@ -68,6 +69,14 @@ var createTableMap = map[string]string{
 		"ID" INTEGER NOT NULL PRIMARY KEY,
 		"CNPJ" varchar(20),
 		"NAME" varchar(100)
+	);`,
+
+	"stock_codes": `CREATE TABLE IF NOT EXISTS companies
+	(
+		"trading_code"  VARCHAR NOT NULL PRIMARY KEY,
+		"company_name"  VARCHAR,
+		"SpcfctnCd"     VARCHAR,
+		"CorpGovnLvlNm" VARCHAR
 	);`,
 
 	"md5": `CREATE TABLE IF NOT EXISTS md5
@@ -142,6 +151,8 @@ func whatTable(dataType string) (table string, err error) {
 		table = dataType
 	case "fii_dividends":
 		table = dataType
+	case "stock_codes":
+		table = dataType
 	case "stock_quotes":
 		table = dataType
 	default:
@@ -181,6 +192,8 @@ func createTable(db *sql.DB, dataType string) (err error) {
 		version = currentFIIDbVersion
 	case "fii_dividends":
 		version = currentFIIDbVersion
+	case "stock_codes":
+		version = currentStockCodesVersion
 	case "stock_quotes":
 		version = currentStockQuotesVersion
 	}

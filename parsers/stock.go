@@ -32,16 +32,33 @@ type stockQuote struct {
 	Volume float64
 }
 
-type StockParser struct {
-	db   *sql.DB
-	stmt *sql.Stmt
-	log  rapina.Logger
-	mu   sync.Mutex // ensures atomic writes to db
+type stockCode struct {
+	TckrSymb      string // Code
+	SgmtNm        string // value: CASH
+	SctyCtgyNm    string // values: SHARES, UNIT, FUNDS
+	CrpnNm        string // Company name
+	SpcfctnCd     string // values: ON, ON NM, PN N2, etc.
+	CorpGovnLvlNm string // values: NOVO MERCADO, NIVEL 2, etc.
 }
 
-func NewStock(db *sql.DB, log rapina.Logger) *StockParser {
+type StockParser struct {
+	db  *sql.DB
+	log rapina.Logger
+	mu  sync.Mutex // ensures atomic writes to db
+}
+
+//
+// NewStock creates the required tables, if necessary, and returns a StockParser instance.
+//
+func NewStock(db *sql.DB, log rapina.Logger) (*StockParser, error) {
+	for _, t := range []string{"status", "stock_quotes", "stock_codes"} {
+		if err := createTable(db, t); err != nil {
+			return nil, err
+		}
+	}
+
 	s := &StockParser{db: db, log: log}
-	return s
+	return s, nil
 }
 
 //
@@ -97,7 +114,7 @@ func (s *StockParser) populateStockQuotes(filename string) error {
 		if len(line) == 0 {
 			continue
 		}
-		q, err := parseB3(line)
+		q, err := parseB3Quote(line)
 		if err != nil {
 			continue // ignore line
 		}
@@ -116,81 +133,6 @@ func (s *StockParser) populateStockQuotes(filename string) error {
 	return nil
 }
 
-// parseB3 parses the line based on this layout:
-// http://www.b3.com.br/data/files/33/67/B9/50/D84057102C784E47AC094EA8/SeriesHistoricas_Layout.pdf
-//
-//   CAMPO/CONTEÚDO  TIPO E TAMANHO  POS. INIC.	 POS. FINAL
-//   TIPREG “01”     N(02)           01          02
-//   DATA “AAAAMMDD” N(08)           03          10
-//   CODBDI          X(02)           11          12
-//   CODNEG          X(12)           13          24
-//   TPMERC          N(03)           25          27
-//   PREABE          (11)V99         57          69
-//   PREMAX          (11)V99         70          82
-//   PREMIN          (11)V99         83          95
-//   PREULT          (11)V99         109         121
-//   QUATOT          N18             153         170
-//   VOLTOT          (16)V99         171         188
-//
-// CODBDI:
-//   02 LOTE PADRÃO
-//   12 FUNDO IMOBILIÁRIO
-//
-// TPMERC:
-//   010 VISTA
-//   020 FRACIONÁRIO
-func parseB3(line string) (*stockQuote, error) {
-	if len(line) != 245 {
-		return nil, errors.New("linha deve conter 245 bytes")
-	}
-
-	recType := line[0:2]
-	if recType != "01" {
-		return nil, fmt.Errorf("registro %s ignorado", recType)
-	}
-
-	codBDI := line[10:12]
-	if codBDI != "02" && codBDI != "12" {
-		return nil, fmt.Errorf("BDI %s ignorado", codBDI)
-	}
-
-	tpMerc := line[24:27]
-	if tpMerc != "010" && tpMerc != "020" {
-		return nil, fmt.Errorf("tipo de mercado %s ignorado", tpMerc)
-	}
-
-	date := line[2:6] + "-" + line[6:8] + "-" + line[8:10]
-	code := strings.TrimSpace(line[12:24])
-
-	numRanges := [5]struct {
-		i, f int
-	}{
-		{56, 69},   // PREABE = open
-		{69, 82},   // PREMAX = high
-		{82, 95},   // PREMIN = low
-		{108, 121}, // PREULT = close
-		{170, 188}, // VOLTOT = volume
-	}
-	var vals [5]int
-	for i, r := range numRanges {
-		num, err := strconv.Atoi(line[r.i:r.f])
-		if err != nil {
-			return nil, err
-		}
-		vals[i] = num
-	}
-
-	return &stockQuote{
-		Stock:  code,
-		Date:   date,
-		Open:   float64(vals[0]) / 100,
-		High:   float64(vals[1]) / 100,
-		Low:    float64(vals[2]) / 100,
-		Close:  float64(vals[3]) / 100,
-		Volume: float64(vals[4]) / 100,
-	}, nil
-}
-
 //
 // Save parses the 'stream', get the 'code' stock quotes and
 // store it on 'db'. Returns the number of registers saved.
@@ -203,41 +145,51 @@ func (s *StockParser) Save(stream io.Reader, code string) (int, error) {
 		return 0, errors.New("sem dados")
 	}
 
-	if err := s.open(); err != nil {
+	scanner := bufio.NewScanner(stream)
+
+	// Read 1st line
+	scanner.Scan()
+	prov := provider(scanner.Text())
+
+	var r rec
+	if err := r.open(s.db, prov); err != nil {
 		return 0, err
 	}
-	defer s.close()
+	defer r.close()
 
 	// Read stream, line by line
-	var count, prov int
-	isHeader := true
-	scanner := bufio.NewScanner(stream)
+	var count int
 	for scanner.Scan() {
 		line := scanner.Text()
 
-		if isHeader {
-			prov = provider(line)
-			isHeader = false
-			continue
-		}
-
 		var q *stockQuote
+		var c *stockCode
 		var err error
 		switch prov {
-		case b3:
-			q, err = parseB3(line)
+		case b3Quotes:
+			q, err = parseB3Quote(line)
 		case yahoo:
 			q, err = parseYahoo(line, code)
 		case alphaVantage:
 			q, err = parseAlphaVantage(line, code)
+		case b3Codes:
+			c, err = parseB3Code(line)
 		}
 		if err != nil {
 			continue // ignore lines with error
 		}
 
-		err = s.store(q)
-		if err == nil {
-			count++
+		if q != nil {
+			err = r.storeQuote(q)
+			if err == nil {
+				count++
+			}
+		}
+		if c != nil {
+			err = r.storeCode(c)
+			if err == nil {
+				count++
+			}
 		}
 	}
 
@@ -249,21 +201,26 @@ func (s *StockParser) Save(stream io.Reader, code string) (int, error) {
 }
 
 // open prepares the insert statement.
-func (s *StockParser) open() error {
+func (s *rec) open(db *sql.DB, provider int) error {
 	var err error
 	insert := `INSERT OR IGNORE INTO stock_quotes 
 	(stock, date, open, high, low, close, volume) VALUES (?,?,?,?,?,?,?);`
 
-	s.stmt, err = s.db.Prepare(insert)
+	if provider == b3Codes {
+		insert = `INSERT OR IGNORE INTO stock_codes 
+	(trading_code, company_name, SpcfctnCd, CorpGovnLvlNm) VALUES (?,?,?,?);`
+	}
+
+	s.stmt, err = db.Prepare(insert)
 	if err != nil || s.stmt == nil {
-		return errors.Wrap(err, "insert on stock_quotes")
+		return errors.Wrap(err, "insert on db")
 	}
 
 	return nil
 }
 
-// store stores the data using the insert statement.
-func (s *StockParser) store(q *stockQuote) error {
+// storeQuote stores the data using the insert statement.
+func (s *rec) storeQuote(q *stockQuote) error {
 	if s.stmt == nil {
 		return errors.New("sql statement not initalized")
 	}
@@ -294,8 +251,37 @@ func (s *StockParser) store(q *stockQuote) error {
 	return nil
 }
 
+// storeQuote stores the data using the insert statement.
+func (s *rec) storeCode(c *stockCode) error {
+	if s.stmt == nil {
+		return errors.New("sql statement not initalized")
+	}
+
+	s.mu.Lock()
+
+	res, err := s.stmt.Exec(
+		c.TckrSymb, // trading_code
+		c.CrpnNm,   // company_name
+		c.SpcfctnCd,
+		c.CorpGovnLvlNm,
+	)
+
+	s.mu.Unlock()
+
+	if err != nil {
+		return errors.Wrap(err, "salvando códigos")
+	}
+
+	n, err := res.RowsAffected()
+	if n == 0 || err != nil {
+		return errors.New("registro não salvo (duplicado)")
+	}
+
+	return nil
+}
+
 // close closes the insert statement.
-func (s *StockParser) close() error {
+func (s *rec) close() error {
 	var err error
 	if s.stmt != nil {
 		err = s.stmt.Close()
@@ -308,7 +294,8 @@ const (
 	none int = iota
 	alphaVantage
 	yahoo
-	b3
+	b3Quotes
+	b3Codes
 )
 
 // provider returns stream type based on header
@@ -320,7 +307,7 @@ func provider(header string) int {
 		return yahoo
 	}
 	if strings.HasPrefix(header, "00COTAHIST.") {
-		return b3
+		return b3Quotes
 	}
 	return none
 }
@@ -381,4 +368,122 @@ func parseYahoo(line, code string) (*stockQuote, error) {
 		Close:  floats[3],
 		Volume: floats[5],
 	}, nil
+}
+
+// parseB3Quote parses the line based on this layout:
+// http://www.b3.com.br/data/files/33/67/B9/50/D84057102C784E47AC094EA8/SeriesHistoricas_Layout.pdf
+//
+//   CAMPO/CONTEÚDO  TIPO E TAMANHO  POS. INIC.	 POS. FINAL
+//   TIPREG “01”     N(02)           01          02
+//   DATA “AAAAMMDD” N(08)           03          10
+//   CODBDI          X(02)           11          12
+//   CODNEG          X(12)           13          24
+//   TPMERC          N(03)           25          27
+//   PREABE          (11)V99         57          69
+//   PREMAX          (11)V99         70          82
+//   PREMIN          (11)V99         83          95
+//   PREULT          (11)V99         109         121
+//   QUATOT          N18             153         170
+//   VOLTOT          (16)V99         171         188
+//
+// CODBDI:
+//   02 LOTE PADRÃO
+//   12 FUNDO IMOBILIÁRIO
+//
+// TPMERC:
+//   010 VISTA
+//   020 FRACIONÁRIO
+func parseB3Quote(line string) (*stockQuote, error) {
+	if len(line) != 245 {
+		return nil, errors.New("linha deve conter 245 bytes")
+	}
+
+	recType := line[0:2]
+	if recType != "01" {
+		return nil, fmt.Errorf("registro %s ignorado", recType)
+	}
+
+	codBDI := line[10:12]
+	if codBDI != "02" && codBDI != "12" {
+		return nil, fmt.Errorf("BDI %s ignorado", codBDI)
+	}
+
+	tpMerc := line[24:27]
+	if tpMerc != "010" && tpMerc != "020" {
+		return nil, fmt.Errorf("tipo de mercado %s ignorado", tpMerc)
+	}
+
+	date := line[2:6] + "-" + line[6:8] + "-" + line[8:10]
+	code := strings.TrimSpace(line[12:24])
+
+	numRanges := [5]struct {
+		i, f int
+	}{
+		{56, 69},   // PREABE = open
+		{69, 82},   // PREMAX = high
+		{82, 95},   // PREMIN = low
+		{108, 121}, // PREULT = close
+		{170, 188}, // VOLTOT = volume
+	}
+	var vals [5]int
+	for i, r := range numRanges {
+		num, err := strconv.Atoi(line[r.i:r.f])
+		if err != nil {
+			return nil, err
+		}
+		vals[i] = num
+	}
+
+	return &stockQuote{
+		Stock:  code,
+		Date:   date,
+		Open:   float64(vals[0]) / 100,
+		High:   float64(vals[1]) / 100,
+		Low:    float64(vals[2]) / 100,
+		Close:  float64(vals[3]) / 100,
+		Volume: float64(vals[4]) / 100,
+	}, nil
+}
+
+type rec struct {
+	stmt *sql.Stmt
+	mu   sync.Mutex // ensures atomic writes to db
+}
+
+// parseB3Code parses lines downloaded from B3 server
+// and returns *stockCode.
+//
+func parseB3Code(line string) (*stockCode, error) {
+	fields := strings.Split(line, ";")
+
+	// Columns:
+	// RptDt;TckrSymb(2);Asst;AsstDesc;SgmtNm(5);MktNm;SctyCtgyNm(7);XprtnDt;XprtnCd;
+	// TradgStartDt;TradgEndDt;BaseCd;ConvsCritNm;MtrtyDtTrgtPt;ReqrdConvsInd;
+	// ISIN;CFICd;DlvryNtceStartDt;DlvryNtceEndDt;OptnTp;CtrctMltplr;AsstQtnQty;
+	// AllcnRndLot;TradgCcy;DlvryTpNm;WdrwlDays;WrkgDays;ClnrDays;RlvrBasePricNm;
+	// OpngFutrPosDay;SdTpCd1;UndrlygTckrSymb1;SdTpCd2;UndrlygTckrSymb2;
+	// PureGoldWght;ExrcPric;OptnStyle;ValTpNm;PrmUpfrntInd;OpngPosLmtDt;
+	// DstrbtnId;PricFctr;DaysToSttlm;SrsTpNm;PrtcnFlg;AutomtcExrcInd;SpcfctnCd(47);
+	// CrpnNm(48);CorpActnStartDt;CtdyTrtmntTpNm;MktCptlstn;CorpGovnLvlNm(52)
+	if len(fields) != 52 {
+		return nil, fmt.Errorf("linha inválida %d", len(fields)) // ignore lines with error
+	}
+
+	s := stockCode{
+		TckrSymb:      fields[1],
+		SgmtNm:        fields[4],
+		SctyCtgyNm:    fields[6],
+		CrpnNm:        fields[47],
+		SpcfctnCd:     fields[46],
+		CorpGovnLvlNm: fields[51],
+	}
+
+	if s.SgmtNm != "CASH" ||
+		(s.SctyCtgyNm != "SHARES" &&
+			s.SctyCtgyNm != "FUNDS" &&
+			s.SctyCtgyNm != "UNIT") {
+		return nil, errors.New("linha ignorada")
+	}
+
+	return &s, nil
 }
