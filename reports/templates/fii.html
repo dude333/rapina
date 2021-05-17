@@ -45,6 +45,9 @@
     document.getElementById("codes").onchange = () => {
       localStorage.setItem("textarea_text", event.target.value);
     }
+    document.getElementById("fii_form").onsubmit = () => {
+      document.getElementById("waiting").style = "display:block;margin:4em auto;";
+    }
   };
 </script>
 
@@ -64,7 +67,9 @@
   <input type="submit" value="Ok" />
 </form>
 
-
+{{if not .Data}}
+<div id="waiting" style="display:none;" class="spinner-1"></div>
+{{else}}
 {{range .Data}}
 <h3 onclick="toggle(event, '{{.Code}}');" style="cursor: default;">
   <span>&#11206;</span> {{.Code}}
@@ -92,7 +97,7 @@
     {{end}}
   </tbody>
 </table>
-
+{{end}}
 {{end}}
 
 {{end}}

@@ -239,6 +239,21 @@
       -moz-transition: all .1s;
       transition: all .1s;
     }
+
+    .spinner-1 {
+      width: 30px;
+      height: 30px;
+      border-radius: 50%;
+      border: 6px solid;
+      border-color: #000 #0000;
+      animation: s1 1s infinite;
+    }
+
+    @keyframes s1 {
+      to {
+        transform: rotate(.5turn)
+      }
+    }
   </style>
 </head>
 
