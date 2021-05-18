@@ -97,19 +97,19 @@ func (r report) accountsValues(cid, year int) (map[uint32]float32, error) {
 	// Stock code
 	code, err := r.fetchStock.Code(r.company, "ON")
 	if err != nil {
-		fmt.Printf("[x] erro obtendo código negociação: %v\n", err)
-	}
-
-	// Stock quote
-	date := rapina.LastBusinessDayOfYear(year)
-	q, err := r.fetchStock.Quote(code, date)
-	if err != nil {
-		fmt.Printf("[x] Cotação %s (%d): %v\n", code, year, err)
+		fmt.Printf("\n[x] Erro obtendo código negociação: %v\n", err)
 	} else {
-		values[parsers.Quote] = float32(q)
+		// Stock quote
+		date := rapina.LastBusinessDayOfYear(year)
+		q, err := r.fetchStock.Quote(code, date)
+		if err != nil {
+			fmt.Printf("[x] Cotação %s (%d): %v\n", code, year, err)
+		} else {
+			values[parsers.Quote] = float32(q)
+		}
 	}
 
-	return values, err
+	return values, nil
 }
 
 // avg returns the average, ignoring numbers <= 0.

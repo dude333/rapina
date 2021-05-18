@@ -10,7 +10,7 @@ import (
 
 const currentDbVersion = 210514
 const currentFIIDbVersion = 210426
-const currentStockCodesVersion = 210305
+const currentStockCodesVersion = 210518
 const currentStockQuotesVersion = 210305
 
 var createTableMap = map[string]string{

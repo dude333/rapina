@@ -47,8 +47,11 @@ func NewStock(store rapina.StockParser, log rapina.Logger, apiKey, dataDir strin
 // Quote returns the quote for 'code' on 'date'.
 // Date format: YYYY-MM-DD.
 func (s *Stock) Quote(code, date string) (float64, error) {
+	if len(code) < len("CODE3") {
+		return 0, fmt.Errorf("código inválido: %q", code)
+	}
 	if !rapina.IsDate(date) {
-		return 0, fmt.Errorf("data inválida: %s", date)
+		return 0, fmt.Errorf("data inválida: %q", date)
 	}
 
 	val, err := s.store.Quote(code, date)
@@ -102,7 +105,6 @@ func (s *Stock) stockQuoteFromB3(date string) error {
 		defer fh.Close()
 
 		dec := transform.NewReader(fh, charmap.ISO8859_1.NewDecoder())
-
 		if _, err := s.store.Save(dec, ""); err != nil {
 			return err
 		}
@@ -190,8 +192,6 @@ type b3CodesFile struct {
 }
 
 func (s *Stock) stockCodeFromB3(companyName string) error {
-	s.log.Debug("stockCodeFromB3 -> %s", companyName)
-
 	// Get file url
 	var f b3CodesFile
 	url := `https://arquivos.b3.com.br/api/download/requestname?fileName=InstrumentsConsolidated&date=`
@@ -207,10 +207,9 @@ func (s *Stock) stockCodeFromB3(companyName string) error {
 	tries := 3
 	for {
 		url = fmt.Sprintf(`https://arquivos.b3.com.br/api/download/?token=%s`, f.Token)
-		s.log.Debug("%s", url)
+		s.log.Printf("[          ] Download do arquivo de códigos")
 		err = downloadFile(url, fp)
 		if err != nil {
-			s.log.Error("download do arquivo de códigos: %v", err)
 			tries--
 			if tries <= 0 {
 				return err
@@ -219,7 +218,7 @@ func (s *Stock) stockCodeFromB3(companyName string) error {
 			continue
 		}
 		// Delete files on return
-		defer filesCleanup([]string{fp})
+		// defer filesCleanup([]string{fp})
 		break
 	}
 
@@ -230,7 +229,8 @@ func (s *Stock) stockCodeFromB3(companyName string) error {
 	}
 	defer fh.Close()
 
-	_, err = s.store.Save(fh, "")
+	dec := transform.NewReader(fh, charmap.ISO8859_1.NewDecoder())
+	_, err = s.store.Save(dec, "")
 
 	return err
 }
