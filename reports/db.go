@@ -71,6 +71,11 @@ func (r report) accountsValues(cid, year int) (map[uint32]float32, error) {
 	if err != nil {
 		return values, err
 	}
+	// Stop if year has empty values
+	fmt.Printf("%d - sum(values) = %.2f\n", year, sum(values))
+	if sum(values) == 0 {
+		return values, nil
+	}
 
 	// Financial scale
 	table := "dfp"
