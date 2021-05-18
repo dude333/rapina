@@ -3,11 +3,12 @@ package parsers
 import (
 	"database/sql"
 	"fmt"
+	"strings"
 
 	"github.com/pkg/errors"
 )
 
-const currentDbVersion = 210305
+const currentDbVersion = 210514
 const currentFIIDbVersion = 210426
 const currentStockCodesVersion = 210305
 const currentStockQuotesVersion = 210305
@@ -71,7 +72,7 @@ var createTableMap = map[string]string{
 		"NAME" varchar(100)
 	);`,
 
-	"stock_codes": `CREATE TABLE IF NOT EXISTS companies
+	"stock_codes": `CREATE TABLE IF NOT EXISTS stock_codes
 	(
 		"trading_code"  VARCHAR NOT NULL PRIMARY KEY,
 		"company_name"  VARCHAR,
@@ -182,7 +183,7 @@ func createTable(db *sql.DB, dataType string) (err error) {
 		return errors.Wrap(err, "erro ao criar índice para table "+table)
 	}
 
-	if dataType == "STATUS" {
+	if strings.ToUpper(dataType) == "STATUS" {
 		return nil
 	}
 

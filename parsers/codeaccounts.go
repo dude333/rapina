@@ -58,6 +58,9 @@ const (
 
 	// Financial scale (unit, thousand)
 	Escala
+
+	// Stock quote from last day of year
+	Quote
 )
 
 // account code, description and bookkeeping code

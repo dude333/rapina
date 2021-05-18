@@ -189,11 +189,11 @@ func processFREReport(db *sql.DB, dataDir string, year int) error {
 }
 
 //
-// fetchFiles on CVM server
+// fetchFiles from web.
 //
 func fetchFiles(url, dataDir string, zipfile string) ([]string, error) {
 
-	// Download file from CVM server
+	// Download file from web
 	err := downloadFile(url, zipfile)
 	fmt.Println()
 	if err != nil {

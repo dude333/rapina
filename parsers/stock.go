@@ -44,7 +44,6 @@ type stockCode struct {
 type StockParser struct {
 	db  *sql.DB
 	log rapina.Logger
-	mu  sync.Mutex // ensures atomic writes to db
 }
 
 //
@@ -76,6 +75,25 @@ func (s *StockParser) Quote(code, date string) (float64, error) {
 	}
 
 	return close, nil
+}
+
+//
+// Quote returns the company ON stock code, where stockType is:
+// ON, PN, UNT, CI [CI = FII]
+//
+func (s *StockParser) Code(companyName, stockType string) (string, error) {
+	query := `SELECT trading_code FROM stock_codes WHERE company_name LIKE ? AND SpcfctnCd LIKE ?;`
+	st := strings.ToUpper(stockType + "%")
+	var code string
+	err := s.db.QueryRow(query, "%"+companyName+"%", st).Scan(&code)
+	if err == sql.ErrNoRows {
+		return "", errors.New("não encontrado no bd")
+	}
+	if err != nil {
+		return "", errors.Wrapf(err, "lendo código de %s do bd", companyName)
+	}
+
+	return code, nil
 }
 
 func (s *StockParser) SaveB3Quotes(filename string) error {
@@ -308,6 +326,9 @@ func provider(header string) int {
 	}
 	if strings.HasPrefix(header, "00COTAHIST.") {
 		return b3Quotes
+	}
+	if strings.HasPrefix(header, "RptDt;TckrSymb;Asst;AsstDesc;SgmtNm;MktNm;SctyCtgyNm;XprtnDt;") {
+		return b3Codes
 	}
 	return none
 }

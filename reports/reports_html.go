@@ -22,7 +22,7 @@ import (
 type Server struct {
 	db         *sql.DB
 	fetchFII   *fetch.FII
-	fetchStock *fetch.StockFetch
+	fetchStock *fetch.Stock
 	log        *Logger
 	dataDir    string
 	apiKey     string
@@ -57,7 +57,10 @@ func initServer(opts ...ServerOption) (*Server, error) {
 
 	srv.db.SetMaxOpenConns(1)
 	log := NewLogger(os.Stderr)
-	stockParser := parsers.NewStock(srv.db, log)
+	stockParser, err := parsers.NewStock(srv.db, log)
+	if err != nil {
+		return nil, err
+	}
 	fiiParser, err := parsers.NewFII(srv.db, log)
 	if err != nil {
 		return nil, err

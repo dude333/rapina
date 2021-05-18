@@ -22,8 +22,8 @@ const (
 	APIyahoo
 )
 
-// StockFetch implements a fetcher stock quotes.
-type StockFetch struct {
+// Stock implements a fetcher for stock info.
+type Stock struct {
 	apiKey  string // API key for Alpha Vantage API server
 	store   rapina.StockParser
 	cache   map[string]int // Cache to avoid duplicated fetch on Alpha Vantage server
@@ -32,10 +32,10 @@ type StockFetch struct {
 }
 
 //
-// NewStock returns a new instance of *StockServer
+// NewStock returns a new instance of *Stock
 //
-func NewStock(store rapina.StockParser, log rapina.Logger, apiKey, dataDir string) *StockFetch {
-	return &StockFetch{
+func NewStock(store rapina.StockParser, log rapina.Logger, apiKey, dataDir string) *Stock {
+	return &Stock{
 		apiKey:  apiKey,
 		store:   store,
 		cache:   make(map[string]int),
@@ -46,7 +46,7 @@ func NewStock(store rapina.StockParser, log rapina.Logger, apiKey, dataDir strin
 
 // Quote returns the quote for 'code' on 'date'.
 // Date format: YYYY-MM-DD.
-func (s StockFetch) Quote(code, date string) (float64, error) {
+func (s *Stock) Quote(code, date string) (float64, error) {
 	if !rapina.IsDate(date) {
 		return 0, fmt.Errorf("data inválida: %s", date)
 	}
@@ -75,9 +75,7 @@ func (s StockFetch) Quote(code, date string) (float64, error) {
 // stockQuoteFromB3 downloads the quotes for all companies for the given date,
 // where 'date' format is YYYY-MM-DD.
 //
-func (s StockFetch) stockQuoteFromB3(date string) error {
-	dataDir := ".data"
-
+func (s *Stock) stockQuoteFromB3(date string) error {
 	// Convert date string from YYYY-MM-DD to DDMMYYYY
 	if len(date) != len("2021-05-03") {
 		return fmt.Errorf("data com formato inválido: %s", date)
@@ -86,8 +84,8 @@ func (s StockFetch) stockQuoteFromB3(date string) error {
 	url := fmt.Sprintf(`http://bvmf.bmfbovespa.com.br/InstDados/SerHist/COTAHIST_D%s.ZIP`,
 		conv)
 	// Download ZIP file and unzips its files
-	zip := fmt.Sprintf("%s/COTAHIST_D%s.ZIP", dataDir, conv)
-	files, err := fetchFiles(url, dataDir, zip)
+	zip := fmt.Sprintf("%s/COTAHIST_D%s.ZIP", s.dataDir, conv)
+	files, err := fetchFiles(url, s.dataDir, zip)
 	if err != nil {
 		return err
 	}
@@ -105,8 +103,7 @@ func (s StockFetch) stockQuoteFromB3(date string) error {
 
 		dec := transform.NewReader(fh, charmap.ISO8859_1.NewDecoder())
 
-		_, err = s.store.Save(dec, "")
-		if err != nil {
+		if _, err := s.store.Save(dec, ""); err != nil {
 			return err
 		}
 	}
@@ -119,7 +116,7 @@ func (s StockFetch) stockQuoteFromB3(date string) error {
 // daily low, daily close, daily volume) of the global equity specified,
 // covering 20+ years of historical data.
 //
-func (s StockFetch) stockQuoteFromAPIServer(code, date string, apiProvider int) error {
+func (s *Stock) stockQuoteFromAPIServer(code, date string, apiProvider int) error {
 	if v := s.cache[code]; v == APIalphavantage && apiProvider == APIalphavantage {
 		// return fmt.Errorf("cotação histórica para '%s' já foi feita", code)
 		return nil // silent return if this fetch has been run already
@@ -170,6 +167,75 @@ func (s StockFetch) stockQuoteFromAPIServer(code, date string, apiProvider int) 
 
 	return err
 }
+
+func (s *Stock) Code(companyName, stockType string) (string, error) {
+	if val, err := s.store.Code(companyName, stockType); err == nil {
+		return val, nil // returning data found on db
+	}
+
+	if err := s.stockCodeFromB3(companyName); err != nil {
+		return "", err
+	}
+
+	return s.store.Code(companyName, stockType)
+}
+
+type b3CodesFile struct {
+	RedirectURL string `json:"redirectUrl"`
+	Token       string `json:"token"`
+	File        struct {
+		Name      string `json:"name"`
+		Extension string `json:"extension"`
+	} `json:"file"`
+}
+
+func (s *Stock) stockCodeFromB3(companyName string) error {
+	s.log.Debug("stockCodeFromB3 -> %s", companyName)
+
+	// Get file url
+	var f b3CodesFile
+	url := `https://arquivos.b3.com.br/api/download/requestname?fileName=InstrumentsConsolidated&date=`
+	url += rapina.LastBusinessDay(2)
+	h := NewHTTP()
+	err := h.JSON(url, &f)
+	if err != nil {
+		return err
+	}
+
+	// Download file
+	fp := fmt.Sprintf("%s/codes.csv", s.dataDir)
+	tries := 3
+	for {
+		url = fmt.Sprintf(`https://arquivos.b3.com.br/api/download/?token=%s`, f.Token)
+		s.log.Debug("%s", url)
+		err = downloadFile(url, fp)
+		if err != nil {
+			s.log.Error("download do arquivo de códigos: %v", err)
+			tries--
+			if tries <= 0 {
+				return err
+			}
+			time.Sleep(2 * time.Second)
+			continue
+		}
+		// Delete files on return
+		defer filesCleanup([]string{fp})
+		break
+	}
+
+	// Parse and store files content
+	fh, err := os.Open(fp)
+	if err != nil {
+		return errors.Wrapf(err, "abrindo arquivo %s", fp)
+	}
+	defer fh.Close()
+
+	_, err = s.store.Save(fh, "")
+
+	return err
+}
+
+/* --- UTILS --- */
 
 func apiURL(provider int, apiKey, code, date string) string {
 	v := url.Values{}

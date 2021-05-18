@@ -32,6 +32,7 @@ type StockParser interface {
 	Save(stream io.Reader, code string) (int, error)
 	SaveB3Quotes(filename string) error
 	Quote(code, date string) (float64, error)
+	Code(companyName, stockType string) (string, error)
 }
 
 // Logger interface contains the methods needed to poperly display log messages.

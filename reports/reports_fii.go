@@ -27,7 +27,7 @@ const (
 // FIITerminal implements reports related to FII funds on the terminal.
 type FIITerminal struct {
 	fetchFII     *fetch.FII
-	fetchStock   *fetch.StockFetch
+	fetchStock   *fetch.Stock
 	log          *Logger
 	reportFormat int
 }
@@ -36,7 +36,10 @@ type FIITerminal struct {
 func NewFIITerminal(db *sql.DB, apiKey, dataDir string) (*FIITerminal, error) {
 	db.SetMaxOpenConns(1)
 	log := NewLogger(nil)
-	stockParser := parsers.NewStock(db, log)
+	stockParser, err := parsers.NewStock(db, log)
+	if err != nil {
+		return nil, err
+	}
 	fiiParser, err := parsers.NewFII(db, log)
 	if err != nil {
 		return nil, err

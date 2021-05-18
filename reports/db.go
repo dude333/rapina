@@ -6,6 +6,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/dude333/rapina"
 	"github.com/dude333/rapina/parsers"
 	"github.com/pkg/errors"
 )
@@ -91,6 +92,21 @@ func (r report) accountsValues(cid, year int) (map[uint32]float32, error) {
 	v, err = r.value(cid, year-1, parsers.Equity)
 	if err == nil {
 		values[parsers.EquityAvg] = avg(values[parsers.Equity], v)
+	}
+
+	// Stock code
+	code, err := r.fetchStock.Code(r.company, "ON")
+	if err != nil {
+		fmt.Printf("[x] erro obtendo código negociação: %v\n", err)
+	}
+
+	// Stock quote
+	date := rapina.LastBusinessDayOfYear(year)
+	q, err := r.fetchStock.Quote(code, date)
+	if err != nil {
+		fmt.Printf("[x] Cotação %s (%d): %v\n", code, year, err)
+	} else {
+		values[parsers.Quote] = float32(q)
 	}
 
 	return values, err
@@ -479,7 +495,7 @@ func (r report) accountsAverage(company string, year int) (map[uint32]float32, e
 
 	cids := make([]string, len(companies))
 	for i, co := range companies {
-		if id, err := cid(r.db, co); err == nil {
+		if id, err := r.getCid(co); err == nil {
 			cids[i] = strconv.Itoa(id)
 		}
 	}
@@ -617,16 +633,42 @@ func companies(db *sql.DB) ([]CompanyInfo, error) {
 }
 
 //
-// cid returns the company ID
+// setCompany sets the company ID, CNPJ and stock code based on it's name.
 //
-func cid(db *sql.DB, company string) (int, error) {
-	selectID := fmt.Sprintf(`SELECT DISTINCT ID FROM companies WHERE NAME LIKE "%s%%"`, company)
-	var cid int
-	err := db.QueryRow(selectID).Scan(&cid)
-	if err != nil {
-		return 0, err
+func (r *report) setCompany(company string) error {
+	if company == "" {
+		return errors.New("company name not set")
 	}
-	return cid, nil
+	if r.fetchStock == nil {
+		return errors.New("fetchStock not set")
+	}
+
+	// Reset company data
+	r.cid = 0
+	r.cnpj = ""
+	// r.code = ""
+
+	query := `SELECT DISTINCT ID, NAME, CNPJ FROM companies WHERE NAME LIKE ?`
+	var cid int
+	var name, cnpj string
+	err := r.db.QueryRow(query, "%"+company+"%").Scan(&cid, &name, &cnpj)
+	if err != nil {
+		return err
+	}
+	r.cid = cid
+	r.company = name // reset company name to match the name stored on db
+	r.cnpj = cnpj
+	// r.code, _ = r.fetchStock.Code(name, "ON")
+
+	return nil
+}
+
+func (r *report) getCid(companyName string) (int, error) {
+	selectID := `SELECT DISTINCT ID FROM companies WHERE NAME LIKE ?`
+	var cid int
+	err := r.db.QueryRow(selectID, "%"+companyName+"%").Scan(&cid)
+
+	return cid, err
 }
 
 //

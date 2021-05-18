@@ -25,5 +25,9 @@ func (h HTTPFetch) JSON(url string, target interface{}) error {
 	}
 	defer r.Body.Close()
 
+	// for _, c := range r.Cookies() {
+	// 	fmt.Printf("COOKIE: %+v\n", c)
+	// }
+
 	return json.NewDecoder(r.Body).Decode(target)
 }

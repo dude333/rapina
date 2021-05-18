@@ -10,6 +10,8 @@ import (
 	"strings"
 
 	"github.com/360EntSecGroup-Skylar/excelize"
+	"github.com/dude333/rapina/fetch"
+	"github.com/dude333/rapina/parsers"
 	p "github.com/dude333/rapina/parsers"
 	"github.com/pkg/errors"
 )
@@ -45,21 +47,24 @@ type report struct {
 	// if true will print the reports for comanpanies in the same sector
 	printSector bool
 
+	// get the stock quotes
+	fetchStock *fetch.Stock
+
+	/* Current company */
+	cid  int    // Company ID
+	cnpj string // Company CNPJ
+	// code string // Company stock code
+
 	/* Parameters from caller */
-	dataDir  string  // Directory for temporary data
 	db       *sql.DB // Sqlite3 handler
 	company  string  // company name to be processed
 	filename string  // path and filename of the output xlsx
 	yamlFile string  // file with the companies' sectors
 }
 
-func initReport(parms map[string]interface{}) *report {
+func initReport(parms map[string]interface{}) (*report, error) {
 	var r report
 
-	r.dataDir = path.Join(".", "data")
-	if v, ok := parms["dataDir"]; ok {
-		r.dataDir = v.(string)
-	}
 	if v, ok := parms["db"]; ok {
 		r.db = v.(*sql.DB)
 	}
@@ -86,7 +91,28 @@ func initReport(parms map[string]interface{}) *report {
 		}
 	}
 
-	return &r
+	dataDir := path.Join(".", "data")
+	if v, ok := parms["dataDir"]; ok {
+		dataDir = v.(string)
+	}
+	apiKey := ""
+	if v, ok := parms["apiKey"]; ok {
+		apiKey = v.(string)
+	}
+
+	log := NewLogger(os.Stderr)
+	stockParser, err := parsers.NewStock(r.db, log)
+	if err != nil {
+		return nil, err
+	}
+	r.fetchStock = fetch.NewStock(stockParser, log, apiKey, dataDir)
+
+	err = r.setCompany(r.company)
+	if err != nil {
+		return nil, fmt.Errorf("empresa '%s' não encontrada no banco de dados", r.company)
+	}
+
+	return &r, nil
 }
 
 //
@@ -94,11 +120,9 @@ func initReport(parms map[string]interface{}) *report {
 //
 func Report(p map[string]interface{}) error {
 	// Initialize report object
-	r := initReport(p)
-
-	cid, err := cid(r.db, r.company)
+	r, err := initReport(p)
 	if err != nil {
-		return fmt.Errorf("empresa '%s' não encontrada no banco de dados", r.company)
+		return err
 	}
 
 	e := newExcel()
@@ -109,7 +133,7 @@ func Report(p map[string]interface{}) error {
 	sheet.print("A1", &[]string{r.company}, LEFT, true)
 
 	// ACCOUNT NUMBERING AND DESCRIPTION (COLS A AND B) ===============\/
-	accounts, _ := r.accountsItems(cid)
+	accounts, _ := r.accountsItems(r.cid)
 	baseItems, lastStatementsRow, lastMetricsRow := r.printCodesAndDescriptions(sheet, accounts, 'A', 2)
 
 	// 	VALUES (COLS C, D, E...) / PER YEAR ===========================\/
@@ -128,13 +152,13 @@ func Report(p map[string]interface{}) error {
 		cell := col + "1"
 		title := "[" + strconv.Itoa(y) + "]"
 
-		lastYear, isTTM, err := r.lastYear(cid)
+		lastYear, isTTM, err := r.lastYear(r.cid)
 		if lastYear == y && isTTM && err == nil {
 			title = "[TTM/" + strconv.Itoa(y) + "]"
 		}
 
 		// ACCOUNT VALUES (COLS C, D, E...) / YEAR ====================\/
-		values, err = r.accountsValues(cid, y)
+		values, err = r.accountsValues(r.cid, y)
 		if err != nil {
 			fmt.Println("[x]", err)
 			continue
@@ -346,7 +370,7 @@ func (r *report) companySummary(sheet *Sheet, row, col *int, _company, sectorNam
 	// 	return true, nil
 	// }
 
-	cid, err := cid(r.db, _company)
+	cid, err := r.getCid(_company)
 	if err != nil {
 		err = errors.Errorf("empresa '%s' não encontrada no banco de dados", _company)
 		return
@@ -520,6 +544,8 @@ func metricsList(v map[uint32]float32) (metrics []metric) {
 	var st float32 = v[p.Caixa] + v[p.AplicFinanceiras] - (v[p.DividaCirc] + v[p.DividendosJCP] + v[p.DividendosMin])
 	var ncg float32 = cg - st
 
+	var lpa float32 = safeDiv(v[p.LucLiq]*v[p.Escala], v[p.Shares])
+
 	return []metric{
 		{"Patrimônio Líquido", v[p.Equity], NUMBER, grpAccts},
 		{"", 0, EMPTY, grpAccts},
@@ -532,8 +558,10 @@ func metricsList(v map[uint32]float32) (metrics []metric) {
 		{"Lucro Líquido", v[p.LucLiq], NUMBER, grpAccts},
 		{"", 0, EMPTY, grpAccts},
 
-		{"LPA", safeDiv(v[p.LucLiq]*v[p.Escala], v[p.Shares]), INDEX, grpAccts},
+		{"LPA", lpa, INDEX, grpAccts},
 		{"VPA", safeDiv(v[p.Equity]*v[p.Escala], v[p.Shares]), INDEX, grpAccts},
+		{"P/L", safeDiv(v[p.Quote], lpa), INDEX, grpAccts},
+		{"Cotação", v[p.Quote], INDEX, grpAccts},
 		{"", 0, EMPTY, grpAccts},
 
 		{"Marg. EBITDA", zeroIfNeg(safeDiv(EBITDA, v[p.Vendas])), PERCENT, grpAccts},

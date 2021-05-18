@@ -25,6 +25,10 @@ func (m MockStockFetch) Quote(code, date string) (float64, error) {
 	return 123.45, nil
 }
 
+func (m MockStockFetch) Code(companyName, typ string) (string, error) {
+	return "WXYZ3", nil
+}
+
 func TestStockFetch_Quote(t *testing.T) {
 	type fields struct {
 		apiKey string
@@ -70,7 +74,7 @@ func TestStockFetch_Quote(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			s := StockFetch{
+			s := Stock{
 				apiKey: tt.fields.apiKey,
 				store:  tt.fields.store,
 			}
