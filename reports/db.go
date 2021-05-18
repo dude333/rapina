@@ -56,23 +56,22 @@ func (r report) accountsItems(cid int) (items []accItems, err error) {
 // accountsValues stores the values for each account into a map using a hash
 // of the account code and description as its key
 //
-func (r report) accountsValues(cid, year int) (map[uint32]float32, error) {
+func (r report) accountsValues(year int) (map[uint32]float32, error) {
 	values := make(map[uint32]float32)
 
-	lastYear, isITR, err := r.lastYear(cid)
+	lastYear, isITR, err := r.lastYear(r.cid)
 	if err != nil {
 		return nil, err
 	}
 	if year == lastYear && isITR {
-		err = r.ttm(cid, values)
+		err = r.ttm(r.cid, values)
 	} else {
-		err = r.dfp(cid, year, values)
+		err = r.dfp(r.cid, year, values)
 	}
 	if err != nil {
 		return values, err
 	}
 	// Stop if year has empty values
-	fmt.Printf("%d - sum(values) = %.2f\n", year, sum(values))
 	if sum(values) == 0 {
 		return values, nil
 	}
@@ -82,33 +81,29 @@ func (r report) accountsValues(cid, year int) (map[uint32]float32, error) {
 	if isITR {
 		table = "itr"
 	}
-	values[parsers.Escala] = r.scale(cid, year, table)
+	values[parsers.Escala] = r.scale(r.cid, year, table)
 
 	// Shares and free float
-	_ = r.shares(cid, year, values)
+	_ = r.shares(r.cid, year, values)
 
 	var v float32
 	// Inventory average
-	v, err = r.value(cid, year-1, parsers.Estoque)
+	v, err = r.value(r.cid, year-1, parsers.Estoque)
 	if err == nil {
 		values[parsers.EstoqueMedio] = avg(values[parsers.Estoque], v)
 	}
 	// Equity average
-	v, err = r.value(cid, year-1, parsers.Equity)
+	v, err = r.value(r.cid, year-1, parsers.Equity)
 	if err == nil {
 		values[parsers.EquityAvg] = avg(values[parsers.Equity], v)
 	}
 
 	// Stock code
-	code, err := r.fetchStock.Code(r.company, "ON")
-	if err != nil {
-		fmt.Printf("\n[x] Erro obtendo código negociação: %v\n", err)
-	} else {
-		// Stock quote
+	if r.code != "" {
 		date := rapina.LastBusinessDayOfYear(year)
-		q, err := r.fetchStock.Quote(code, date)
+		q, err := r.fetchStock.Quote(r.code, date)
 		if err != nil {
-			fmt.Printf("[x] Cotação %s (%d): %v\n", code, year, err)
+			fmt.Printf("[x] Cotação %s (%d): %v\n", r.code, year, err)
 		} else {
 			values[parsers.Quote] = float32(q)
 		}
@@ -651,7 +646,7 @@ func (r *report) setCompany(company string) error {
 	// Reset company data
 	r.cid = 0
 	r.cnpj = ""
-	// r.code = ""
+	r.code = ""
 
 	query := `SELECT DISTINCT ID, NAME, CNPJ FROM companies WHERE NAME LIKE ?`
 	var cid int
@@ -663,7 +658,12 @@ func (r *report) setCompany(company string) error {
 	r.cid = cid
 	r.company = name // reset company name to match the name stored on db
 	r.cnpj = cnpj
-	// r.code, _ = r.fetchStock.Code(name, "ON")
+
+	// Stock code
+	r.code, err = r.fetchStock.Code(r.company, "ON")
+	if err != nil {
+		fmt.Printf("\n[x] Erro obtendo código negociação: %v\n", err)
+	}
 
 	return nil
 }

@@ -53,7 +53,7 @@ type report struct {
 	/* Current company */
 	cid  int    // Company ID
 	cnpj string // Company CNPJ
-	// code string // Company stock code
+	code string // Company stock code
 
 	/* Parameters from caller */
 	db       *sql.DB // Sqlite3 handler
@@ -107,11 +107,6 @@ func initReport(parms map[string]interface{}) (*report, error) {
 	}
 	r.fetchStock = fetch.NewStock(stockParser, log, apiKey, dataDir)
 
-	err = r.setCompany(r.company)
-	if err != nil {
-		return nil, fmt.Errorf("empresa '%s' não encontrada no banco de dados", r.company)
-	}
-
 	return &r, nil
 }
 
@@ -123,6 +118,11 @@ func Report(p map[string]interface{}) error {
 	r, err := initReport(p)
 	if err != nil {
 		return err
+	}
+
+	err = r.setCompany(r.company)
+	if err != nil {
+		return fmt.Errorf("empresa '%s' não encontrada no banco de dados", r.company)
 	}
 
 	e := newExcel()
@@ -158,7 +158,7 @@ func Report(p map[string]interface{}) error {
 		}
 
 		// ACCOUNT VALUES (COLS C, D, E...) / YEAR ====================\/
-		values, err = r.accountsValues(r.cid, y)
+		values, err = r.accountsValues(y)
 		if err != nil {
 			fmt.Println("[x]", err)
 			continue
@@ -370,7 +370,7 @@ func (r *report) companySummary(sheet *Sheet, row, col *int, _company, sectorNam
 	// 	return true, nil
 	// }
 
-	cid, err := r.getCid(_company)
+	err = r.setCompany(_company)
 	if err != nil {
 		err = errors.Errorf("empresa '%s' não encontrada no banco de dados", _company)
 		return
@@ -436,7 +436,7 @@ func (r *report) companySummary(sheet *Sheet, row, col *int, _company, sectorNam
 			values, err = r.accountsAverage(_company, y)
 			r.average = append(r.average, []float32{})
 		} else {
-			values, err = r.accountsValues(cid, y)
+			values, err = r.accountsValues(y)
 		}
 		if err != nil {
 			fmt.Printf(" -- %v", err)
