@@ -1,5 +1,12 @@
 package rapina
 
+// Dividend contains the stock 'Code', and the 'Date' for the stock dividend 'Val'.
+type Dividend struct {
+	Code string
+	Date string
+	Val  float64
+}
+
 // FIIDetails details (ID field: DetailFund.CNPJ)
 type FIIDetails struct {
 	DetailFund struct {
@@ -38,16 +45,23 @@ type FIIDetails struct {
 	} `json:"shareHolder"`
 }
 
-// Quote contains the stock 'Code', and the 'Date' for the stock quote 'Val'.
-type Quote struct {
-	Code string
-	Date string
-	Val  float64
+// FIISaver is the interface that contains the methods needed to parse and save
+// a stream with FII information to a storage.
+type FIISaver interface {
+	SaveDetails(stream []byte) error // ex StoreFIIDetails
+	SaveDividend(stream map[string]string) (*Dividend, error)
 }
 
-// Dividend contains the stock 'Code', and the 'Date' for the stock dividend 'Val'.
-type Dividend struct {
-	Code string
-	Date string
-	Val  float64
+// FIILoader is the interface that contains the methods needed to retrieve
+// FII information from a storage.
+type FIILoader interface {
+	Details(code string) (*FIIDetails, error)
+	Dividends(code, monthYear string) (*[]Dividend, error)
+}
+
+// FIIParser is the interface that contains the methods needed to parse, save and
+// retrieve FII data to/from a storage.
+type FIIParser interface {
+	FIISaver
+	FIILoader
 }

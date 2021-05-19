@@ -317,12 +317,12 @@ func (fii *FII) Details(fiiCode string) (*rapina.FIIDetails, error) {
 
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
-		return details, errors.Wrap(err, "read body")
+		return nil, errors.Wrapf(err, "FII Details(%s): reading body", fiiCode)
 	}
 
-	err = fii.parser.StoreFIIDetails(body)
+	err = fii.parser.SaveDetails(body)
 	if err != nil {
-		return details, errors.Wrap(err, "store details")
+		return details, errors.Wrap(err, "storing FII details")
 	}
 
 	return fii.parser.Details(fiiCode)

@@ -32,3 +32,6 @@ wiki/**
 
 # Skip these (keep this at the end)
 !.github/**
+
+# Dependency Analytics
+target/**

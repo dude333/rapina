@@ -38,11 +38,7 @@ func NewFII(db *sql.DB, log rapina.Logger) (*FIIParser, error) {
 // StoreFIIDetails parses the stream data into FIIDetails and returns
 // the *FIIDetails.
 //
-func (fii *FIIParser) StoreFIIDetails(stream []byte) error {
-	if fii.db == nil {
-		return ErrDBUnset
-	}
-
+func (fii *FIIParser) SaveDetails(stream []byte) error {
 	if !hasTable(fii.db, "fii_details") {
 		if err := createTable(fii.db, "fii_details"); err != nil {
 			return err
