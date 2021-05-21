@@ -24,10 +24,11 @@ require (
 	github.com/stretchr/testify v1.4.0
 	github.com/temoto/robotstxt v1.1.2 // indirect
 	golang.org/x/net v0.0.0-20210410081132-afb366fc7cd1 // indirect
+	golang.org/x/sys v0.0.0-20210514084401-e8d321eab015 // indirect
 	golang.org/x/text v0.3.6
-	golang.org/x/tools v0.0.0-20190606124116-d0a3d012864b // indirect
+	golang.org/x/tools v0.1.1 // indirect
 	google.golang.org/appengine v1.6.7 // indirect
-	gopkg.in/yaml.v2 v2.2.7
+	gopkg.in/yaml.v2 v2.4.0
 )
 
 go 1.16
