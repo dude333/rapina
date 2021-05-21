@@ -218,7 +218,7 @@ func (s *Stock) stockCodeFromB3(companyName string) error {
 			continue
 		}
 		// Delete files on return
-		// defer filesCleanup([]string{fp})
+		defer filesCleanup([]string{fp})
 		break
 	}
 
