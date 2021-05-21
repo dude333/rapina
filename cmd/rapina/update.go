@@ -27,7 +27,10 @@ import (
 
 	"github.com/dude333/rapina"
 	"github.com/dude333/rapina/fetch"
+	"github.com/dude333/rapina/parsers"
+	"github.com/dude333/rapina/reports"
 	"github.com/spf13/cobra"
+	"github.com/spf13/viper"
 )
 
 var sectors bool
@@ -57,13 +60,24 @@ var getUpdate = &cobra.Command{
 		//
 		fmt.Println()
 		//
-		if !sectors { // skip if -s flag is selected (dowload only the sectors)
-			err = fetch.CVM(db, dataDir)
+		if sectors { // skip if -s flag is selected (dowload only the sectors)
+			return
 		}
+
+		err = fetch.CVM(db, dataDir)
 		if err != nil {
 			fmt.Println("[x]", err)
 			os.Exit(1)
 		}
+
+		// Stock codes
+		log := reports.NewLogger(os.Stderr)
+		store, err := parsers.NewStock(db, log)
+		if err != nil {
+			return
+		}
+		stock := fetch.NewStock(store, log, viper.GetString("apikey"), dataDir)
+		_ = stock.UpdateStockCodes()
 	},
 }
 

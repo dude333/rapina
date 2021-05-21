@@ -124,7 +124,7 @@ func (s *Stock) stockQuoteFromAPIServer(code, date string, apiProvider int) erro
 		return nil // silent return if this fetch has been run already
 	}
 
-	s.log.Printf("[>] Baixando cotações de %s\n", code)
+	// s.log.Printf("[>] Baixando cotações de %s\n", code)
 
 	// Download quote for 'code'
 	tr := &http.Transport{
@@ -175,7 +175,7 @@ func (s *Stock) Code(companyName, stockType string) (string, error) {
 		return val, nil // returning data found on db
 	}
 
-	if err := s.stockCodeFromB3(companyName); err != nil {
+	if err := s.UpdateStockCodes(); err != nil {
 		return "", err
 	}
 
@@ -191,7 +191,11 @@ type b3CodesFile struct {
 	} `json:"file"`
 }
 
-func (s *Stock) stockCodeFromB3(companyName string) error {
+//
+// UpdateStockCodes get the most recent file from B3.com.br with the stock trading code and
+// saves them on the storage.
+//
+func (s *Stock) UpdateStockCodes() error {
 	// Get file url
 	var f b3CodesFile
 	url := `https://arquivos.b3.com.br/api/download/requestname?fileName=InstrumentsConsolidated&date=`
