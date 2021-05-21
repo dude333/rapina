@@ -28,13 +28,13 @@ import (
 
 // FII holds the infrastructure data.
 type FII struct {
-	parser rapina.FIIParser
-	log    rapina.Logger
+	storage rapina.FIIStorage
+	log     rapina.Logger
 }
 
 // NewFII creates a new instace of FII.
-func NewFII(parser rapina.FIIParser, log rapina.Logger) *FII {
-	fii := &FII{parser: parser, log: log}
+func NewFII(storage rapina.FIIStorage, log rapina.Logger) *FII {
+	fii := &FII{storage: storage, log: log}
 	return fii
 }
 
@@ -92,7 +92,7 @@ func (fii FII) dividendsFromDB(code string, n int) (*[]rapina.Dividend, int, err
 	var dividends []rapina.Dividend
 	var months int
 	for _, monthYear := range rapina.MonthsFromToday(n + 2) {
-		d, err := fii.parser.Dividends(code, monthYear)
+		d, err := fii.storage.Dividends(code, monthYear)
 		if err == nil { // ignore errors
 			dividends = append(dividends, *d...)
 			months++
@@ -260,7 +260,7 @@ func (fii *FII) dividendReport(code string, ids []id) (*[]rapina.Dividend, error
 		if err := c.Visit(u); err != nil {
 			return nil, err
 		}
-		d, err := fii.parser.SaveDividend(yeld)
+		d, err := fii.storage.SaveDividend(yeld)
 		if err != nil {
 			fii.log.Error("%v", err)
 			continue
@@ -283,7 +283,7 @@ func (fii *FII) Details(fiiCode string) (*rapina.FIIDetails, error) {
 		return nil, fmt.Errorf("wrong code '%s'", fiiCode)
 	}
 
-	details, err := fii.parser.Details(fiiCode)
+	details, err := fii.storage.Details(fiiCode)
 	if err == nil && details.DetailFund.CNPJ != "" {
 		return details, nil
 	}
@@ -320,10 +320,10 @@ func (fii *FII) Details(fiiCode string) (*rapina.FIIDetails, error) {
 		return nil, errors.Wrapf(err, "FII Details(%s): reading body", fiiCode)
 	}
 
-	err = fii.parser.SaveDetails(body)
+	err = fii.storage.SaveDetails(body)
 	if err != nil {
 		return details, errors.Wrap(err, "storing FII details")
 	}
 
-	return fii.parser.Details(fiiCode)
+	return fii.storage.Details(fiiCode)
 }

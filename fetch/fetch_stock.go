@@ -25,7 +25,7 @@ const (
 // Stock implements a fetcher for stock info.
 type Stock struct {
 	apiKey  string // API key for Alpha Vantage API server
-	store   rapina.StockParser
+	store   rapina.StockStorage
 	cache   map[string]int // Cache to avoid duplicated fetch on Alpha Vantage server
 	dataDir string         // working directory where files will be stored to be parsed
 	log     rapina.Logger
@@ -34,7 +34,7 @@ type Stock struct {
 //
 // NewStock returns a new instance of *Stock
 //
-func NewStock(store rapina.StockParser, log rapina.Logger, apiKey, dataDir string) *Stock {
+func NewStock(store rapina.StockStorage, log rapina.Logger, apiKey, dataDir string) *Stock {
 	return &Stock{
 		apiKey:  apiKey,
 		store:   store,

@@ -45,23 +45,12 @@ type FIIDetails struct {
 	} `json:"shareHolder"`
 }
 
-// FIISaver is the interface that contains the methods needed to parse and save
-// a stream with FII information to a storage.
-type FIISaver interface {
-	SaveDetails(stream []byte) error // ex StoreFIIDetails
-	SaveDividend(stream map[string]string) (*Dividend, error)
-}
-
-// FIILoader is the interface that contains the methods needed to retrieve
-// FII information from a storage.
-type FIILoader interface {
-	Details(code string) (*FIIDetails, error)
-	Dividends(code, monthYear string) (*[]Dividend, error)
-}
-
-// FIIParser is the interface that contains the methods needed to parse, save and
+// FIIStorage is the interface that contains the methods needed to parse, save and
 // retrieve FII data to/from a storage.
-type FIIParser interface {
-	FIISaver
-	FIILoader
+type FIIStorage interface {
+	Details(code string) (*FIIDetails, error)
+	SaveDetails(stream []byte) error
+
+	Dividends(code, monthYear string) (*[]Dividend, error)
+	SaveDividend(stream map[string]string) (*Dividend, error)
 }
