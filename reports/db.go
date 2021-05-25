@@ -102,9 +102,7 @@ func (r report) accountsValues(year int) (map[uint32]float32, error) {
 	if r.code != "" {
 		date := rapina.LastBusinessDayOfYear(year)
 		q, err := r.fetchStock.Quote(r.code, date)
-		if err != nil {
-			// fmt.Printf("[x] Cotação %s (%d): %v\n", r.code, year, err)
-		} else {
+		if err == nil {
 			values[parsers.Quote] = float32(q)
 		}
 	}

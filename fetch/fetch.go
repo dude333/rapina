@@ -24,6 +24,7 @@ import (
 	"database/sql"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"net/http"
 	"os"
 	"path"
@@ -189,19 +190,28 @@ func processFREReport(db *sql.DB, dataDir string, year int) error {
 }
 
 //
-// fetchFiles from web.
+// fetchFiles from web verbosely.
 //
 func fetchFiles(url, dataDir string, zipfile string) ([]string, error) {
+	return fetchFilesVerbosity(url, dataDir, zipfile, true)
+}
+
+//
+// fetchFilesVerbosity from web.
+//
+func fetchFilesVerbosity(url, dataDir string, zipfile string, verbose bool) ([]string, error) {
 
 	// Download file from web
-	err := downloadFile(url, zipfile)
-	fmt.Println()
+	err := downloadFile(url, zipfile, verbose)
+	if verbose {
+		fmt.Println()
+	}
 	if err != nil {
 		return nil, ErrFileNotFound
 	}
 
 	// Unzip and list files
-	files, err := Unzip(zipfile, dataDir)
+	files, err := Unzip(zipfile, dataDir, verbose)
 	os.Remove(zipfile)
 	if err != nil {
 		return nil, errors.Wrap(err, "could not unzip file")
@@ -231,7 +241,7 @@ func (wc WriteCounter) printProgress() {
 //
 // downloadFile source: https://stackoverflow.com/a/33853856/276311
 //
-func downloadFile(url, filepath string) (err error) {
+func downloadFile(url, filepath string, verbose bool) (err error) {
 	// Create dir if necessary
 	basepath := path.Dir(filepath)
 	if err = os.MkdirAll(basepath, os.ModePerm); err != nil {
@@ -265,7 +275,10 @@ func downloadFile(url, filepath string) (err error) {
 	}
 
 	// Write the body to file
-	counter := &WriteCounter{}
+	counter := ioutil.Discard
+	if verbose {
+		counter = &WriteCounter{}
+	}
 	_, err = io.Copy(out, io.TeeReader(resp.Body, counter))
 	if err != nil {
 		return err

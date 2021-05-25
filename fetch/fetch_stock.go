@@ -88,7 +88,7 @@ func (s *Stock) stockQuoteFromB3(date string) error {
 		conv)
 	// Download ZIP file and unzips its files
 	zip := fmt.Sprintf("%s/COTAHIST_D%s.ZIP", s.dataDir, conv)
-	files, err := fetchFiles(url, s.dataDir, zip)
+	files, err := fetchFilesVerbosity(url, s.dataDir, zip, false)
 	if err != nil {
 		return err
 	}
@@ -212,7 +212,7 @@ func (s *Stock) UpdateStockCodes() error {
 	for {
 		url = fmt.Sprintf(`https://arquivos.b3.com.br/api/download/?token=%s`, f.Token)
 		s.log.Printf("[          ] Download do arquivo de códigos")
-		err = downloadFile(url, fp)
+		err = downloadFile(url, fp, false)
 		if err != nil {
 			tries--
 			if tries <= 0 {
