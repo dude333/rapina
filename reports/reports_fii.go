@@ -3,6 +3,7 @@ package reports
 import (
 	"database/sql"
 	"fmt"
+	"io"
 	"math"
 	"os"
 	"strings"
@@ -28,14 +29,23 @@ const (
 type FIITerminal struct {
 	fetchFII     *fetch.FII
 	fetchStock   *fetch.Stock
-	log          *Logger
+	log          rapina.Logger
 	reportFormat int
 }
 
+type FIITerminalOptions struct {
+	APIKey, DataDir string
+	Log             rapina.Logger
+}
+
 // NewFIITerminal creates a new instace of a FIITerminal
-func NewFIITerminal(db *sql.DB, apiKey, dataDir string) (*FIITerminal, error) {
-	db.SetMaxOpenConns(1)
-	log := NewLogger(nil)
+func NewFIITerminal(db *sql.DB, opts FIITerminalOptions) (*FIITerminal, error) {
+	var log rapina.Logger
+	if opts.Log != nil {
+		log = opts.Log
+	} else {
+		log = NewLogger(io.Discard)
+	}
 	stockParser, err := parsers.NewStock(db, log)
 	if err != nil {
 		return nil, err
@@ -44,7 +54,7 @@ func NewFIITerminal(db *sql.DB, apiKey, dataDir string) (*FIITerminal, error) {
 	if err != nil {
 		return nil, err
 	}
-	fetchStock := fetch.NewStock(stockParser, log, apiKey, dataDir)
+	fetchStock := fetch.NewStock(stockParser, log, opts.APIKey, opts.DataDir)
 	fetchFII := fetch.NewFII(fiiParser, log)
 
 	return &FIITerminal{

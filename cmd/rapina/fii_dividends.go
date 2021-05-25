@@ -66,7 +66,12 @@ func FIIDividends(parms map[string]string, codes []string, n int) error {
 		return err
 	}
 
-	r, err := reports.NewFIITerminal(db, viper.GetString("apikey"), dataDir)
+	opts := reports.FIITerminalOptions{
+		APIKey:  viper.GetString("apikey"),
+		DataDir: dataDir,
+	}
+
+	r, err := reports.NewFIITerminal(db, opts)
 	if err != nil {
 		return err
 	}
@@ -77,36 +82,6 @@ func FIIDividends(parms map[string]string, codes []string, n int) error {
 	if err != nil {
 		return err
 	}
-	/*
-		// QUOTES
-		stockStore, _ := parsers.NewStockStore(db)
-		stock, err := fetch.NewStockFetch(stockStore, viper.GetString("apikey"))
-		if err != nil {
-			return err
-		}
-		q, err := stock.Quote(code, "2011-01-02")
-		if err != nil {
-			return err
-		}
-		fmt.Println(q)
 
-		// DIVIDENDS
-		fiiStore := parsers.NewFIIStore(db)
-		fii := fetch.NewFII(fiiStore)
-		err = fii.Dividends(code, n)
-		if err != nil {
-			return err
-		}
-
-		// DIVIDENDS REPORT
-		r, err := reports.NewFIITerminalReport(db)
-		if err != nil {
-			return err
-		}
-		r.Dividends(code, n)
-		if err != nil {
-			return err
-		}
-	*/
 	return nil
 }
