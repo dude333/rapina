@@ -51,7 +51,7 @@ func JoinURL(base string, paths ...string) string {
 var _timeNow = time.Now
 
 // MonthsFromToday returns a list of months including the current.
-// Date formatted as YYYY-MM-DD.
+// Date formatted as YYYY-MM.
 func MonthsFromToday(n int) []string {
 	if n < 1 {
 		n = 1

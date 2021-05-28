@@ -26,6 +26,8 @@ import (
 	"github.com/pkg/errors"
 )
 
+const MAX_N = 200
+
 // FII holds the infrastructure data.
 type FII struct {
 	storage rapina.FIIStorage
@@ -117,8 +119,8 @@ func (fii FII) dividendsFromDB(code string, n int) (*[]rapina.Dividend, int, err
 // sometimes reports from follow-on offerings (FPO).
 //
 func (fii *FII) dividendsFromServer(code string, n int) (*[]rapina.Dividend, error) {
-	if n > 200 {
-		n = 200
+	if n > MAX_N {
+		n = MAX_N
 	}
 	nn := n
 	lastLen := -1
@@ -326,4 +328,63 @@ func (fii *FII) Details(fiiCode string) (*rapina.FIIDetails, error) {
 	}
 
 	return fii.storage.Details(fiiCode)
+}
+
+func (fii *FII) MonthlyIDs(code string, n int) ([]id, error) {
+	n = minmax(n, 1, MAX_N)
+
+	// Parameters to list the report IDs for the last 'n' dividend reports
+	timestamp := strconv.FormatInt(int64(time.Now().UnixNano()/1e6), 10)
+	nMonthAgo := time.Now()
+	nMonthAgo = nMonthAgo.AddDate(0, -n, -nMonthAgo.Day()+1)
+	d, err := fii.Details(code)
+	if err != nil {
+		fii.log.Debug("[reportID] error on fii.Details(%s): %v", code, err)
+		return nil, err
+	}
+	cnpj := d.DetailFund.CNPJ
+
+	v := url.Values{
+		"tipoFundo":            []string{"1"},
+		"cnpjFundo":            []string{cnpj},
+		"idCategoriaDocumento": []string{"6"},
+		"idTipoDocumento":      []string{"40"},
+		"idEspecieDocumento":   []string{"0"},
+		"situacao":             []string{"A"},
+		"dataFinal":            []string{time.Now().Format("02/01/2006")},
+		"dataInicial":          []string{nMonthAgo.Format("02/01/2006")},
+		"_":                    []string{timestamp},
+		"d":                    []string{"0"},
+		"s":                    []string{"0"},
+		"l":                    []string{"14"},
+	}
+
+	// Get the 'report IDs' for a given company (CNPJ) -- returns JSON
+	var report Report
+	u := "https://fnet.bmfbovespa.com.br/fnet/publico/pesquisarGerenciadorDocumentosDados?" +
+		v.Encode()
+	fii.log.Debug("* %s", u)
+	if err := getJSON(u, &report); err != nil {
+		return nil, err
+	}
+
+	var ids []id
+	for _, d := range report.Data {
+		if d.Status == "A" {
+			ids = append(ids, d.ID)
+		}
+	}
+
+	return ids, nil
+}
+
+// minmax returns n limited to [min, max]
+func minmax(n, min, max int) int {
+	if n < min {
+		n = min
+	}
+	if n > max {
+		n = MAX_N
+	}
+	return n
 }

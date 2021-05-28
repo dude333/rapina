@@ -235,3 +235,15 @@ func revMonthsFromToday(n int) []string {
 	}
 	return rev
 }
+
+/* ------- MONTHLY REPORTS -------- */
+
+func (t FIITerminal) Monthly(codes []string, n int) error {
+
+	for _, c := range codes {
+		ii, err := t.fetchFII.MonthlyIDs(c, n)
+		t.log.Debug("indexes: %v (err: %v)", ii, err)
+	}
+
+	return nil
+}

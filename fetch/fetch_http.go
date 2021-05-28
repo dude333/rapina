@@ -1,6 +1,7 @@
 package fetch
 
 import (
+	"crypto/tls"
 	"encoding/json"
 	"net/http"
 	"time"
@@ -29,5 +30,23 @@ func (h HTTPFetch) JSON(url string, target interface{}) error {
 	// 	fmt.Printf("COOKIE: %+v\n", c)
 	// }
 
+	return json.NewDecoder(r.Body).Decode(target)
+}
+
+func getJSON(url string, target interface{}) error {
+	c := &http.Client{
+		Timeout: 10 * time.Second,
+		Transport: &http.Transport{
+			DisableCompression: true,
+			IdleConnTimeout:    30 * time.Second,
+			TLSClientConfig:    &tls.Config{InsecureSkipVerify: true},
+		},
+	}
+
+	r, err := c.Get(url)
+	if err != nil {
+		return err
+	}
+	defer r.Body.Close()
 	return json.NewDecoder(r.Body).Decode(target)
 }

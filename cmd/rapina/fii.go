@@ -11,6 +11,7 @@ import (
 type fiiFlags struct {
 	num       int // number of months since current
 	dividends fiiDividendsFlags
+	monthly   fiiMonthlyFlags
 }
 
 // fiiCmd represents the fii command
