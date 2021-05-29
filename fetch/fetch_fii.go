@@ -12,7 +12,6 @@ package fetch
 import (
 	"crypto/tls"
 	"encoding/base64"
-	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"net/http"
@@ -53,25 +52,6 @@ type docID struct {
 	DocType     string `json:"tipoDocumento"`
 	Status      string `json:"situacaoDocumento"`
 }
-
-/*
-type money float32
-type fiiYeld struct {
-	FundName  string `json:"Nome do Fundo:"`
-	FundCNPJ  string `json:"CNPJ do Fundo:"`
-	Admin     string `json:"Nome do Administrador:"`
-	AdminCNPJ string `json:"CNPJ do Administrador:"`
-	ISIN      string `json:"Código ISIN da cota:"`
-	Cod       string `json:"Código de negociação da cota:"`
-
-	ReleaseDate *time.Time `json:"Data da informação"`
-	BaseDate    *time.Time `json:"Data-base (último dia de negociação “com” direito ao provento)"`
-	PymtDate    *time.Time `json:"Data do pagamento"`
-	Value       money      `json:"Valor do provento por cota (R$)"`
-	Month       int        `json:"Período de referência"`
-	Year        int        `json:"Ano"`
-}
-*/
 
 //
 // Dividends gets the report IDs for one company ('cnpj') and then the
@@ -130,7 +110,7 @@ func (fii *FII) dividendsFromServer(code string, n int) (*[]rapina.Dividend, err
 		fii.log.Info("Relatórios de dividendos: %s (n=%d nn=%d len(dividends)=%d)",
 			code, n, nn, len(*dividends))
 
-		ids, err := fii.reportIDs(code, nn)
+		ids, err := fii.reportIDs(repDividends, code, nn)
 		if err != nil {
 			return nil, err
 		}
@@ -144,79 +124,6 @@ func (fii *FII) dividendsFromServer(code string, n int) (*[]rapina.Dividend, err
 	}
 
 	return dividends, nil
-}
-
-//
-// reportIDs gets the 'n' latest report IDs for one company 'code'.
-//
-func (fii *FII) reportIDs(code string, n int) ([]id, error) {
-	var ids []id
-
-	if n <= 0 {
-		n = 1
-	}
-
-	c := colly.NewCollector()
-	c.WithTransport(&http.Transport{
-		TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
-	})
-
-	c.OnRequest(func(r *colly.Request) {
-		r.Headers.Set("Accept", "application/json")
-	})
-
-	c.OnError(func(r *colly.Response, err error) {
-		fii.log.Error("Request URL: %v failed with response: %v\nError: %v", r.Request.URL, string(r.Body), err)
-	})
-
-	// Handles the json output with the report IDs
-	c.OnResponse(func(r *colly.Response) {
-		if !strings.Contains(r.Headers.Get("content-type"), "application/json") {
-			return
-		}
-		var report Report
-		err := json.Unmarshal(r.Body, &report)
-		if err != nil {
-			fii.log.Error("json error: %v", err)
-			return
-		}
-		for _, d := range report.Data {
-			if d.Status == "A" {
-				ids = append(ids, d.ID)
-			}
-		}
-	})
-
-	// Parameters to list the report IDs for the last 'n' dividend reports
-	timestamp := strconv.FormatInt(int64(time.Now().UnixNano()/1e6), 10)
-	d, err := fii.Details(code)
-	if err != nil {
-		fii.log.Debug("[reportID] error on fii.Details(%s): %v", code, err)
-		return nil, err
-	}
-	cnpj := d.DetailFund.CNPJ
-	v := url.Values{
-		"d":                    []string{"2"},
-		"s":                    []string{"0"},
-		"l":                    []string{strconv.Itoa(n)}, // 'n' latest reports
-		"o[0][dataEntrega]":    []string{"desc"},
-		"tipoFundo":            []string{"1"},
-		"cnpjFundo":            []string{cnpj},
-		"idCategoriaDocumento": []string{"14"},
-		"idTipoDocumento":      []string{"41"},
-		"idEspecieDocumento":   []string{"0"},
-		"situacao":             []string{"A"},
-		"_":                    []string{timestamp},
-	}
-
-	// Get the 'report IDs' for a given company (CNPJ) -- returns JSON
-	u := "https://fnet.bmfbovespa.com.br/fnet/publico/pesquisarGerenciadorDocumentosDados" +
-		"?" + v.Encode()
-	if err := c.Visit(u); err != nil {
-		return nil, err
-	}
-
-	return ids, nil
 }
 
 //
@@ -330,33 +237,54 @@ func (fii *FII) Details(fiiCode string) (*rapina.FIIDetails, error) {
 	return fii.storage.Details(fiiCode)
 }
 
-func (fii *FII) MonthlyIDs(code string, n int) ([]id, error) {
+// Report type
+type repType int
+
+const (
+	repMonthly repType = iota + 1
+	repDividends
+)
+
+func (fii *FII) reportIDs(rt repType, code string, n int) ([]id, error) {
 	n = minmax(n, 1, MAX_N)
 
 	// Parameters to list the report IDs for the last 'n' dividend reports
 	timestamp := strconv.FormatInt(int64(time.Now().UnixNano()/1e6), 10)
 	nMonthAgo := time.Now()
 	nMonthAgo = nMonthAgo.AddDate(0, -n, -nMonthAgo.Day()+1)
-	d, err := fii.Details(code)
+	det, err := fii.Details(code)
 	if err != nil {
-		fii.log.Debug("[reportID] error on fii.Details(%s): %v", code, err)
+		fii.log.Debug("reportIDs: error on fii.Details(%s): %v", code, err)
 		return nil, err
 	}
-	cnpj := d.DetailFund.CNPJ
+	cnpj := det.DetailFund.CNPJ
+
+	var idTipoDocumento, idCategoriaDocumento, d string
+	if rt == repMonthly {
+		idTipoDocumento = "40"
+		idCategoriaDocumento = "6"
+		d = "0"
+	} else if rt == repDividends {
+		idTipoDocumento = "41"
+		idCategoriaDocumento = "14"
+		d = "2"
+	} else {
+		return []id{}, errors.New("invalid report type")
+	}
 
 	v := url.Values{
 		"tipoFundo":            []string{"1"},
 		"cnpjFundo":            []string{cnpj},
-		"idCategoriaDocumento": []string{"6"},
-		"idTipoDocumento":      []string{"40"},
+		"idTipoDocumento":      []string{idTipoDocumento},
+		"idCategoriaDocumento": []string{idCategoriaDocumento},
+		"d":                    []string{d},
 		"idEspecieDocumento":   []string{"0"},
 		"situacao":             []string{"A"},
+		"s":                    []string{"0"},
+		"l":                    []string{strconv.Itoa(n)}, // 'n' latest reports
 		"dataFinal":            []string{time.Now().Format("02/01/2006")},
 		"dataInicial":          []string{nMonthAgo.Format("02/01/2006")},
 		"_":                    []string{timestamp},
-		"d":                    []string{"0"},
-		"s":                    []string{"0"},
-		"l":                    []string{"14"},
 	}
 
 	// Get the 'report IDs' for a given company (CNPJ) -- returns JSON
@@ -387,4 +315,8 @@ func minmax(n, min, max int) int {
 		n = MAX_N
 	}
 	return n
+}
+
+func (fii *FII) MonthlyReportIDs(code string, n int) ([]id, error) {
+	return fii.reportIDs(repMonthly, code, n)
 }
