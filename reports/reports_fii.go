@@ -115,12 +115,13 @@ func (t FIITerminal) Dividends(codes []string, n int) error {
 	for _, code := range codes {
 		wg.Add(1)
 		go func(code string, n int) {
+			defer wg.Done()
 			div, err := t.fetchFII.Dividends(code, n)
 			if err != nil {
 				t.log.Error("%s dividendos: %v", code, err)
+				return
 			}
 			dividends[code] = div
-			wg.Done()
 		}(code, n)
 	}
 	wg.Wait()

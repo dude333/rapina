@@ -92,7 +92,7 @@ func (fii *FIIParser) Details(code string) (*rapina.FIIDetails, error) {
 	var jsonStr []byte
 	row := fii.db.QueryRow(query, code)
 	err := row.Scan(&jsonStr)
-	if err != nil && err != sql.ErrNoRows {
+	if err != nil {
 		return nil, err
 	}
 
@@ -218,7 +218,9 @@ func (fii *FIIParser) SelectFIIDetails(code string) (*rapina.FIIDetails, error) 
 func trimFIIDetails(f *rapina.FIIDetails) {
 	f.DetailFund.CNPJ = strings.TrimSpace(f.DetailFund.CNPJ)
 	f.DetailFund.Acronym = strings.TrimSpace(f.DetailFund.Acronym)
-	f.DetailFund.TradingCode = strings.TrimSpace(f.DetailFund.TradingCode)
+	tradingCodes := strings.Split(
+		strings.TrimSpace(f.DetailFund.TradingCode), " ")
+	f.DetailFund.TradingCode = tradingCodes[0]
 }
 
 func mapFinder(key string, m map[string]string) string {
