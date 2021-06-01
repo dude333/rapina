@@ -11,7 +11,6 @@ import (
 
 	"github.com/360EntSecGroup-Skylar/excelize"
 	"github.com/dude333/rapina/fetch"
-	"github.com/dude333/rapina/parsers"
 	p "github.com/dude333/rapina/parsers"
 	"github.com/pkg/errors"
 )
@@ -100,14 +99,11 @@ func initReport(parms map[string]interface{}) (*report, error) {
 		apiKey = v.(string)
 	}
 
+	var err error
 	log := NewLogger(os.Stderr)
-	stockParser, err := parsers.NewStock(r.db, log)
-	if err != nil {
-		return nil, err
-	}
-	r.fetchStock = fetch.NewStock(stockParser, log, apiKey, dataDir)
+	r.fetchStock, err = fetch.NewStock(r.db, log, apiKey, dataDir)
 
-	return &r, nil
+	return &r, err
 }
 
 //

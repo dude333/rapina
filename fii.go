@@ -7,6 +7,10 @@ type Dividend struct {
 	Val  float64
 }
 
+// Monthly contains the FII monthly report fields
+type Monthly struct {
+}
+
 // FIIDetails details (ID field: DetailFund.CNPJ)
 type FIIDetails struct {
 	DetailFund struct {

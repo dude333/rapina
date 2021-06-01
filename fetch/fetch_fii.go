@@ -11,6 +11,7 @@ package fetch
 
 import (
 	"crypto/tls"
+	"database/sql"
 	"encoding/base64"
 	"fmt"
 	"io/ioutil"
@@ -21,6 +22,7 @@ import (
 	"time"
 
 	"github.com/dude333/rapina"
+	"github.com/dude333/rapina/parsers"
 	"github.com/gocolly/colly"
 	"github.com/pkg/errors"
 )
@@ -34,9 +36,14 @@ type FII struct {
 }
 
 // NewFII creates a new instace of FII.
-func NewFII(storage rapina.FIIStorage, log rapina.Logger) *FII {
+func NewFII(db *sql.DB, log rapina.Logger) (*FII, error) {
+	storage, err := parsers.NewFII(db, log)
+	if err != nil {
+		return nil, err
+	}
+
 	fii := &FII{storage: storage, log: log}
-	return fii
+	return fii, nil
 }
 
 type id int
@@ -181,6 +188,63 @@ func (fii *FII) dividendReport(code string, ids []id) (*[]rapina.Dividend, error
 	}
 
 	return &dividends, nil
+}
+
+//
+// monthlyReport parses the FII monthly reports.
+//
+func (fii *FII) MonthlyReport(code string, ids []id) (*[]rapina.Monthly, error) {
+	yeld := make(map[string]string, len(ids))
+
+	c := colly.NewCollector()
+	c.WithTransport(&http.Transport{
+		TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+	})
+
+	c.OnRequest(func(r *colly.Request) {
+		r.Headers.Set("Accept", "text/html")
+	})
+
+	c.OnError(func(r *colly.Response, err error) {
+		fii.log.Error("Request URL: %v failed with response: %v\nError: %v", r.Request.URL, string(r.Body), err)
+	})
+
+	// Handles the html report
+	c.OnHTML("tr", func(e *colly.HTMLElement) {
+		var fieldName string
+		e.ForEach("td", func(_ int, el *colly.HTMLElement) {
+			v := strings.Trim(el.Text, " \r\n")
+			if v != "" {
+				if fieldName == "" {
+					fieldName = v
+				} else {
+					fmt.Printf("%-30s => %s\n", fieldName, v)
+					yeld[fieldName] = v
+					fieldName = ""
+				}
+			}
+		})
+	})
+
+	// Get the yeld monthly report given the list of 'report IDs' -- returns HTML
+	monthly := make([]rapina.Monthly, 0, len(ids))
+	for _, id := range ids {
+		u := fmt.Sprintf("https://fnet.bmfbovespa.com.br/fnet/publico/exibirDocumento?id=%d&cvm=true", id)
+		if err := c.Visit(u); err != nil {
+			return nil, err
+		}
+		// d, err := fii.storage.SaveDividend(yeld)
+		// if err != nil {
+		// 	fii.log.Error("%v", err)
+		// 	continue
+		// }
+		// // fmt.Println("from server", d.Code, d.Date, d.Val)
+		// if d.Code == code {
+		// 	monthly = append(monthly, *d)
+		// }
+	}
+
+	return &monthly, nil
 }
 
 //

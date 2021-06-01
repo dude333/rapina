@@ -11,7 +11,6 @@ import (
 
 	"github.com/dude333/rapina"
 	"github.com/dude333/rapina/fetch"
-	"github.com/dude333/rapina/parsers"
 	"golang.org/x/text/language"
 	"golang.org/x/text/message"
 )
@@ -46,16 +45,16 @@ func NewFIITerminal(db *sql.DB, opts FIITerminalOptions) (*FIITerminal, error) {
 	} else {
 		log = NewLogger(io.Discard)
 	}
-	stockParser, err := parsers.NewStock(db, log)
+
+	fetchStock, err := fetch.NewStock(db, log, opts.APIKey, opts.DataDir)
 	if err != nil {
 		return nil, err
 	}
-	fiiParser, err := parsers.NewFII(db, log)
+
+	fetchFII, err := fetch.NewFII(db, log)
 	if err != nil {
 		return nil, err
 	}
-	fetchStock := fetch.NewStock(stockParser, log, opts.APIKey, opts.DataDir)
-	fetchFII := fetch.NewFII(fiiParser, log)
 
 	return &FIITerminal{
 		fetchFII:     fetchFII,

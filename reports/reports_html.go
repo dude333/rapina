@@ -14,7 +14,6 @@ import (
 	"strings"
 
 	"github.com/dude333/rapina/fetch"
-	"github.com/dude333/rapina/parsers"
 	"golang.org/x/text/language"
 	"golang.org/x/text/message"
 )
@@ -57,16 +56,14 @@ func initServer(opts ...ServerOption) (*Server, error) {
 
 	srv.db.SetMaxOpenConns(1)
 	log := NewLogger(os.Stderr)
-	stockParser, err := parsers.NewStock(srv.db, log)
+	fetchStock, err := fetch.NewStock(srv.db, log, srv.apiKey, srv.dataDir)
 	if err != nil {
 		return nil, err
 	}
-	fiiParser, err := parsers.NewFII(srv.db, log)
+	fetchFII, err := fetch.NewFII(srv.db, log)
 	if err != nil {
 		return nil, err
 	}
-	fetchStock := fetch.NewStock(stockParser, log, srv.apiKey, srv.dataDir)
-	fetchFII := fetch.NewFII(fiiParser, log)
 
 	srv.log = log
 	srv.fetchFII = fetchFII

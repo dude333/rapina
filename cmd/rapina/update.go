@@ -27,7 +27,6 @@ import (
 
 	"github.com/dude333/rapina"
 	"github.com/dude333/rapina/fetch"
-	"github.com/dude333/rapina/parsers"
 	"github.com/dude333/rapina/reports"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -72,11 +71,11 @@ var getUpdate = &cobra.Command{
 
 		// Stock codes
 		log := reports.NewLogger(os.Stderr)
-		store, err := parsers.NewStock(db, log)
+		stock, err := fetch.NewStock(db, log, viper.GetString("apikey"), dataDir)
 		if err != nil {
+			log.Error(err.Error())
 			return
 		}
-		stock := fetch.NewStock(store, log, viper.GetString("apikey"), dataDir)
 		_ = stock.UpdateStockCodes()
 	},
 }

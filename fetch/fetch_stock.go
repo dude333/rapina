@@ -2,6 +2,7 @@ package fetch
 
 import (
 	"crypto/tls"
+	"database/sql"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -10,6 +11,7 @@ import (
 	"time"
 
 	"github.com/dude333/rapina"
+	"github.com/dude333/rapina/parsers"
 	"github.com/pkg/errors"
 	"golang.org/x/text/encoding/charmap"
 	"golang.org/x/text/transform"
@@ -34,14 +36,19 @@ type Stock struct {
 //
 // NewStock returns a new instance of *Stock
 //
-func NewStock(store rapina.StockStorage, log rapina.Logger, apiKey, dataDir string) *Stock {
+func NewStock(db *sql.DB, log rapina.Logger, apiKey, dataDir string) (*Stock, error) {
+	store, err := parsers.NewStock(db, log)
+	if err != nil {
+		return nil, err
+	}
+
 	return &Stock{
 		apiKey:  apiKey,
 		store:   store,
 		cache:   make(map[string]int),
 		dataDir: dataDir,
 		log:     log,
-	}
+	}, nil
 }
 
 // Quote returns the quote for 'code' on 'date'.
