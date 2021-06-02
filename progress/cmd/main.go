@@ -2,7 +2,6 @@ package main
 
 import (
 	"errors"
-	"os"
 	"time"
 
 	"github.com/dude333/rapina/progress"
@@ -10,30 +9,40 @@ import (
 
 func main() {
 
-	p := progress.Open(os.Stdout)
-	defer p.Close()
-	p.Status("a status msg")
+	progress.Cursor(false)
+	defer progress.Cursor(true)
+	progress.Status("a status msg")
 
-	p.Running("start process")
-	p.Error(errors.New("some error"))
+	progress.Running("start process")
+	progress.Error(errors.New("some error"))
 	time.Sleep(time.Second)
-	p.RunOK()
+	progress.RunOK()
 
-	p.Running("start another process")
+	progress.Running("start another process")
 	time.Sleep(time.Second)
-	p.Status("middle")
+	progress.Status("middle")
 	time.Sleep(time.Second)
-	p.RunFail()
+	progress.RunFail()
 
-	p.Running("start spinner")
+	f1()
+
+	progress.Running("start spinner")
 	for i := 0; i < 100; i++ {
 		time.Sleep(10 * time.Millisecond)
-		p.Spinner()
+		progress.Spinner()
 		if i == 20 {
-			p.Status("spinner interrupt")
+			progress.Status("spinner interrupt")
 		}
 	}
-	p.RunOK()
+	progress.RunOK()
 
-	p.Status("end.")
+	progress.Status("end.")
+}
+
+func f1() {
+	progress.Running("Running *f1*")
+	time.Sleep(time.Second)
+	progress.Warning("f1 warning")
+	time.Sleep(time.Second)
+	progress.RunOK()
 }

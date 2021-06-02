@@ -14,6 +14,7 @@ import (
 	"strings"
 
 	"github.com/dude333/rapina/fetch"
+	"github.com/dude333/rapina/progress"
 	"golang.org/x/text/language"
 	"golang.org/x/text/message"
 )
@@ -152,14 +153,14 @@ func fiiDividends(srv *Server, codes []string, n int) *[]data {
 
 		div, err := srv.fetchFII.Dividends(code, n)
 		if err != nil {
-			srv.log.Error("%s dividendos: %v", code, err)
+			progress.ErrorMsg("%s: %v", code, err)
 			return &dataset
 		}
 
 		for _, d := range *div {
 			q, err := srv.fetchStock.Quote(code, d.Date)
 			if err != nil {
-				srv.log.Error("Cotação de %s (%s): %v", code, d.Date, err)
+				progress.ErrorMsg("Cotação de %s (%s): %v", code, d.Date, err)
 				continue
 			}
 

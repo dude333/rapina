@@ -3,14 +3,13 @@ package reports
 import (
 	"database/sql"
 	"fmt"
-	"io"
 	"math"
-	"os"
 	"strings"
 	"sync"
 
 	"github.com/dude333/rapina"
 	"github.com/dude333/rapina/fetch"
+	"github.com/dude333/rapina/progress"
 	"golang.org/x/text/language"
 	"golang.org/x/text/message"
 )
@@ -28,23 +27,16 @@ const (
 type FIITerminal struct {
 	fetchFII     *fetch.FII
 	fetchStock   *fetch.Stock
-	log          rapina.Logger
 	reportFormat int
 }
 
 type FIITerminalOptions struct {
 	APIKey, DataDir string
-	Log             rapina.Logger
 }
 
 // NewFIITerminal creates a new instace of a FIITerminal
 func NewFIITerminal(db *sql.DB, opts FIITerminalOptions) (*FIITerminal, error) {
 	var log rapina.Logger
-	if opts.Log != nil {
-		log = opts.Log
-	} else {
-		log = NewLogger(io.Discard)
-	}
 
 	fetchStock, err := fetch.NewStock(db, log, opts.APIKey, opts.DataDir)
 	if err != nil {
@@ -59,16 +51,15 @@ func NewFIITerminal(db *sql.DB, opts FIITerminalOptions) (*FIITerminal, error) {
 	return &FIITerminal{
 		fetchFII:     fetchFII,
 		fetchStock:   fetchStock,
-		log:          log,
 		reportFormat: Rtable,
 	}, nil
 }
 
 // SetParms set the terminal reports parameters.
 func (t *FIITerminal) SetParms(parms map[string]string) {
-	if _, ok := parms["verbose"]; ok {
-		t.log.SetOut(os.Stderr)
-	}
+	// if _, ok := parms["verbose"]; ok {
+	// 	t.log.SetOut(os.Stderr)
+	// }
 	if r, ok := parms["format"]; ok {
 		switch r {
 		case "table", "tabela", "tab":
@@ -83,7 +74,6 @@ func (t *FIITerminal) SetParms(parms map[string]string) {
 
 // Dividends prints the dividends report on terminal.
 func (t FIITerminal) Dividends(codes []string, n int) error {
-
 	// Header
 	if t.reportFormat == Rcsv {
 		fmt.Println("Código,Data Com,Rendimento,Cotação,Yeld,Yeld a.a.")
@@ -102,8 +92,7 @@ func (t FIITerminal) Dividends(codes []string, n int) error {
 		if len(code) == 6 {
 			c = append(c, code)
 		} else {
-			t.log.Error("Código inválido: %s", code)
-			t.log.Info("Padrão experado: ABCD11")
+			progress.ErrorMsg("Código inválido: %s. Padrão esperado: ABCD11.", code)
 		}
 	}
 	codes = c
@@ -117,7 +106,7 @@ func (t FIITerminal) Dividends(codes []string, n int) error {
 			defer wg.Done()
 			div, err := t.fetchFII.Dividends(code, n)
 			if err != nil {
-				t.log.Error("%s dividendos: %v", code, err)
+				progress.ErrorMsg("%s: %v", code, err)
 				return
 			}
 			dividends[code] = div
@@ -140,7 +129,7 @@ func (t FIITerminal) Dividends(codes []string, n int) error {
 			buf, err = t.printDividends(code, dividends[code])
 		}
 		if err != nil {
-			t.log.Error("%s", err)
+			progress.Error(err)
 		} else {
 			fmt.Print(buf)
 		}
@@ -169,7 +158,7 @@ func (t FIITerminal) printDividends(code string, dividends *[]rapina.Dividend) (
 
 		q, err := t.fetchStock.Quote(code, d.Date)
 		if err != nil {
-			t.log.Error("Cotação de %s (%s): %v", code, d.Date, err)
+			progress.ErrorMsg("Cotação de %s (%s): %v", code, d.Date, err)
 		}
 		if q > 0 && err == nil {
 			i := d.Val / q
@@ -189,7 +178,7 @@ func (t FIITerminal) csvDividends(code string, dividends *[]rapina.Dividend) (*s
 
 		q, err := t.fetchStock.Quote(code, d.Date)
 		if err != nil {
-			t.log.Error("Cotação de %s (%s): %v", code, d.Date, err)
+			progress.ErrorMsg("Cotação de %s (%s): %v", code, d.Date, err)
 		}
 		if q > 0 && err == nil {
 			i := d.Val / q
@@ -242,7 +231,7 @@ func (t FIITerminal) Monthly(codes []string, n int) error {
 
 	for _, c := range codes {
 		ii, err := t.fetchFII.MonthlyReportIDs(c, n)
-		t.log.Debug("indexes: %v (err: %v)", ii, err)
+		progress.Status("indexes: %v (err: %v)", ii, err)
 	}
 
 	return nil

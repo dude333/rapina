@@ -9,6 +9,7 @@ import (
 	"sync"
 
 	"github.com/dude333/rapina"
+	"github.com/dude333/rapina/progress"
 	"github.com/pkg/errors"
 )
 
@@ -54,7 +55,7 @@ func (fii *FIIParser) SaveDetails(stream []byte) error {
 
 	x := fiiDetails.DetailFund
 	if x.CNPJ == "" {
-		return fmt.Errorf("wrong CNPJ: %s", x.CNPJ)
+		return errors.New("CNPJ não encontrado")
 	}
 
 	fii.mu.Lock()
@@ -97,7 +98,7 @@ func (fii *FIIParser) Details(code string) (*rapina.FIIDetails, error) {
 	}
 
 	if err := json.Unmarshal(jsonStr, &details); err != nil {
-		fii.log.Error("FII details [%v]: %s\n", err, string(jsonStr))
+		progress.ErrorMsg("FII details [%v]: %s\n", err, string(jsonStr))
 		return nil, errors.Wrap(err, "json unmarshal")
 	}
 

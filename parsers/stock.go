@@ -17,6 +17,7 @@ import (
 	"sync"
 
 	"github.com/dude333/rapina"
+	"github.com/dude333/rapina/progress"
 	"github.com/pkg/errors"
 	"golang.org/x/text/encoding/charmap"
 	"golang.org/x/text/transform"
@@ -99,7 +100,7 @@ func (s *StockParser) Code(companyName, stockType string) (string, error) {
 func (s *StockParser) SaveB3Quotes(filename string) error {
 	isNew, err := isNewFile(s.db, filename)
 	if !isNew && err == nil { // if error, process file
-		s.log.Info("%s já processado anteriormente", filename)
+		progress.Warning("%s já processado anteriormente", filename)
 		return errors.New("este arquivo de cotações já foi importado anteriormente")
 	}
 

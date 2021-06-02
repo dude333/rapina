@@ -7,6 +7,8 @@ import (
 	"time"
 )
 
+const _http_timeout = 30 * time.Second
+
 // HTTPFetch implements a generic HTTP fetcher.
 type HTTPFetch struct {
 	client *http.Client
@@ -14,7 +16,7 @@ type HTTPFetch struct {
 
 // NewHTTP creates a new HTTPFetch instance.
 func NewHTTP() *HTTPFetch {
-	c := &http.Client{Timeout: 10 * time.Second}
+	c := &http.Client{Timeout: _http_timeout}
 	return &HTTPFetch{client: c}
 }
 
@@ -35,10 +37,10 @@ func (h HTTPFetch) JSON(url string, target interface{}) error {
 
 func getJSON(url string, target interface{}) error {
 	c := &http.Client{
-		Timeout: 10 * time.Second,
+		Timeout: _http_timeout,
 		Transport: &http.Transport{
 			DisableCompression: true,
-			IdleConnTimeout:    30 * time.Second,
+			IdleConnTimeout:    _http_timeout,
 			TLSClientConfig:    &tls.Config{InsecureSkipVerify: true},
 		},
 	}

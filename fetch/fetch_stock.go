@@ -12,6 +12,7 @@ import (
 
 	"github.com/dude333/rapina"
 	"github.com/dude333/rapina/parsers"
+	"github.com/dude333/rapina/progress"
 	"github.com/pkg/errors"
 	"golang.org/x/text/encoding/charmap"
 	"golang.org/x/text/transform"
@@ -66,19 +67,39 @@ func (s *Stock) Quote(code, date string) (float64, error) {
 		return val, nil // returning data found on db
 	}
 
-	// Load quotes from B3, fallback to Yahoo Finance and Alpha Vantage on error
-	err = s.stockQuoteFromB3(date)
-	if err != nil {
-		err = s.stockQuoteFromAPIServer(code, date, APIyahoo)
-	}
-	if err != nil && s.apiKey != "" {
-		err = s.stockQuoteFromAPIServer(code, date, APIalphavantage)
-	}
-	if err != nil {
-		return 0, err
+	// Load quotes from B3
+	if err := s.stockQuoteFromB3(date); ifNot(err) {
+		if val, err = s.store.Quote(code, date); ifNot(err) {
+			return val, nil // returning data found on B3
+		}
 	}
 
-	return s.store.Quote(code, date)
+	// Fallback to Yahoo Finance if not found on B3
+	if err := s.stockQuoteFromAPIServer(code, date, APIyahoo); ifNot(err) {
+		if val, err = s.store.Quote(code, date); ifNot(err) {
+			return val, nil // returning data found on Yahoo
+		}
+	}
+
+	errNoProvider := errors.New("cotação não encontrada em nenhum provedor (B3, Yahoo e Alpha Vantage)")
+	if s.apiKey == "" {
+		errNoProvider = errors.New("cotação não encontrada em nenhum provedor (B3 e Yahoo)")
+	}
+
+	// Fallback to Alpha Vantage if not found on B3 and Yahoo
+	if s.apiKey == "" {
+		return 0, errNoProvider
+	}
+	if err := s.stockQuoteFromAPIServer(code, date, APIalphavantage); err != nil {
+		return 0, errNoProvider
+	}
+	// Last try: return quote loaded by Alpha Vantage
+	val, err = s.store.Quote(code, date)
+	if err != nil {
+		return 0, errNoProvider
+	}
+
+	return val, nil
 }
 
 //
@@ -127,16 +148,13 @@ func (s *Stock) stockQuoteFromB3(date string) error {
 //
 func (s *Stock) stockQuoteFromAPIServer(code, date string, apiProvider int) error {
 	if v := s.cache[code]; v == APIalphavantage && apiProvider == APIalphavantage {
-		// return fmt.Errorf("cotação histórica para '%s' já foi feita", code)
 		return nil // silent return if this fetch has been run already
 	}
-
-	// s.log.Printf("[>] Baixando cotações de %s\n", code)
 
 	// Download quote for 'code'
 	tr := &http.Transport{
 		DisableCompression: true,
-		IdleConnTimeout:    30 * time.Second,
+		IdleConnTimeout:    _http_timeout,
 		TLSClientConfig:    &tls.Config{InsecureSkipVerify: true},
 	}
 	client := &http.Client{Transport: tr}
@@ -166,13 +184,13 @@ func (s *Stock) stockQuoteFromAPIServer(code, date string, apiProvider int) erro
 		return errors.New(map2str(jsonMap))
 	}
 
-	s.log.Run("Armazendo cotações no banco de dados...")
+	progress.Running("Armazendo cotações no banco de dados...")
 	_, err = s.store.Save(resp.Body, code)
 	if err != nil {
-		s.log.Nok()
+		progress.RunFail()
 		return errors.Wrapf(err, "armazenando cotações de %s", code)
 	}
-	s.log.Ok()
+	progress.RunOK()
 
 	return err
 }
@@ -218,7 +236,7 @@ func (s *Stock) UpdateStockCodes() error {
 	tries := 3
 	for {
 		url = fmt.Sprintf(`https://arquivos.b3.com.br/api/download/?token=%s`, f.Token)
-		s.log.Printf("[          ] Download do arquivo de códigos")
+		progress.Download("Download do arquivo de códigos")
 		err = downloadFile(url, fp, false)
 		if err != nil {
 			tries--
@@ -284,4 +302,9 @@ func map2str(data map[string]interface{}) string {
 		buf += fmt.Sprintln(k+":", v)
 	}
 	return buf
+}
+
+// ifNot returns true if no error is found.
+func ifNot(err error) bool {
+	return err == nil
 }

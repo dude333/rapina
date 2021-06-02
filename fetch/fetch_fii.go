@@ -23,6 +23,7 @@ import (
 
 	"github.com/dude333/rapina"
 	"github.com/dude333/rapina/parsers"
+	"github.com/dude333/rapina/progress"
 	"github.com/gocolly/colly"
 	"github.com/pkg/errors"
 )
@@ -32,7 +33,6 @@ const MAX_N = 200
 // FII holds the infrastructure data.
 type FII struct {
 	storage rapina.FIIStorage
-	log     rapina.Logger
 }
 
 // NewFII creates a new instace of FII.
@@ -42,7 +42,9 @@ func NewFII(db *sql.DB, log rapina.Logger) (*FII, error) {
 		return nil, err
 	}
 
-	fii := &FII{storage: storage, log: log}
+	fii := &FII{
+		storage: storage,
+	}
 	return fii, nil
 }
 
@@ -114,8 +116,7 @@ func (fii *FII) dividendsFromServer(code string, n int) (*[]rapina.Dividend, err
 	dividends := &[]rapina.Dividend{}
 
 	for len(*dividends) < n && lastLen != len(*dividends) && nn <= 200 {
-		fii.log.Info("Relatórios de dividendos: %s (n=%d nn=%d len(dividends)=%d)",
-			code, n, nn, len(*dividends))
+		progress.Status("Relatórios de dividendos: %s", code)
 
 		ids, err := fii.reportIDs(repDividends, code, nn)
 		if err != nil {
@@ -149,7 +150,7 @@ func (fii *FII) dividendReport(code string, ids []id) (*[]rapina.Dividend, error
 	})
 
 	c.OnError(func(r *colly.Response, err error) {
-		fii.log.Error("Request URL: %v failed with response: %v\nError: %v", r.Request.URL, string(r.Body), err)
+		progress.ErrorMsg("Request URL: %v failed with response: %v\nError: %v", r.Request.URL, string(r.Body), err)
 	})
 
 	// Handles the html report
@@ -178,7 +179,7 @@ func (fii *FII) dividendReport(code string, ids []id) (*[]rapina.Dividend, error
 		}
 		d, err := fii.storage.SaveDividend(yeld)
 		if err != nil {
-			fii.log.Error("%v", err)
+			progress.Error(err)
 			continue
 		}
 		// fmt.Println("from server", d.Code, d.Date, d.Val)
@@ -206,7 +207,7 @@ func (fii *FII) MonthlyReport(code string, ids []id) (*[]rapina.Monthly, error) 
 	})
 
 	c.OnError(func(r *colly.Response, err error) {
-		fii.log.Error("Request URL: %v failed with response: %v\nError: %v", r.Request.URL, string(r.Body), err)
+		progress.ErrorMsg("Request URL: %v failed with response: %v\nError: %v", r.Request.URL, string(r.Body), err)
 	})
 
 	// Handles the html report
@@ -261,7 +262,7 @@ func (fii *FII) Details(fiiCode string) (*rapina.FIIDetails, error) {
 		return details, nil
 	}
 
-	fii.log.Debug("FII details não encontrado no bd. Consultando web...")
+	progress.Warning("Detalhes do %s não encontrado no bd. Consultando web...", fiiCode)
 
 	// Fetch from server if not found in the database
 	data := fmt.Sprintf(`{"typeFund":7,"cnpj":"0","identifierFund":"%s"}`, fiiCode[0:4])
@@ -273,7 +274,7 @@ func (fii *FII) Details(fiiCode string) (*rapina.FIIDetails, error) {
 
 	tr := &http.Transport{
 		DisableCompression: true,
-		IdleConnTimeout:    30 * time.Second,
+		IdleConnTimeout:    _http_timeout,
 		TLSClientConfig:    &tls.Config{InsecureSkipVerify: true},
 	}
 	client := &http.Client{Transport: tr}
@@ -295,7 +296,7 @@ func (fii *FII) Details(fiiCode string) (*rapina.FIIDetails, error) {
 
 	err = fii.storage.SaveDetails(body)
 	if err != nil {
-		return details, errors.Wrap(err, "storing FII details")
+		return details, errors.Wrap(err, "armazenando detalhes do FII")
 	}
 
 	return fii.storage.Details(fiiCode)
@@ -318,7 +319,6 @@ func (fii *FII) reportIDs(rt repType, code string, n int) ([]id, error) {
 	nMonthAgo = nMonthAgo.AddDate(0, -n, -nMonthAgo.Day()+1)
 	det, err := fii.Details(code)
 	if err != nil {
-		fii.log.Debug("reportIDs: error on fii.Details(%s): %v", code, err)
 		return nil, err
 	}
 	cnpj := det.DetailFund.CNPJ
@@ -355,7 +355,7 @@ func (fii *FII) reportIDs(rt repType, code string, n int) ([]id, error) {
 	var report Report
 	u := "https://fnet.bmfbovespa.com.br/fnet/publico/pesquisarGerenciadorDocumentosDados?" +
 		v.Encode()
-	fii.log.Debug("* %s", u)
+	// p.Status("* %s", u)
 	if err := getJSON(u, &report); err != nil {
 		return nil, err
 	}

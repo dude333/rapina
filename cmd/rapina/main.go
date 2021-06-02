@@ -23,7 +23,9 @@ package main
 import (
 	"fmt"
 	"os"
+	"os/signal"
 
+	"github.com/dude333/rapina/progress"
 	homedir "github.com/mitchellh/go-homedir"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -135,6 +137,23 @@ func main() {
 	fmt.Fprint(os.Stderr, "Rapina - Dados Financeiros de Empresas Brasileiras - ")
 	fmt.Fprintf(os.Stderr, "%s-%s\n", version, build)
 	fmt.Fprint(os.Stderr, "(2018-2020) github.com/dude333/rapina\n\n")
+
+	progress.Cursor(false)
+	defer func() {
+		progress.Cursor(true)
+		if err := recover(); err != nil { //catch
+			fmt.Fprintf(os.Stderr, "Exception: %v\n", err)
+			os.Exit(1)
+		}
+	}()
+
+	// Handle Ctrl+C
+	c := make(chan os.Signal, 1)
+	signal.Notify(c, os.Interrupt)
+	go func() {
+		<-c
+		progress.Cursor(true)
+	}()
 
 	Execute()
 }
