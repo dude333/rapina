@@ -153,6 +153,7 @@ func main() {
 	go func() {
 		<-c
 		progress.Cursor(true)
+		os.Exit(0)
 	}()
 
 	Execute()
