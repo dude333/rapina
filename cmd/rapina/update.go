@@ -51,7 +51,7 @@ var getUpdate = &cobra.Command{
 		err = fetch.Sectors(yamlFile)
 		if err != nil && !errors.Is(err, rapina.ErrFileNotUpdated) {
 			fmt.Println("[x]", err)
-			os.Exit(1)
+			return
 		}
 		if err == nil {
 			fmt.Println("[√] Arquivo salvo:", yamlFile)
@@ -66,7 +66,7 @@ var getUpdate = &cobra.Command{
 		err = fetch.CVM(db, dataDir)
 		if err != nil {
 			fmt.Println("[x]", err)
-			os.Exit(1)
+			return
 		}
 
 		// Stock codes
