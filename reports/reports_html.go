@@ -154,7 +154,7 @@ func fiiDividends(srv *Server, codes []string, n int) *[]data {
 		div, err := srv.fetchFII.Dividends(code, n)
 		if err != nil {
 			progress.ErrorMsg("%s: %v", code, err)
-			return &dataset
+			continue
 		}
 
 		for _, d := range *div {

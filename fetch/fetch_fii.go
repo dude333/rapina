@@ -74,7 +74,12 @@ func (fii FII) Dividends(code string, n int) (*[]rapina.Dividend, error) {
 		}
 	}
 
-	dividends, err = fii.dividendsFromServer(code, n)
+	if _, err := fii.dividendsFromServer(code, n); err != nil {
+		return nil, err
+	}
+
+	// Return from DB to get data sorted by date
+	dividends, _, err = fii.dividendsFromDB(code, n)
 
 	return dividends, err
 }
