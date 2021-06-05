@@ -7,7 +7,7 @@ package main
 import (
 	"log"
 
-	"github.com/dude333/rapina/reports"
+	"github.com/dude333/rapina/server"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
@@ -21,7 +21,7 @@ var serverCmd = &cobra.Command{
 	Short: "Inicia o servidor web",
 	Long:  `Comando para iniciar o servidor para a exibição dos dados via web browser.`,
 	Run: func(cmd *cobra.Command, args []string) {
-		err := server(nil)
+		err := serve(nil)
 		if err != nil {
 			log.Println(err)
 		}
@@ -34,17 +34,17 @@ func init() {
 	// 	Fnum, "n", 1, "número de meses desde o último disponível")
 }
 
-func server(parms map[string]string) error {
+func serve(parms map[string]string) error {
 
 	db, err := openDatabase()
 	if err != nil {
 		return err
 	}
 
-	reports.HTMLServer(
-		reports.WithDB(db),
-		reports.WithAPIKey(viper.GetString("apikey")),
-		reports.WithDataDir(dataDir))
+	server.HTML(
+		server.WithDB(db),
+		server.WithAPIKey(viper.GetString("apikey")),
+		server.WithDataDir(dataDir))
 
 	return nil
 }

@@ -1,6 +1,6 @@
 // +build !dev
 
-package reports
+package server
 
 import "embed"
 
