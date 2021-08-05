@@ -306,65 +306,56 @@ func (r report) lastBalance(cid int) (map[uint32]float32, error) {
 }
 
 //
-// ttm (twelve trailling months) returns a hash with the '[code] = value'
-// with the last year dfp value subtracted of the sum of last quarters from
-// last year, but > 1 year ago, and then sums it with the current year's
-// quarters.
+// ttm (twelve trailling months) retrieves the 4 quarters from
+// last year, the quarters from the current year and sums up the last 4
+// quarters for every account, returning a map with '[account_code] = value'.
 //
 func (r report) ttm(cid int, _values map[uint32]float32) error {
-	di, df, err := r.lastYearRange(cid)
+	lastYear, err := r.lastDFPYear(cid)
 	if err != nil {
 		return err
 	}
 
-	selectQuarters := `
-		SELECT CODE, SUM(TOTAL) TOTAL FROM (
-			SELECT CODE, SUM(TOTAL) TOTAL FROM (	
-				SELECT 
-					CODE, SUM(VL_CONTA) TOTAL
-				FROM dfp d 
-				WHERE 
-					ID_CIA = $1
-					AND DT_FIM_EXERC > $2 AND DT_FIM_EXERC <= $3
-					AND VERSAO = (SELECT MAX(VERSAO) FROM dfp WHERE ID_CIA = d.ID_CIA AND YEAR = d.YEAR)	
-					AND CAST(substr(CD_CONTA, 1, 1) as decimal) > 2 -- IGNORE BALANCE SHEETS	
-				GROUP BY
-					CODE, CD_CONTA
+	selectQuarters := `SELECT CODE, sum(VAL) FROM (
+	-- Last quarter from last year
+	SELECT CODE, sum(VAL) VAL FROM (
+		SELECT CODE, VL_CONTA VAL -- Year total
+		FROM dfp d 
+		WHERE 
+			ID_CIA = $1
+			AND YEAR = $2
+			AND VERSAO = (SELECT max(VERSAO) FROM dfp WHERE ID_CIA = d.ID_CIA AND YEAR = d.YEAR)	
+			AND CAST(substr(CD_CONTA, 1, 1) as decimal) > 2 -- IGNORE BALANCE SHEETS	
 
-				UNION
+		UNION
 
-				SELECT 
-					CODE, -1 * SUM(VL_CONTA) TOTAL 
-				FROM itr i
-				WHERE 
-					ID_CIA = $1
-					AND DT_FIM_EXERC > $2 AND DT_FIM_EXERC <= $3
-					AND VERSAO = (SELECT MAX(VERSAO) FROM itr WHERE ID_CIA = i.ID_CIA AND DT_FIM_EXERC = i.DT_FIM_EXERC)
-					AND CAST(substr(CD_CONTA, 1, 1) as decimal) > 2 -- IGNORE BALANCE SHEETS
-				GROUP BY
-					CODE, CD_CONTA
-			)
-			GROUP BY CODE
+		SELECT CODE, -1*VL_CONTA VAL -- Minus 3 semesters
+		FROM itr i
+		WHERE 
+			ID_CIA = $1
+			AND YEAR <= $2
+			AND CAST(substr(CD_CONTA, 1, 1) as decimal) > 2 -- IGNORE BALANCE SHEETS	
+			AND VERSAO = (SELECT MAX(VERSAO) FROM itr WHERE ID_CIA = i.ID_CIA AND CODE = i.CODE AND DT_FIM_EXERC = i.DT_FIM_EXERC)
+			AND ID IN (SELECT ID FROM itr WHERE ID_CIA = i.ID_CIA AND CODE = i.CODE AND DT_FIM_EXERC = i.DT_FIM_EXERC ORDER BY DT_FIM_EXERC desc LIMIT 3)
+	)
+	GROUP BY CODE
 
-			UNION
+	UNION
 
-			SELECT
-				CODE, SUM(VL_CONTA)
-			FROM
-				itr i
-			WHERE
-				ID_CIA = $1
-				AND DT_FIM_EXERC > $3
-				AND VERSAO = (SELECT MAX(VERSAO) FROM itr WHERE ID_CIA = i.ID_CIA AND DT_FIM_EXERC = i.DT_FIM_EXERC)
-				AND CAST(substr(CD_CONTA, 1, 1) as decimal) > 2 -- IGNORE BALANCE SHEETS
-			GROUP BY
-				CODE
-		)
-		GROUP BY
-			CODE;
-	`
+	-- Last 3 quarters
+	SELECT CODE, sum(VL_CONTA) VAL
+	FROM itr i
+	WHERE 
+		ID_CIA = $1
+		AND CAST(substr(CD_CONTA, 1, 1) as decimal) > 2 -- IGNORE BALANCE SHEETS	
+		AND VERSAO = (SELECT MAX(VERSAO) FROM itr WHERE ID_CIA = i.ID_CIA AND CODE = i.CODE AND DT_FIM_EXERC = i.DT_FIM_EXERC)
+		AND ID IN (SELECT ID FROM itr WHERE ID_CIA = i.ID_CIA AND CODE = i.CODE ORDER BY DT_FIM_EXERC desc LIMIT 3)
+	GROUP BY CODE
+)
+GROUP BY CODE	
+ORDER BY CODE;`
 
-	rows, err := r.db.Query(selectQuarters, cid, di, df)
+	rows, err := r.db.Query(selectQuarters, cid, lastYear)
 	if err != nil {
 		return err
 	}
@@ -388,6 +379,19 @@ func (r report) ttm(cid int, _values map[uint32]float32) error {
 	}
 
 	return nil
+}
+
+func (r report) lastDFPYear(cid int) (int, error) {
+	if cid == 0 {
+		return 0, fmt.Errorf("customer ID not set")
+	}
+
+	s := `SELECT MAX(YEAR) FROM dfp	WHERE ID_CIA = ?;`
+	row := r.db.QueryRow(s, cid)
+	var lastDate int
+	err := row.Scan(&lastDate)
+
+	return lastDate, err
 }
 
 //
