@@ -72,16 +72,14 @@ func initServer(opts ...ServerOption) (*Server, error) {
 	return &srv, nil
 }
 
-// HTML is a very basic html server to show the reports.
+// HTML is a very basic html server to handle the reports.
 func HTML(opts ...ServerOption) {
 	srv, err := initServer(opts...)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		serveTemplate(w, r, srv)
-	})
+	http.HandleFunc("/", renderTemplate(srv))
 
 	log.Println("Listening on :3000...")
 	err = http.ListenAndServe(":3000", nil)
@@ -90,43 +88,60 @@ func HTML(opts ...ServerOption) {
 	}
 }
 
-func serveTemplate(w http.ResponseWriter, r *http.Request, srv *Server) {
-	lp := filepath.Join("templates", "layout.html")
-	fp := filepath.Join("templates", filepath.Clean(r.URL.Path))
-	if fp == "templates" {
-		fp = "templates/index.html"
+// renderTemplate renders the file related to the URL path inside the layout
+// templates. Template files are locates in _contentFS.
+func renderTemplate(srv *Server) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		fp := filepath.Clean(r.URL.Path)
+		if strings.HasPrefix(fp, `/`) || strings.HasPrefix(fp, `\`) {
+			fp = fp[1:] // remove starting "/" (or "\" on Windows)
+		}
+		if fp == "" {
+			fp = "index.html"
+		}
+
+		log.Println("rendering", fp)
+
+		// TODO: load all templates outside this funcion
+		tmpl, err := template.New("").Funcs(template.FuncMap{
+			"ptFmtFloat": ptFmtFloat,
+		}).ParseFS(_contentFS, "layout.html", fp)
+
+		if err != nil {
+			log.Println(err)
+			return
+		}
+
+		// Set the payload according to the URL path
+		var payload interface{}
+		if strings.Contains(fp, "fii.html") && r.Method == http.MethodPost {
+			payload = payloadFIIDividends(srv, r)
+		}
+
+		err = tmpl.ExecuteTemplate(w, "layout", payload)
+		if err != nil {
+			log.Println(err)
+		}
 	}
+}
 
-	log.Println("fp:", fp)
-
-	tmpl, err := template.New("").Funcs(template.FuncMap{
-		"ptFmtFloat": ptFmtFloat,
-	}).ParseFS(_fs, lp, fp)
-	if err != nil {
-		log.Println(err)
-		return
-	}
-
+func payloadFIIDividends(srv *Server, r *http.Request) interface{} {
 	var payload struct {
 		Codes  string
 		Months int
 		Data   interface{}
 	}
-	if strings.Contains(fp, "fii.html") && r.Method == http.MethodPost {
-		codes := parseCodes(r.FormValue("codes"))
-		months, err := strconv.Atoi(r.FormValue("months"))
-		if err != nil {
-			months = 1
-		}
-		payload.Codes = strings.Join(codes, " ")
-		payload.Months = months
-		payload.Data = fiiDividends(srv, codes, months)
-	}
 
-	err = tmpl.ExecuteTemplate(w, "layout", payload)
+	codes := parseCodes(r.FormValue("codes"))
+	months, err := strconv.Atoi(r.FormValue("months"))
 	if err != nil {
-		log.Println(err)
+		months = 1
 	}
+	payload.Codes = strings.Join(codes, " ")
+	payload.Months = months
+	payload.Data = fiiDividends(srv, codes, months)
+
+	return &payload
 }
 
 type data struct {
