@@ -164,10 +164,10 @@ func (r report) lastYear(cid int) (int, bool, error) {
 }
 
 //
-// lastYearRange returns the 1st and last day from last year stored on the DB
+// LastYearRange returns the 1st and last day from last year stored on the DB
 // for this company id. Return dates in unix epoch format.
 //
-func (r report) lastYearRange(cid int) (int, int, error) {
+func (r report) LastYearRange(cid int) (int, int, error) {
 	if cid == 0 {
 		return 0, 0, fmt.Errorf("customer ID not set")
 	}

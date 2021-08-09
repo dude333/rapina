@@ -196,10 +196,23 @@ func (fii *FII) dividendReport(code string, ids []id) (*[]rapina.Dividend, error
 	return &dividends, nil
 }
 
+func (fii *FII) MonthlyReportIDs(code string, n int) ([]id, error) {
+	ids, err := fii.reportIDs(repMonthly, code, n)
+	if err != nil {
+		return []id{}, err
+	}
+	_, err = fii.monthlyReport(code, ids)
+	if err != nil {
+		return []id{}, err
+	}
+
+	return ids, nil
+}
+
 //
 // monthlyReport parses the FII monthly reports.
 //
-func (fii *FII) MonthlyReport(code string, ids []id) (*[]rapina.Monthly, error) {
+func (fii *FII) monthlyReport(code string, ids []id) (*[]rapina.Monthly, error) {
 	yeld := make(map[string]string, len(ids))
 
 	c := colly.NewCollector()
@@ -220,9 +233,12 @@ func (fii *FII) MonthlyReport(code string, ids []id) (*[]rapina.Monthly, error) 
 		var fieldName string
 		e.ForEach("td", func(_ int, el *colly.HTMLElement) {
 			v := strings.Trim(el.Text, " \r\n")
+			progress.Debug("%q", v)
 			if v != "" {
 				if fieldName == "" {
-					fieldName = v
+					if v[0] < '0' || v[0] > '9' { // Ignore fields starting with number
+						fieldName = v
+					}
 				} else {
 					fmt.Printf("%-30s => %s\n", fieldName, v)
 					yeld[fieldName] = v
@@ -230,12 +246,14 @@ func (fii *FII) MonthlyReport(code string, ids []id) (*[]rapina.Monthly, error) 
 				}
 			}
 		})
+		progress.Status("----------------------")
 	})
 
 	// Get the yeld monthly report given the list of 'report IDs' -- returns HTML
 	monthly := make([]rapina.Monthly, 0, len(ids))
 	for _, id := range ids {
 		u := fmt.Sprintf("https://fnet.bmfbovespa.com.br/fnet/publico/exibirDocumento?id=%d&cvm=true", id)
+		progress.Debug(u)
 		if err := c.Visit(u); err != nil {
 			return nil, err
 		}
@@ -384,8 +402,4 @@ func minmax(n, min, max int) int {
 		n = MAX_N
 	}
 	return n
-}
-
-func (fii *FII) MonthlyReportIDs(code string, n int) ([]id, error) {
-	return fii.reportIDs(repMonthly, code, n)
 }

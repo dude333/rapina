@@ -32,7 +32,7 @@ const (
 	colorRed = "\033[31m"
 	// colorGreen  = "\033[32m"
 	colorYellow = "\033[33m"
-	// colorBlue   = "\033[34m"
+	colorBlue   = "\033[34m"
 	// colorPurple = "\033[35m"
 	colorCyan = "\033[36m"
 	// colorWhite  = "\033[37m"
@@ -118,6 +118,20 @@ func Warning(format string, a ...interface{}) {
 		output(p.running)
 	}
 
+}
+
+func Debug(format string, a ...interface{}) {
+	if len(p.running) > 0 {
+		clearLine()
+	}
+
+	output([]byte(colorBlue))
+	outputln("--- " + fmt.Sprintf(format, a...))
+	output([]byte(colorReset))
+
+	if len(p.running) > 0 {
+		output(p.running)
+	}
 }
 
 func Running(msg string) {
