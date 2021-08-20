@@ -32,8 +32,8 @@ type metric struct {
 	group  int // mapped by constants grpX
 }
 
-// report parameters used in most functions
-type report struct {
+// Report parameters used in most functions
+type Report struct {
 	// average metric values/year. Index 0: year, index 1: metric
 	average [][]float32
 
@@ -61,8 +61,8 @@ type report struct {
 	yamlFile string  // file with the companies' sectors
 }
 
-func initReport(parms map[string]interface{}) (*report, error) {
-	var r report
+func New(parms map[string]interface{}) (*Report, error) {
+	var r Report
 
 	if v, ok := parms["db"]; ok {
 		r.db = v.(*sql.DB)
@@ -107,11 +107,11 @@ func initReport(parms map[string]interface{}) (*report, error) {
 }
 
 //
-// Report of company data from DB to Excel
+// ReportToXlsx reports company financial data from DB to Excel.
 //
-func Report(p map[string]interface{}) error {
+func ReportToXlsx(parms map[string]interface{}) error {
 	// Initialize report object
-	r, err := initReport(p)
+	r, err := New(parms)
 	if err != nil {
 		return err
 	}
@@ -301,7 +301,7 @@ func Report(p map[string]interface{}) error {
 // sectorReport gets all the companies related to the 'company' and reports
 // their financial summary
 //
-func (r report) sectorReport(sheet *Sheet, company string) (err error) {
+func (r Report) sectorReport(sheet *Sheet, company string) (err error) {
 	var interrupt bool
 
 	// Handle Ctrl+C
@@ -361,7 +361,7 @@ func (r report) sectorReport(sheet *Sheet, company string) (err error) {
 // companySummary reports all companies from the same segment into the
 // 'Setor' sheet.
 //
-func (r *report) companySummary(sheet *Sheet, row, col *int, _company, sectorName string, printDescr, sectorAvg bool) (empty bool, err error) {
+func (r *Report) companySummary(sheet *Sheet, row, col *int, _company, sectorName string, printDescr, sectorAvg bool) (empty bool, err error) {
 	// if !sectorAvg && !r.isCompany(company) {
 	// 	return true, nil
 	// }
@@ -522,6 +522,24 @@ func (r *report) companySummary(sheet *Sheet, row, col *int, _company, sectorNam
 	return
 }
 
+func (r *Report) Summary(company string) (map[string]string, error) {
+	m := make(map[string]string)
+
+	r.setCompany(company)
+	values, err := r.accountsValues(2020)
+	if err != nil {
+		return m, err
+	}
+
+	for _, metric := range metricsList(values) {
+		if !r.groups[metric.group] {
+			continue
+		}
+	}
+
+	return m, nil
+}
+
 //
 // metricsList returns the sequence to be printed after the financial statements
 //
@@ -657,7 +675,7 @@ func ident(str string) (spaces string, baseItem bool) {
 //  - []bool indicates if a row is a base item,
 //  - the row of the last statement,
 //  - the row of the last metric item.
-func (r report) printCodesAndDescriptions(sheet *Sheet, accounts []accItems, col rune, row int) ([]bool, int, int) {
+func (r Report) printCodesAndDescriptions(sheet *Sheet, accounts []accItems, col rune, row int) ([]bool, int, int) {
 	baseItems := make([]bool, len(accounts)+row)
 	for _, it := range accounts {
 		var sp string

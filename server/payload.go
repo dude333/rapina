@@ -9,16 +9,16 @@ import (
 )
 
 // fiiDividendsPayload returns the data to be used in the FII template.
-func fiiDividendsPayload(srv *Server, codes []string, months int) interface{} {
+func fiiDividendsPayload(srv *Server, fiiCodes []string, months int) interface{} {
 	var payload struct {
 		Codes  string
 		Months int
 		Data   interface{}
 	}
 
-	payload.Codes = strings.Join(codes, " ")
+	payload.Codes = strings.Join(fiiCodes, " ")
 	payload.Months = months
-	payload.Data = fiiDividends(srv, codes, months)
+	payload.Data = fiiDividends(srv, fiiCodes, months)
 
 	return &payload
 }
@@ -97,4 +97,12 @@ func fiiDividends(srv *Server, codes []string, n int) interface{} {
 	} // next code
 
 	return &dataset
+}
+
+func financialsPayload(srv *Server, stockCode string) interface{} {
+	var payload struct {
+		Equity float32
+	}
+
+	return &payload
 }

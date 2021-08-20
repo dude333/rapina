@@ -21,7 +21,7 @@ type accItems struct {
 // accountsItems returns all accounts codes and descriptions, e.g.:
 // [1 Ativo Total, 1.01 Ativo Circulante, ...]
 //
-func (r report) accountsItems(cid int) (items []accItems, err error) {
+func (r Report) accountsItems(cid int) (items []accItems, err error) {
 	selectItems := fmt.Sprintf(`
 	SELECT DISTINCT
 		CODE, CD_CONTA, DS_CONTA
@@ -56,7 +56,7 @@ func (r report) accountsItems(cid int) (items []accItems, err error) {
 // accountsValues stores the values for each account into a map using a hash
 // of the account code and description as its key
 //
-func (r report) accountsValues(year int) (map[uint32]float32, error) {
+func (r Report) accountsValues(year int) (map[uint32]float32, error) {
 	values := make(map[uint32]float32)
 
 	lastYear, isITR, err := r.lastYear(r.cid)
@@ -131,7 +131,7 @@ func avg(nums ...float32) float32 {
 // Returns this lastest year, if it's to use the ITR table (instead of the DFP),
 // and the error, if any.
 //
-func (r report) lastYear(cid int) (int, bool, error) {
+func (r Report) lastYear(cid int) (int, bool, error) {
 	if cid == 0 {
 		return 0, false, fmt.Errorf("customer ID not set")
 	}
@@ -167,7 +167,7 @@ func (r report) lastYear(cid int) (int, bool, error) {
 // LastYearRange returns the 1st and last day from last year stored on the DB
 // for this company id. Return dates in unix epoch format.
 //
-func (r report) LastYearRange(cid int) (int, int, error) {
+func (r Report) LastYearRange(cid int) (int, int, error) {
 	if cid == 0 {
 		return 0, 0, fmt.Errorf("customer ID not set")
 	}
@@ -206,7 +206,7 @@ func (r report) LastYearRange(cid int) (int, int, error) {
 	return dateRange[1], dateRange[0], nil
 }
 
-func (r report) dfp(cid, year int, _values map[uint32]float32) error {
+func (r Report) dfp(cid, year int, _values map[uint32]float32) error {
 	selectReport := `
 	SELECT
 		CODE, VL_CONTA
@@ -236,7 +236,7 @@ func (r report) dfp(cid, year int, _values map[uint32]float32) error {
 	return nil
 }
 
-func (r report) lastDate(cid int) (int, string, error) {
+func (r Report) lastDate(cid int) (int, string, error) {
 	rowDfp := r.db.QueryRow("SELECT MAX(DT_FIM_EXERC) FROM dfp WHERE ID_CIA = ? LIMIT 1;", cid)
 	maxDfp := 0
 	err := rowDfp.Scan(&maxDfp)
@@ -262,7 +262,7 @@ func (r report) lastDate(cid int) (int, string, error) {
 // lastBalance returns a hash with the '[code] = value' from the balance sheet
 // with the newest date available on the dfp or itr tables.
 //
-func (r report) lastBalance(cid int) (map[uint32]float32, error) {
+func (r Report) lastBalance(cid int) (map[uint32]float32, error) {
 	d, table, err := r.lastDate(cid)
 	if err != nil {
 		return nil, err
@@ -310,7 +310,7 @@ func (r report) lastBalance(cid int) (map[uint32]float32, error) {
 // last year, the quarters from the current year and sums up the last 4
 // quarters for every account, returning a map with '[account_code] = value'.
 //
-func (r report) ttm(cid int, _values map[uint32]float32) error {
+func (r Report) ttm(cid int, _values map[uint32]float32) error {
 	lastYear, err := r.lastDFPYear(cid)
 	if err != nil {
 		return err
@@ -381,7 +381,7 @@ ORDER BY CODE;`
 	return nil
 }
 
-func (r report) lastDFPYear(cid int) (int, error) {
+func (r Report) lastDFPYear(cid int) (int, error) {
 	if cid == 0 {
 		return 0, fmt.Errorf("customer ID not set")
 	}
@@ -398,7 +398,7 @@ func (r report) lastDFPYear(cid int) (int, error) {
 // shares set the 'values' map with the number of shares and the free float of
 // a given conpany in a given year.
 //
-func (r report) shares(cid int, year int, values map[uint32]float32) error {
+func (r Report) shares(cid int, year int, values map[uint32]float32) error {
 	selectFRE := `
 		SELECT 
 			Quantidade_Total_Acoes_Circulacao, Percentual_Total_Acoes_Circulacao
@@ -427,7 +427,7 @@ func (r report) shares(cid int, year int, values map[uint32]float32) error {
 // sharesAvg set the 'values' map with the average number of shares and
 // the free float of a given conpany in a given year.
 //
-func (r report) sharesAvg(cids []string, year int, values map[uint32]float32) error {
+func (r Report) sharesAvg(cids []string, year int, values map[uint32]float32) error {
 	selectFRE := fmt.Sprintf(`
 		SELECT 
 			AVG(Quantidade_Total_Acoes_Circulacao), AVG(Percentual_Total_Acoes_Circulacao)
@@ -455,7 +455,7 @@ func (r report) sharesAvg(cids []string, year int, values map[uint32]float32) er
 //
 // value returns the account value for company id 'cid', 'year' and code.
 //
-func (r report) value(cid, year int, code uint32) (float32, error) {
+func (r Report) value(cid, year int, code uint32) (float32, error) {
 	selectInventory := `
 	SELECT
 		VL_CONTA
@@ -482,7 +482,7 @@ func (r report) value(cid, year int, code uint32) (float32, error) {
 // for each account into a map using a hash of the account code and
 // description as its key
 //
-func (r report) accountsAverage(company string, year int) (map[uint32]float32, error) {
+func (r Report) accountsAverage(company string, year int) (map[uint32]float32, error) {
 
 	companies, _, err := r.fromSector(company)
 	if len(companies) <= 1 || err != nil {
@@ -547,7 +547,7 @@ func (r report) accountsAverage(company string, year int) (map[uint32]float32, e
 
 // movingAvg returns the moving average of account 'code' between year and
 // last year for all companies listed on 'cids'.
-func (r report) movingAvg(cids []string, year int, code uint32) (float32, error) {
+func (r Report) movingAvg(cids []string, year int, code uint32) (float32, error) {
 	s := fmt.Sprintf(`
 		SELECT  
 			(SELECT AVG(VL_CONTA) FROM dfp d2 
@@ -573,7 +573,7 @@ func (r report) movingAvg(cids []string, year int, code uint32) (float32, error)
 	return mavg, nil
 }
 
-func (r report) fromSector(company string) (companies []string, sectorName string, err error) {
+func (r Report) fromSector(company string) (companies []string, sectorName string, err error) {
 	// Companies from the same sector
 	secCo, secName, err := parsers.FromSector(company, r.yamlFile)
 	if len(secCo) <= 1 || err != nil {
@@ -637,7 +637,7 @@ func companies(db *sql.DB) ([]CompanyInfo, error) {
 //
 // setCompany sets the company ID, CNPJ and stock code based on it's name.
 //
-func (r *report) setCompany(company string) error {
+func (r *Report) setCompany(company string) error {
 	if company == "" {
 		return errors.New("company name not set")
 	}
@@ -670,7 +670,7 @@ func (r *report) setCompany(company string) error {
 	return nil
 }
 
-func (r *report) getCid(companyName string) (int, error) {
+func (r *Report) getCid(companyName string) (int, error) {
 	selectID := `SELECT DISTINCT ID FROM companies WHERE NAME LIKE ?`
 	var cid int
 	err := r.db.QueryRow(selectID, "%"+companyName+"%").Scan(&cid)
@@ -681,7 +681,7 @@ func (r *report) getCid(companyName string) (int, error) {
 //
 // scale returns the financial scale used on the values (unit or thousands).
 //
-func (r report) scale(cid, year int, table string) float32 {
+func (r Report) scale(cid, year int, table string) float32 {
 	s := fmt.Sprintf(
 		`SELECT ESCALA_MOEDA FROM %s WHERE ID_CIA = $1 AND YEAR = $2 limit 1;`,
 		table,

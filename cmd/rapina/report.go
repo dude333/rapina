@@ -167,5 +167,5 @@ func Report(p Parms) (err error) {
 		"yamlFile": p.YamlFile,
 		"reports":  p.Reports,
 	}
-	return reports.Report(parms)
+	return reports.ReportToXlsx(parms)
 }

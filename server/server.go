@@ -21,6 +21,7 @@ type Server struct {
 	db         *sql.DB
 	fetchFII   *fetch.FII
 	fetchStock *fetch.Stock
+	report     *reports.Report
 	dataDir    string
 	apiKey     string
 }
@@ -62,9 +63,14 @@ func initServer(opts ...ServerOption) (*Server, error) {
 	if err != nil {
 		return nil, err
 	}
+	report, err := reports.New(map[string]interface{}{"db": srv.db})
+	if err != nil {
+		return nil, err
+	}
 
 	srv.fetchFII = fetchFII
 	srv.fetchStock = fetchStock
+	srv.report = report
 
 	return &srv, nil
 }
