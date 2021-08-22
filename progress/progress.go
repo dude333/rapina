@@ -42,12 +42,17 @@ type Progress struct {
 	out     io.Writer // destination for output, usually os.Stderr
 	running []byte
 	seq     int // sequence of spinners
+	debug   bool
 }
 
 var p *Progress
 
 func init() {
-	p = &Progress{out: os.Stderr}
+	p = &Progress{out: os.Stderr, debug: false}
+}
+
+func SetDebug(on bool) {
+	p.debug = on
 }
 
 func Cursor(show bool) {
@@ -121,6 +126,9 @@ func Warning(format string, a ...interface{}) {
 }
 
 func Debug(format string, a ...interface{}) {
+	if !p.debug {
+		return
+	}
 	if len(p.running) > 0 {
 		clearLine()
 	}

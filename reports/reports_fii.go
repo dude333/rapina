@@ -57,9 +57,9 @@ func NewFIITerminal(db *sql.DB, opts FIITerminalOptions) (*FIITerminal, error) {
 
 // SetParms set the terminal reports parameters.
 func (t *FIITerminal) SetParms(parms map[string]string) {
-	// if _, ok := parms["verbose"]; ok {
-	// 	t.log.SetOut(os.Stderr)
-	// }
+	if _, ok := parms["verbose"]; ok {
+		progress.SetDebug(true)
+	}
 	if r, ok := parms["format"]; ok {
 		switch r {
 		case "table", "tabela", "tab":

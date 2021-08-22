@@ -12,6 +12,7 @@ import (
 	"strings"
 
 	"github.com/dude333/rapina/fetch"
+	"github.com/dude333/rapina/progress"
 	"github.com/dude333/rapina/reports"
 	"golang.org/x/text/language"
 	"golang.org/x/text/message"
@@ -24,6 +25,7 @@ type Server struct {
 	report     *reports.Report
 	dataDir    string
 	apiKey     string
+	verbose    bool
 }
 
 type ServerOption func(*Server)
@@ -43,6 +45,11 @@ func WithDataDir(dataDir string) ServerOption {
 		s.dataDir = dataDir
 	}
 }
+func Verbose(on bool) ServerOption {
+	return func(s *Server) {
+		s.verbose = on
+	}
+}
 
 func initServer(opts ...ServerOption) (*Server, error) {
 	var srv Server
@@ -52,6 +59,8 @@ func initServer(opts ...ServerOption) (*Server, error) {
 	if srv.db == nil {
 		return nil, errors.New("BD inválido")
 	}
+
+	progress.SetDebug(srv.verbose)
 
 	srv.db.SetMaxOpenConns(1)
 	log := reports.NewLogger(os.Stderr)

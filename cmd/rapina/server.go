@@ -21,7 +21,13 @@ var serverCmd = &cobra.Command{
 	Short: "Inicia o servidor web",
 	Long:  `Comando para iniciar o servidor para a exibição dos dados via web browser.`,
 	Run: func(cmd *cobra.Command, args []string) {
-		err := serve(nil)
+		parms := make(map[string]string)
+		// Verbose
+		if flags.verbose {
+			parms[Fverbose] = "true"
+		}
+
+		err := serve(parms)
 		if err != nil {
 			log.Println(err)
 		}
@@ -41,10 +47,13 @@ func serve(parms map[string]string) error {
 		return err
 	}
 
+	v := parms[Fverbose] == "true"
+
 	server.HTML(
 		server.WithDB(db),
 		server.WithAPIKey(viper.GetString("apikey")),
-		server.WithDataDir(dataDir))
+		server.WithDataDir(dataDir),
+		server.Verbose(v))
 
 	return nil
 }
