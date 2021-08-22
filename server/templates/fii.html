@@ -1,6 +1,11 @@
 {{define "body"}}
 
 <script type="text/javascript">
+  const pt = new Intl.NumberFormat("pt-BR", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
+
   function toggle(event, id) {
     if (event.target.tagName == "A") return;
     const e = document.getElementById(id);
@@ -32,6 +37,53 @@
     }
   }
 
+  function updateVal(num, stock) {
+    let n = 0;
+    try {
+      n = parseFloat(num.replace(/\D/gu, ""), 10) / 100;
+      var table = document.getElementById(stock);
+      for (let i = 2, row; row = table.rows[i]; i++) {
+        if (row.cells.length < 7) break;
+        row.cells[5].innerText = "";
+        row.cells[6].innerText = "";
+        const price = parseLocaleNumber(num, "pt");
+        if (price <= 0) continue
+        const dividend = parseLocaleNumber(row.cells[1].innerText, "pt");
+        const yeld = (dividend / price);
+        if (!isNaN(yeld)) {
+          const yearyeld = (1 + yeld) ** 12 - 1;
+          row.cells[5].innerText = pt.format(100 * yeld) + "%";
+          row.cells[6].innerText = pt.format(100 * yearyeld) + "%";
+        }
+      }
+
+      if (isNaN(n)) n = 0;
+
+    } catch (error) {
+      return "";
+    }
+
+    const v = pt.format(n);
+    localStorage.setItem("mark" + stock, v);
+    return v
+  }
+
+  /**
+   * Parse a localized number to a float.
+   * @param {string} stringNumber - the localized number
+   * @param {string} locale - [optional] the locale that the number is represented in. Omit this parameter to use the current locale.
+   */
+  function parseLocaleNumber(stringNumber, locale) {
+    stringNumber = stringNumber.replace(/[^0-9.,]/gu, '');
+    var thousandSeparator = Intl.NumberFormat(locale).format(11111).replace(/\p{Number}/gu, '');
+    var decimalSeparator = Intl.NumberFormat(locale).format(1.1).replace(/\p{Number}/gu, '');
+
+    return parseFloat(stringNumber
+      .replace(new RegExp('\\' + thousandSeparator, 'g'), '')
+      .replace(new RegExp('\\' + decimalSeparator), '.')
+    );
+  }
+
   function submitOnShiftEnter(event) {
     if (event.which === 13 && event.shiftKey) {
       event.preventDefault();
@@ -48,6 +100,13 @@
     document.getElementById("fii_form").onsubmit = () => {
       document.getElementById("waiting").style = "display:block;margin:4em auto;";
     }
+    const marks = document.querySelectorAll('*[id^="mark"]');
+    marks.forEach(mark => {
+      if (localStorage[mark.id]) {
+        mark.value = localStorage[mark.id];
+        updateVal(mark.value, mark.id.replace(/mark/, ""))
+      }
+    });
   };
 </script>
 
@@ -73,16 +132,29 @@
 {{range .Data}}
 <h3 onclick="toggle(event, '{{.Code}}');" style="cursor: default;">
   <span>&#11206;</span> {{.Code}}
-  <a href="{{.Website}}" target="_blank" class="small blue">{{.Name}}</a>
+  <!-- <a href="{{.Website}}" target="_blank" class="small blue">{{.Name}}</a> -->
 </h3>
+
 <table id="{{.Code}}" class="report">
   <thead>
+    <tr>
+      <th colspan="3" style="width: 60%;"><a href="{{.Website}}" target="_blank" class="small blue">{{.Name}}</a>
+      </th>
+      <th colspan="2" style="text-align: center; width: 18%;">Yeld</th>
+      <th colspan="2" style="text-align: center; width: 22%;">Yeld
+        <input id="mark{{.Code}}" name="mark{{.Code}}" style="width: 5rem; text-align: right;"
+          onkeyup="updateVal(this.value, '{{.Code}}');"
+          onfocusout="this.value=pt.format(parseLocaleNumber(this.value, 'pt'));" />
+      </th>
+    </tr>
     <tr>
       <th>Data Com</th>
       <th>Rendimento</th>
       <th>Cotação</th>
-      <th>Yeld a.m.</th>
-      <th>Yeld a.a.</th>
+      <th>a.m.</th>
+      <th>a.a.</th>
+      <th>a.m.</th>
+      <th>a.a.</th>
     </tr>
   </thead>
   <tbody>
@@ -93,6 +165,8 @@
       <td class="currency">R$ {{ptFmtFloat .Quote}}</td>
       <td class="percent">{{ptFmtFloat .Yeld}}%</td>
       <td class="percent">{{ptFmtFloat .YeldYear}}%</td>
+      <td class="percent"></td>
+      <td class="percent"></td>
     </tr>
     {{end}}
   </tbody>

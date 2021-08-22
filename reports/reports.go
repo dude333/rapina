@@ -525,7 +525,10 @@ func (r *Report) companySummary(sheet *Sheet, row, col *int, _company, sectorNam
 func (r *Report) Summary(company string) (map[string]string, error) {
 	m := make(map[string]string)
 
-	r.setCompany(company)
+	err := r.setCompany(company)
+	if err != nil {
+		return m, err
+	}
 	values, err := r.accountsValues(2020)
 	if err != nil {
 		return m, err

@@ -99,10 +99,10 @@ func fiiDividends(srv *Server, codes []string, n int) interface{} {
 	return &dataset
 }
 
-func financialsPayload(srv *Server, stockCode string) interface{} {
-	var payload struct {
-		Equity float32
-	}
+// func financialsPayload(srv *Server, stockCode string) interface{} {
+// 	var payload struct {
+// 		Equity float32
+// 	}
 
-	return &payload
-}
+// 	return &payload
+// }
