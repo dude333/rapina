@@ -120,18 +120,24 @@ func (fii *FII) dividendsFromServer(code string, n int) (*[]rapina.Dividend, err
 	lastLen := -1
 	dividends := &[]rapina.Dividend{}
 
-	for len(*dividends) < n && lastLen != len(*dividends) && nn <= 200 {
+	for len(*dividends) < n && nn <= 200 {
 		progress.Status("Relatórios de dividendos: %s", code)
 
 		ids, err := fii.reportIDs(repDividends, code, nn)
 		if err != nil {
 			return nil, err
 		}
+		progress.Debug("Report IDs: %v", ids)
+
 		dividends, err = fii.dividendReport(code, ids)
 		if err != nil {
 			return nil, err
 		}
+		progress.Debug("Dividends (%d): %v", len(*dividends), *dividends)
 
+		if lastLen == len(*dividends) {
+			break
+		}
 		lastLen = len(*dividends)
 		nn += 2 * (n - len(*dividends))
 	}
@@ -167,7 +173,10 @@ func (fii *FII) dividendReport(code string, ids []id) (*[]rapina.Dividend, error
 				if fieldName == "" {
 					fieldName = v
 				} else {
-					// fmt.Printf("%-30s => %s\n", fieldName, v)
+					if strings.Contains(fieldName, "Código de negociação da cota") ||
+						strings.Contains(fieldName, "Data da informação") {
+						progress.Debug("[%s] %-30s => %s\n", code, fieldName, v)
+					}
 					yeld[fieldName] = v
 					fieldName = ""
 				}
@@ -179,6 +188,7 @@ func (fii *FII) dividendReport(code string, ids []id) (*[]rapina.Dividend, error
 	dividends := make([]rapina.Dividend, 0, len(ids))
 	for _, id := range ids {
 		u := fmt.Sprintf("https://fnet.bmfbovespa.com.br/fnet/publico/exibirDocumento?id=%d&cvm=true", id)
+		progress.Debug("Relatórios de dividendos: %s", u)
 		if err := c.Visit(u); err != nil {
 			return nil, err
 		}
@@ -368,7 +378,7 @@ func (fii *FII) reportIDs(rt repType, code string, n int) ([]id, error) {
 		"idEspecieDocumento":   []string{"0"},
 		"situacao":             []string{"A"},
 		"s":                    []string{"0"},
-		"l":                    []string{strconv.Itoa(n)}, // 'n' latest reports
+		"l":                    []string{strconv.Itoa(n * 2)}, // 'n*2' latest reports as other codes may appear (e.g.:ABCD11, ABCD12, ABCD13...)
 		"dataFinal":            []string{time.Now().Format("02/01/2006")},
 		"dataInicial":          []string{nMonthAgo.Format("02/01/2006")},
 		"_":                    []string{timestamp},
@@ -378,7 +388,7 @@ func (fii *FII) reportIDs(rt repType, code string, n int) ([]id, error) {
 	var report Report
 	u := "https://fnet.bmfbovespa.com.br/fnet/publico/pesquisarGerenciadorDocumentosDados?" +
 		v.Encode()
-	// p.Status("* %s", u)
+	progress.Debug("* Report IDs: %s", u)
 	if err := getJSON(u, &report); err != nil {
 		return nil, err
 	}
