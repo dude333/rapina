@@ -74,7 +74,30 @@ The spreadsheet will be saved at `./reports`
 
 The spreadsheet will be saved at `/tmp/output`
 
-# 3. How to compile
+# 3. Troubleshooting
+
+Some Linux distributions (e.g. Fedora 34) might face some issues regarding the signer authority (Global Sign) that B3 is using on its SSL certificates. In case of `x509: certificate signed by unknown authority` error, one should manually import the Root CA certificate into the O.S. trusted database:
+
+**Fedora 34 / CentOS** 
+
+1. Download the Issuer Root Cert
+
+    `curl http://secure.globalsign.com/cacert/gsrsaovsslca2018.crt > /tmp/global-signer.der`
+
+2. Convert from .der to .pem
+
+    `openssl x509 -inform der -in /tmp/global-signer.der -out /tmp/globalsignroot.pem`
+
+3. Move the .pem file to the anchors folder
+
+    `sudo cp /tmp/globalsignroot.pem /usr/share/pki/ca-trust-source/anchors/`
+
+4. Update the trusted certificates database
+
+    `sudo update-ca-trust`
+
+
+# 4. How to compile
 
 If you want to compile your own executable, you need first to [download and install](https://golang.org/dl/) the Go compiler. Then follow these steps:
 
@@ -83,7 +106,7 @@ If you want to compile your own executable, you need first to [download and inst
 3. Change to the cli directory (`cd cli`)
 4. Compile using the Makefile (`make`). _To cross compile for Windows on Linux, use `make win`_.
 
-# 4. Contributing
+# 5. Contributing
 
 1. Fork it
 2. `cd $GOPATH/src/github.com/your_username`
@@ -94,10 +117,10 @@ If you want to compile your own executable, you need first to [download and inst
 7. Push to the branch (`git push origin my-new-feature`)
 8. Create new pull request
 
-# 5. Screenshot
+# 6. Screenshot
 
 ![WEG](https://i.imgur.com/czPhPkH.png)
 
-# 6. License
+# 7. License
 
 MIT

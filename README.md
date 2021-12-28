@@ -174,7 +174,30 @@ Para visualizar a página, abrir o link http://localhost:3000
 
 **NOTA:** Por hora só está disponível o relatório de rendimentos de FIIs.
 
-# 5. Como compilar
+
+# 5. Possíveis problemas
+
+Algumas distribuições Linux (Fedora 34, por exemplo) podem encontrar problemas com as autoridades certificadores (Global Sign) presentes nos certificados SSL dos websites da B3. Em caso de erro `x509: certificate signed by unknown authority`, deve-se importar manualmente o Root CA para o trusted database do sistemas operacional:
+
+**Fedora 34 / CentOS** 
+
+1. Realizar o download do Issuer Root Cert
+
+    `curl http://secure.globalsign.com/cacert/gsrsaovsslca2018.crt > /tmp/global-signer.der`
+
+2. Converter de .der para .pem
+
+    `openssl x509 -inform der -in /tmp/global-signer.der -out /tmp/globalsignroot.pem`
+
+3. Importar .pem arquivo para pasta de anchors
+
+    `sudo cp /tmp/globalsignroot.pem /usr/share/pki/ca-trust-source/anchors/`
+
+4. Atualizar base de trusted certificates
+
+    `sudo update-ca-trust`
+
+# 6. Como compilar
 
 Se quiser compilar seu próprio executável, primeiro [baixe e instale](https://golang.org/dl/) o compilador Go (v1.16 ou maior). Depois execute estes passos:
 
@@ -186,7 +209,7 @@ O executável será criado na pasta `bin`. Você pode movê-lo para outro local.
 
 IMPORTANTE: para compilar a biblioteca do sqlite, é necessário ter um compilador C instalado na máquina (para o Windows, mais detalhes [aqui](https://github.com/mattn/go-sqlite3#windows)).
 
-# 6. Contribua
+# 7. Contribua
 
 1. Faça um fork deste projeto no [github.com](github.com/dude333/rapina)
 2. `git clone https://github.com/`*your_username*`/rapina && cd rapina`
@@ -197,12 +220,12 @@ IMPORTANTE: para compilar a biblioteca do sqlite, é necessário ter um compilad
 7. `git push origin my-new-feature`
 8. Crie um _pull request_
 
-# 7. Screenshot
+# 8. Screenshot
 
 ![WEG](https://i.imgur.com/czPhPkH.png)
 
 
-# 8. License
+# 9. License
 
 MIT
 
