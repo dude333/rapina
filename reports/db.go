@@ -17,6 +17,11 @@ type accItems struct {
 	dsConta string
 }
 
+type AccountValue struct {
+	accItem accItems
+	value   float32
+}
+
 //
 // accountsItems returns all accounts codes and descriptions, e.g.:
 // [1 Ativo Total, 1.01 Ativo Circulante, ...]
@@ -234,6 +239,51 @@ func (r Report) dfp(cid, year int, _values map[uint32]float32) error {
 	}
 
 	return nil
+}
+
+func (r Report) RawAccounts(cid, year int) ([]AccountValue, error) {
+	selectReport := `
+	SELECT
+		CD_CONTA, DS_CONTA, CODE, VL_CONTA
+	FROM
+		dfp a
+	WHERE
+		ID_CIA = $1 
+		AND YEAR = $2
+		AND VERSAO = (SELECT MAX(VERSAO) FROM dfp WHERE ID_CIA = a.ID_CIA AND YEAR = a.YEAR)
+	;`
+
+	values := make([]AccountValue, 0, 10)
+
+	rows, err := r.db.Query(selectReport, cid, year)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var codeConta string
+		var descConta string
+		var code uint32
+		var vlConta float32
+
+		err := rows.Scan(&codeConta, &descConta, &code, &vlConta)
+
+		av := AccountValue{
+			accItem: accItems{
+				code:    code,
+				cdConta: codeConta,
+				dsConta: descConta,
+			},
+			value: vlConta,
+		}
+
+		if err == nil {
+			values = append(values, av)
+		}
+	}
+
+	return values, nil
 }
 
 func (r Report) lastDate(cid int) (int, string, error) {

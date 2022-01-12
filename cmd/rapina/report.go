@@ -38,6 +38,7 @@ var extraRatios bool
 var fleuriet bool
 var omitSector bool
 var outputDir = "reports"
+var format string // output format of the report
 
 // reportCmd represents the report command
 var reportCmd = &cobra.Command{
@@ -60,6 +61,7 @@ func init() {
 	reportCmd.Flags().BoolVarP(&fleuriet, "fleuriet", "F", false, "Capital de giro no modelo Fleuriet")
 	reportCmd.Flags().BoolVarP(&omitSector, "omitSector", "o", false, "Omite o relatório das empresas do mesmo setor")
 	reportCmd.Flags().StringVarP(&outputDir, "outputDir", "d", "reports", "Diretório onde o relatório será salvo")
+	reportCmd.Flags().StringVarP(&format, "format", "r", "xlsx", "Formato do relatório: xlsx|stdout")
 }
 
 func report(company string) {
@@ -85,6 +87,7 @@ func report(company string) {
 
 	parms := Parms{
 		Company:   company,
+		Format:    format,
 		OutputDir: outputDir,
 		YamlFile:  yamlFile,
 		Reports:   r,
@@ -163,9 +166,15 @@ func Report(p Parms) (err error) {
 		"db":       db,
 		"dataDir":  dataDir,
 		"company":  p.Company,
+		"format":   p.Format,
 		"filename": file,
 		"yamlFile": p.YamlFile,
 		"reports":  p.Reports,
 	}
+
+	if p.Format == "stdout" {
+		return reports.ReportToStdout(parms)
+	}
+
 	return reports.ReportToXlsx(parms)
 }

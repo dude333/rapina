@@ -57,6 +57,7 @@ type Report struct {
 	/* Parameters from caller */
 	db       *sql.DB // Sqlite3 handler
 	company  string  // company name to be processed
+	format   string  // report format
 	filename string  // path and filename of the output xlsx
 	yamlFile string  // file with the companies' sectors
 }
@@ -69,6 +70,9 @@ func New(parms map[string]interface{}) (*Report, error) {
 	}
 	if v, ok := parms["company"]; ok {
 		r.company = v.(string)
+	}
+	if v, ok := parms["format"]; ok {
+		r.format = v.(string)
 	}
 	if v, ok := parms["filename"]; ok {
 		r.filename = v.(string)
@@ -292,6 +296,46 @@ func ReportToXlsx(parms map[string]interface{}) error {
 	err = e.saveAndCloseExcel(r.filename)
 	if err == nil {
 		fmt.Printf("[√] Dados salvos em %s\n", r.filename)
+	}
+
+	return err
+}
+
+//ReportToStdout reports company financial data from DB to Stdout.
+func ReportToStdout(parms map[string]interface{}) error {
+
+	r, err := New(parms)
+	if err != nil {
+		return err
+	}
+
+	err = r.setCompany(r.company)
+	if err != nil {
+		return fmt.Errorf("empresa '%s' não encontrada no banco de dados", r.company)
+	}
+
+	begin, end, err := timeRange(r.db)
+	if err != nil {
+		return err
+	}
+
+	data := map[int][]AccountValue{}
+	for y := begin; y <= end; y++ {
+
+		acc, err := r.RawAccounts(r.cid, y)
+		if err != nil {
+			return err
+		}
+
+		data[y] = acc
+	}
+
+	for y, d := range data {
+
+		for _, acc := range d {
+
+			fmt.Println(y, acc.accItem.cdConta, acc.accItem.dsConta, int(acc.value))
+		}
 	}
 
 	return err
