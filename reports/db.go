@@ -20,6 +20,7 @@ type accItems struct {
 type AccountValue struct {
 	accItem accItems
 	value   float32
+	year    int
 }
 
 //
@@ -244,7 +245,7 @@ func (r Report) dfp(cid, year int, _values map[uint32]float32) error {
 func (r Report) RawAccounts(cid, year int) ([]AccountValue, error) {
 	selectReport := `
 	SELECT
-		CD_CONTA, DS_CONTA, CODE, VL_CONTA
+		CD_CONTA, DS_CONTA, CODE, YEAR, VL_CONTA
 	FROM
 		dfp a
 	WHERE
@@ -266,8 +267,9 @@ func (r Report) RawAccounts(cid, year int) ([]AccountValue, error) {
 		var descConta string
 		var code uint32
 		var vlConta float32
+		var year int
 
-		err := rows.Scan(&codeConta, &descConta, &code, &vlConta)
+		err := rows.Scan(&codeConta, &descConta, &code, &year, &vlConta)
 
 		av := AccountValue{
 			accItem: accItems{
@@ -275,6 +277,7 @@ func (r Report) RawAccounts(cid, year int) ([]AccountValue, error) {
 				cdConta: codeConta,
 				dsConta: descConta,
 			},
+			year:  year,
 			value: vlConta,
 		}
 

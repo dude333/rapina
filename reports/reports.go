@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/signal"
 	"path"
+	"sort"
 	"strconv"
 	"strings"
 
@@ -13,6 +14,8 @@ import (
 	"github.com/dude333/rapina/fetch"
 	p "github.com/dude333/rapina/parsers"
 	"github.com/pkg/errors"
+	"golang.org/x/text/language"
+	"golang.org/x/text/message"
 )
 
 const sectorAverage = "MÉDIA DO SETOR"
@@ -319,26 +322,47 @@ func ReportToStdout(parms map[string]interface{}) error {
 		return err
 	}
 
-	data := map[int][]AccountValue{}
+	acc := []AccountValue{}
+
 	for y := begin; y <= end; y++ {
 
-		acc, err := r.RawAccounts(r.cid, y)
+		d, err := r.RawAccounts(r.cid, y)
 		if err != nil {
 			return err
 		}
 
-		data[y] = acc
+		acc = append(acc, d...)
 	}
 
-	for y, d := range data {
-
-		for _, acc := range d {
-
-			fmt.Println(y, acc.accItem.cdConta, acc.accItem.dsConta, int(acc.value))
-		}
+	accBuf, err := buildStdAccountReport(acc)
+	if err != nil {
+		return err
 	}
+
+	fmt.Print(accBuf)
 
 	return err
+}
+
+func buildStdAccountReport(data []AccountValue) (*strings.Builder, error) {
+
+	buf := &strings.Builder{}
+	p := message.NewPrinter(language.BrazilianPortuguese)
+
+	sort.Slice(data, func(i, j int) bool {
+		return data[i].year < data[j].year
+	})
+
+	for _, acc := range data {
+		fmt.Fprintf(buf, "%d;", acc.year)
+
+		if _, err := p.Fprintf(buf, "%s;%s;", acc.accItem.cdConta, acc.accItem.dsConta); err != nil {
+			return nil, err
+		}
+		fmt.Fprintf(buf, "%d", int(acc.value))
+		buf.WriteByte('\n')
+	}
+	return buf, nil
 }
 
 //
