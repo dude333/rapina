@@ -1,6 +1,7 @@
 package reports
 
 import (
+	"strings"
 	"testing"
 
 	p "github.com/dude333/rapina/parsers"
@@ -85,4 +86,38 @@ func TestMetricsList(t *testing.T) {
 		AssertEqual(t, "metricsList ["+l[i].descr+"]", l[i].val, val)
 	}
 
+}
+
+func TestStdBuildReport(t *testing.T) {
+
+	data := []AccountValue{
+		{
+			accItem: accItems{
+				code:    123,
+				cdConta: "cdConta Second",
+				dsConta: "desc Second Conta",
+			},
+			value: 456,
+			year:  2012,
+		},
+		{
+			accItem: accItems{
+				code:    987,
+				cdConta: "cdConta First",
+				dsConta: "desc First Conta",
+			},
+			value: 654,
+			year:  2011,
+		},
+	}
+
+	builder, err := buildStdAccountReport(data)
+	if err != nil {
+		t.Error(err)
+	}
+
+	lines := strings.Split(strings.TrimSuffix(builder.String(), "\n"), "\n")
+
+	strings.EqualFold("2011;cdConta First;desc First Conta;654", lines[0])
+	strings.EqualFold("2012;cdConta Second;desc Second Conta;456", lines[1])
 }

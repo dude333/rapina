@@ -19,6 +19,8 @@ const yamlFile = "./setores.yml"
 type Parms struct {
 	// Company name to be processed
 	Company string
+	// Report format (xlsx/stdout)
+	Format string
 	// OutputDir: path of the output xlsx
 	OutputDir string
 	// YamlFile: file with the companies' sectors

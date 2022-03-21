@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/signal"
 	"path"
+	"sort"
 	"strconv"
 	"strings"
 
@@ -13,6 +14,8 @@ import (
 	"github.com/dude333/rapina/fetch"
 	p "github.com/dude333/rapina/parsers"
 	"github.com/pkg/errors"
+	"golang.org/x/text/language"
+	"golang.org/x/text/message"
 )
 
 const sectorAverage = "MÉDIA DO SETOR"
@@ -57,6 +60,7 @@ type Report struct {
 	/* Parameters from caller */
 	db       *sql.DB // Sqlite3 handler
 	company  string  // company name to be processed
+	format   string  // report format
 	filename string  // path and filename of the output xlsx
 	yamlFile string  // file with the companies' sectors
 }
@@ -69,6 +73,9 @@ func New(parms map[string]interface{}) (*Report, error) {
 	}
 	if v, ok := parms["company"]; ok {
 		r.company = v.(string)
+	}
+	if v, ok := parms["format"]; ok {
+		r.format = v.(string)
 	}
 	if v, ok := parms["filename"]; ok {
 		r.filename = v.(string)
@@ -295,6 +302,67 @@ func ReportToXlsx(parms map[string]interface{}) error {
 	}
 
 	return err
+}
+
+//ReportToStdout reports company financial data from DB to Stdout.
+func ReportToStdout(parms map[string]interface{}) error {
+
+	r, err := New(parms)
+	if err != nil {
+		return err
+	}
+
+	err = r.setCompany(r.company)
+	if err != nil {
+		return fmt.Errorf("empresa '%s' não encontrada no banco de dados", r.company)
+	}
+
+	begin, end, err := timeRange(r.db)
+	if err != nil {
+		return err
+	}
+
+	acc := []AccountValue{}
+
+	for y := begin; y <= end; y++ {
+
+		d, err := r.RawAccounts(r.cid, y)
+		if err != nil {
+			return err
+		}
+
+		acc = append(acc, d...)
+	}
+
+	accBuf, err := buildStdAccountReport(acc)
+	if err != nil {
+		return err
+	}
+
+	fmt.Print(accBuf)
+
+	return err
+}
+
+func buildStdAccountReport(data []AccountValue) (*strings.Builder, error) {
+
+	buf := &strings.Builder{}
+	p := message.NewPrinter(language.BrazilianPortuguese)
+
+	sort.Slice(data, func(i, j int) bool {
+		return data[i].year < data[j].year
+	})
+
+	for _, acc := range data {
+		fmt.Fprintf(buf, "%d;", acc.year)
+
+		if _, err := p.Fprintf(buf, "%s;%s;", acc.accItem.cdConta, acc.accItem.dsConta); err != nil {
+			return nil, err
+		}
+		fmt.Fprintf(buf, "%d", int(acc.value))
+		buf.WriteByte('\n')
+	}
+	return buf, nil
 }
 
 //
