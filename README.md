@@ -197,6 +197,22 @@ Algumas distribuições Linux (Fedora 34, por exemplo) podem encontrar problemas
 
     `sudo update-ca-trust`
 
+**Ubuntu** 
+
+1. Realizar o download do Issuer Root Cert
+
+    `curl https://secure.globalsign.net/cacert/Root-R1.crt > /tmp/GlobalSign_Root_CA.crt`
+    `curl https://secure.globalsign.net/cacert/Root-R2.crt > /tmp/GlobalSign_Root_CA_R2.crt`
+
+2. Importar .crt arquivos para pasta de certificados
+
+    `sudo cp /tmp/GlobalSign_Root_CA.crt /usr/local/share/ca-certificates/`
+    `sudo cp /tmp/GlobalSign_Root_CA_R2.crt /usr/local/share/ca-certificates/`
+
+3. Atualizar base de trusted certificates
+
+    `sudo update-ca-trust`
+
 # 6. Como compilar
 
 Se quiser compilar seu próprio executável, primeiro [baixe e instale](https://golang.org/dl/) o compilador Go (v1.16 ou maior). Depois execute estes passos:
