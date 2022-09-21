@@ -26,7 +26,7 @@ func FetchFIIList(baseURL string) ([]string, error) {
 		return nil, errors.New(resp.Status)
 	}
 
-	body, err := ioutil.ReadAll(resp.Body)
+	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return nil, err
 	}

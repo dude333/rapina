@@ -3,7 +3,6 @@ package parsers
 import (
 	"bufio"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"strings"
 	"regexp"
@@ -172,7 +171,7 @@ type Segment struct {
 //
 func FromSector(company, yamlFile string) (companies []string, sectorName string, err error) {
 
-	y, err := ioutil.ReadFile(yamlFile)
+	y, err := os.ReadFile(yamlFile)
 	if err != nil {
 		err = errors.Wrapf(err, "ReadFile: %v", err)
 		return
