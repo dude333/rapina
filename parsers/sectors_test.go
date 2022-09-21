@@ -6,7 +6,7 @@ import (
 )
 
 func TestFromSector(t *testing.T) {
-	tempDir, _ := os.TempDir("", "rapina-test")
+	tempDir, _ := os.MkdirTemp("", "rapina-test")
 	filename := tempDir + "/test_sectors.yml"
 
 	createYaml(filename)
