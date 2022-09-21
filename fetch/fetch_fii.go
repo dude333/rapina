@@ -14,7 +14,7 @@ import (
 	"database/sql"
 	"encoding/base64"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -322,7 +322,7 @@ func (fii *FII) Details(fiiCode string) (*rapina.FIIDetails, error) {
 		return details, fmt.Errorf("%s: %s", resp.Status, fundDetailURL)
 	}
 
-	body, err := ioutil.ReadAll(resp.Body)
+	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return nil, errors.Wrapf(err, "FII Details(%s): reading body", fiiCode)
 	}

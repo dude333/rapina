@@ -1,13 +1,13 @@
 package main
 
 import (
-	"io/ioutil"
+	"os"
 	"path/filepath"
 	"testing"
 )
 
 func TestFilename(t *testing.T) {
-	tempDir, _ := ioutil.TempDir("", "rapina-test")
+	tempDir, _ := os.MkdirTemp("", "rapina-test")
 
 	table := []struct {
 		path     string

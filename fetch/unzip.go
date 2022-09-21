@@ -4,7 +4,6 @@ import (
 	"archive/zip"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strings"
@@ -66,7 +65,7 @@ func Unzip(src string, dest string, verbose bool) ([]string, error) {
 				return filenames, err
 			}
 
-			counter := ioutil.Discard
+			counter := io.Discard
 			if verbose {
 				fmt.Printf("[          ] Unziping %s", fpath)
 				counter = &WriteCounter{}

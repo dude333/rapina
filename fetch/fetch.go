@@ -24,7 +24,6 @@ import (
 	"database/sql"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net/http"
 	"os"
 	"path"
@@ -275,7 +274,7 @@ func downloadFile(url, filepath string, verbose bool) (err error) {
 	}
 
 	// Write the body to file
-	counter := ioutil.Discard
+	counter := io.Discard
 	if verbose {
 		counter = &WriteCounter{}
 	}
