@@ -1,13 +1,12 @@
 package parsers
 
 import (
-	"io/ioutil"
 	"os"
 	"testing"
 )
 
 func TestFromSector(t *testing.T) {
-	tempDir, _ := ioutil.TempDir("", "rapina-test")
+	tempDir, _ := os.TempDir("", "rapina-test")
 	filename := tempDir + "/test_sectors.yml"
 
 	createYaml(filename)
@@ -52,5 +51,5 @@ func createYaml(filename string) {
             - GRENDENE S.A.
             - VULCABRAS/AZALEIA S.A.`)
 
-	_ = ioutil.WriteFile(filename, yaml, 0644)
+	_ = os.WriteFile(filename, yaml, 0644)
 }

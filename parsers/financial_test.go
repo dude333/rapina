@@ -2,7 +2,6 @@ package parsers
 
 import (
 	"database/sql"
-	"io/ioutil"
 	"os"
 	"testing"
 
@@ -10,7 +9,7 @@ import (
 )
 
 func tempFilename(t *testing.T) string {
-	f, err := ioutil.TempFile("", "rapina-test-")
+	f, err := os.CreateTemp("", "rapina-test-")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -32,7 +31,7 @@ CNPJ_CIA;DT_REFER;VERSAO;DENOM_CIA;CD_CVM;GRUPO_DFP;MOEDA;ESCALA_MOEDA;ORDEM_EXE
 00.000.000/0001-91;2013-12-31;4;BANCO DO BRASIL S.A.;1023;DF Consolidado - Balan�o Patrimonial Ativo;REAL;MILHAR;�LTIMO;2013-12-31;1.03;Empr�stimos e Receb�veis;755821983.00
 00.000.000/0001-91;2013-12-31;4;BANCO DO BRASIL S.A.;1023;DF Consolidado - Balan�o Patrimonial Ativo;REAL;MILHAR;�LTIMO;2013-12-31;1.04;Tributos Diferidos;21954460.00
 	`)
-	err := ioutil.WriteFile(filename, bpa, 0600)
+	err := os.WriteFile(filename, bpa, 0600)
 
 	return err
 }
