@@ -43,6 +43,62 @@ func ListCompanies(db *sql.DB) (names []string, err error) {
 }
 
 //
+// ListTickers shows all available tickers for a companie name
+//
+func ListTickers(db *sql.DB, companyName string) (names []string, err error) {
+	info, err := tickers(db,companyName)
+
+	if err != nil {
+		fmt.Println("[x] Falha:", err)
+		return
+	}
+
+	if len(info) == 0 {
+		err = fmt.Errorf("lista vazia")
+		return
+	}
+
+	// Extract companies names
+	names = make([]string, len(info))
+	for i, co := range info {
+		names[i] = co.name
+	}
+
+	// Sort accents correctly
+	cl := collate.New(language.BrazilianPortuguese, collate.Loose)
+	cl.SortStrings(names)
+
+	return
+}
+
+//
+// ListTickers returns SpcfctnCd of a ticker
+//
+func GetSpcfctnCd(db *sql.DB, companyName string, ticker string) string {
+	info, err := tickers(db,companyName)
+
+	if err != nil {
+		fmt.Println("[x] Falha:", err)
+		return ""
+	}
+
+	if len(info) == 0 {
+		err = fmt.Errorf("lista vazia")
+		return ""
+	}
+
+	// Extract companies names
+	var spcfctnCd string = ""
+	for _, co := range info {
+		if co.name == ticker {
+			spcfctnCd = co.SpcfctnCd
+		}
+	}
+
+	return spcfctnCd
+}
+
+//
 // ListSector shows all companies from the same sector as 'company'
 //
 func ListSector(db *sql.DB, company, yamlFile string) (err error) {

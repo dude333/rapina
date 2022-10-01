@@ -60,6 +60,7 @@ type Report struct {
 	/* Parameters from caller */
 	db       *sql.DB // Sqlite3 handler
 	company  string  // company name to be processed
+	spcfctnCd  	string  // spcfctnCd used to select the correct ticker
 	format   string  // report format
 	filename string  // path and filename of the output xlsx
 	yamlFile string  // file with the companies' sectors
@@ -73,6 +74,9 @@ func New(parms map[string]interface{}) (*Report, error) {
 	}
 	if v, ok := parms["company"]; ok {
 		r.company = v.(string)
+	}
+	if v, ok := parms["SpcfctnCd"]; ok {
+		r.spcfctnCd = v.(string)
 	}
 	if v, ok := parms["format"]; ok {
 		r.format = v.(string)
@@ -123,7 +127,7 @@ func ReportToXlsx(parms map[string]interface{}) error {
 		return err
 	}
 
-	err = r.setCompany(r.company)
+	err = r.setCompanyAndTicker(r.company,r.spcfctnCd)
 	if err != nil {
 		return fmt.Errorf("empresa '%s' não encontrada no banco de dados", r.company)
 	}
@@ -312,7 +316,7 @@ func ReportToStdout(parms map[string]interface{}) error {
 		return err
 	}
 
-	err = r.setCompany(r.company)
+	err = r.setCompanyAndTicker(r.company,r.spcfctnCd)
 	if err != nil {
 		return fmt.Errorf("empresa '%s' não encontrada no banco de dados", r.company)
 	}
@@ -434,7 +438,7 @@ func (r *Report) companySummary(sheet *Sheet, row, col *int, _company, sectorNam
 	// 	return true, nil
 	// }
 
-	err = r.setCompany(_company)
+	err = r.setCompanyAndTicker(r.company,r.spcfctnCd)
 	if err != nil {
 		err = errors.Errorf("empresa '%s' não encontrada no banco de dados", _company)
 		return
@@ -593,7 +597,7 @@ func (r *Report) companySummary(sheet *Sheet, row, col *int, _company, sectorNam
 func (r *Report) Summary(company string) (map[string]string, error) {
 	m := make(map[string]string)
 
-	err := r.setCompany(company)
+	err := r.setCompanyAndTicker(r.company,r.spcfctnCd)
 	if err != nil {
 		return m, err
 	}
