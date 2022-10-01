@@ -724,19 +724,11 @@ func tickers(db *sql.DB, companyName string) ([]TickerInfo, error) {
 }
 
 //
-// setCompany sets the company ID, CNPJ and stock code based on it's name.
+// setCompany sets the company ID, CNPJ and stock code based on it's name...
 //
-func (r *Report) setCompany(company string) error {
-	return r.setCompanyAndTicker(company,"ON")
-}
-
-func (r *Report) getCid(companyName string) (int, error) {
-	selectID := `SELECT DISTINCT ID FROM companies WHERE NAME LIKE ?`
-	var cid int
-	err := r.db.QueryRow(selectID, "%"+companyName+"%").Scan(&cid)
-
-	return cid, err
-}
+// func (r *Report) setCompany(company string) error {
+// 	return r.setCompanyAndTicker(company,"ON")
+// }
 
 //
 // setCompanyAndTicker sets the company ID, CNPJ and stock code based on it's name.
@@ -772,6 +764,14 @@ func (r *Report) setCompanyAndTicker(company string, spcfctnCd string) error {
 	}
 
 	return nil
+}
+
+func (r *Report) getCid(companyName string) (int, error) {
+	selectID := `SELECT DISTINCT ID FROM companies WHERE NAME LIKE ?`
+	var cid int
+	err := r.db.QueryRow(selectID, "%"+companyName+"%").Scan(&cid)
+
+	return cid, err
 }
 
 //
