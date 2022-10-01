@@ -688,7 +688,7 @@ func companies(db *sql.DB) ([]CompanyInfo, error) {
 }
 
 //
-// setCompany sets the company ID, CNPJ and stock code based on it's name..
+// setCompany sets the company ID, CNPJ and stock code based on it's name...
 //
 func (r *Report) setCompany(company string) error {
 	if company == "" {
