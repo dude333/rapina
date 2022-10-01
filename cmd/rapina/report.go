@@ -23,6 +23,7 @@ package main
 import (
 	"fmt"
 	"sort"
+	"strings"
 
 	"github.com/dude333/rapina/reports"
 	"github.com/lithammer/fuzzysearch/fuzzy"
@@ -65,10 +66,16 @@ func init() {
 }
 
 func report(company string) {
+	var spcfctnCd string = "ON"
 	company = SelectCompany(company, scriptMode)
 	if company == "" {
 		fmt.Println("[x] Empresa não encontrada")
 		return
+	}
+	if strings.Contains(company, "@#") {
+		companyWithTicker := strings.Split(company, "@#")
+		company = companyWithTicker[0]
+		spcfctnCd = companyWithTicker[1]
 	}
 	fmt.Println()
 	fmt.Printf("[√] Criando relatório para %s ========\n", company)
@@ -87,6 +94,7 @@ func report(company string) {
 
 	parms := Parms{
 		Company:   company,
+		SpcfctnCd: spcfctnCd,
 		Format:    format,
 		OutputDir: outputDir,
 		YamlFile:  yamlFile,
@@ -136,7 +144,21 @@ func SelectCompany(company string, scriptMode bool) string {
 
 	// Interactive menu
 	if len(matches) >= 1 {
-		result := promptUser(matches)
+		result := promptUser(matches,"Selecione a Empresa")
+
+		tickers, err := reports.ListTickers(db,result)
+		if err != nil {
+			fmt.Println("[x] Recuperando lista de tickers ", err)
+			return result
+		}
+
+		// Interactive menu
+		if len(tickers) > 0 {
+			ticker := promptUser(tickers,"Selecione o ticker")
+			resultWithTicker := fmt.Sprintf("%s@#%s", result, reports.GetSpcfctnCd(db,result,ticker))
+			return resultWithTicker
+		}
+
 		return result
 	}
 
@@ -166,6 +188,7 @@ func Report(p Parms) (err error) {
 		"db":       db,
 		"dataDir":  dataDir,
 		"company":  p.Company,
+		"SpcfctnCd":p.SpcfctnCd,
 		"format":   p.Format,
 		"filename": file,
 		"yamlFile": p.YamlFile,

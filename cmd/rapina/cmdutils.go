@@ -19,6 +19,8 @@ const yamlFile = "./setores.yml"
 type Parms struct {
 	// Company name to be processed
 	Company string
+	// SpcfctnCd to indentify the ticker
+	SpcfctnCd string
 	// Report format (xlsx/stdout)
 	Format string
 	// OutputDir: path of the output xlsx
@@ -49,7 +51,10 @@ func openDatabase() (db *sql.DB, err error) {
 //
 // promptUser presents a navigable list to be selected on CLI
 //
-func promptUser(list []string) (result string) {
+func promptUser(list []string, label string) (result string) {
+	if label == "" {
+		label = "Selecione a Empresa"
+	}
 	templates := &promptui.SelectTemplates{
 		Help: `{{ "Use estas teclas para navegar:" | faint }} {{ .NextKey | faint }} ` +
 			`{{ .PrevKey | faint }} {{ .PageDownKey | faint }} {{ .PageUpKey | faint }} ` +
@@ -57,7 +62,7 @@ func promptUser(list []string) (result string) {
 	}
 
 	prompt := promptui.Select{
-		Label:     "Selecione a Empresa",
+		Label:     label,
 		Items:     list,
 		Templates: templates,
 	}
