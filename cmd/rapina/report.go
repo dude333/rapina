@@ -144,9 +144,9 @@ func SelectCompany(company string, scriptMode bool) string {
 
 	// Interactive menu
 	if len(matches) >= 1 {
-		result := promptUser(matches,"Selecione a Empresa")
+		result := promptUser(matches, "Selecione a Empresa")
 
-		tickers, err := reports.ListTickers(db,result)
+		tickers, err := reports.ListTickers(db, result)
 		if err != nil {
 			fmt.Println("[x] Recuperando lista de tickers ", err)
 			return result
@@ -154,8 +154,8 @@ func SelectCompany(company string, scriptMode bool) string {
 
 		// Interactive menu
 		if len(tickers) > 0 {
-			ticker := promptUser(tickers,"Selecione o ticker")
-			resultWithTicker := fmt.Sprintf("%s@#%s", result, reports.GetSpcfctnCd(db,result,ticker))
+			ticker := promptUser(tickers, "Selecione o ticker")
+			resultWithTicker := fmt.Sprintf("%s@#%s", result, reports.GetSpcfctnCd(db, result, ticker))
 			return resultWithTicker
 		}
 
@@ -185,14 +185,14 @@ func Report(p Parms) (err error) {
 	}
 
 	parms := map[string]interface{}{
-		"db":       db,
-		"dataDir":  dataDir,
-		"company":  p.Company,
-		"SpcfctnCd":p.SpcfctnCd,
-		"format":   p.Format,
-		"filename": file,
-		"yamlFile": p.YamlFile,
-		"reports":  p.Reports,
+		"db":        db,
+		"dataDir":   dataDir,
+		"company":   p.Company,
+		"SpcfctnCd": p.SpcfctnCd,
+		"format":    p.Format,
+		"filename":  file,
+		"yamlFile":  p.YamlFile,
+		"reports":   p.Reports,
 	}
 
 	if p.Format == "stdout" {

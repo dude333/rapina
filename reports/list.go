@@ -46,7 +46,7 @@ func ListCompanies(db *sql.DB) (names []string, err error) {
 // ListTickers shows all available tickers for a companie name
 //
 func ListTickers(db *sql.DB, companyName string) (names []string, err error) {
-	info, err := tickers(db,companyName)
+	info, err := tickers(db, companyName)
 
 	if err != nil {
 		fmt.Println("[x] Falha:", err)
@@ -75,7 +75,7 @@ func ListTickers(db *sql.DB, companyName string) (names []string, err error) {
 // ListTickers returns SpcfctnCd of a ticker
 //
 func GetSpcfctnCd(db *sql.DB, companyName string, ticker string) string {
-	info, err := tickers(db,companyName)
+	info, err := tickers(db, companyName)
 
 	if err != nil {
 		fmt.Println("[x] Falha:", err)
@@ -83,7 +83,7 @@ func GetSpcfctnCd(db *sql.DB, companyName string, ticker string) string {
 	}
 
 	if len(info) == 0 {
-		err = fmt.Errorf("lista vazia")
+		fmt.Println("[x] Lista vazia")
 		return ""
 	}
 
