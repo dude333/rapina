@@ -3,9 +3,9 @@ package parsers
 import (
 	"bufio"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"strings"
+	"regexp"
 
 	"github.com/PuerkitoBio/goquery"
 	"github.com/dude333/rapina"
@@ -74,7 +74,7 @@ func SectorsToYaml(yamlFile string) (err error) {
 						fmt.Fprintln(w, "        Segmentos:")
 					}
 					lastSub = subsectors[i]
-					fmt.Fprintln(w, "          - Segmento:", elem.Text)
+					fmt.Fprintln(w, "          - Segmento:", removeYamlInvalidChar(elem.Text))
 					fmt.Fprintln(w, "            Empresas:")
 					_ = companies(w, "http://bvmf.bmfbovespa.com.br/cias-listadas/empresas-listadas/"+elem.Attr("href"))
 				}
@@ -116,7 +116,7 @@ func companies(w *bufio.Writer, url string) error {
 
 		e.ForEachWithBreak("a", func(_ int, elem *colly.HTMLElement) bool {
 			if strings.Contains(elem.Attr("href"), "ResumoEmpresaPrincipal.aspx") {
-				fmt.Fprintln(w, "              -", elem.Text)
+				fmt.Fprintln(w, "              -", removeYamlInvalidChar(elem.Text))
 			}
 			return false // get only the 1st elem
 		})
@@ -171,7 +171,7 @@ type Segment struct {
 //
 func FromSector(company, yamlFile string) (companies []string, sectorName string, err error) {
 
-	y, err := ioutil.ReadFile(yamlFile)
+	y, err := os.ReadFile(yamlFile)
 	if err != nil {
 		err = errors.Wrapf(err, "ReadFile: %v", err)
 		return
@@ -195,4 +195,12 @@ func FromSector(company, yamlFile string) (companies []string, sectorName string
 	}
 
 	return
+}
+
+//
+// removeYamlInvalidChar removes yaml invalid characters
+//
+func removeYamlInvalidChar(text string) string {
+	yaml_invalid_chars := regexp.MustCompile(`[^/\s.A-zÀ-ú0-9&():-]`)
+	return yaml_invalid_chars.ReplaceAllString(text,"")
 }

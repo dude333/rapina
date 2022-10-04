@@ -96,6 +96,22 @@ Some Linux distributions (e.g. Fedora 34) might face some issues regarding the s
 
     `sudo update-ca-trust`
 
+**Ubuntu** 
+
+1. Download the Issuer Root Cert
+
+    `curl https://secure.globalsign.net/cacert/Root-R1.crt > /tmp/GlobalSign_Root_CA.crt`
+    `curl https://secure.globalsign.net/cacert/Root-R2.crt > /tmp/GlobalSign_Root_CA_R2.crt`
+
+2. Move the .crt files to the certificates folder
+
+    `sudo cp /tmp/GlobalSign_Root_CA.crt /usr/local/share/ca-certificates/`
+    `sudo cp /tmp/GlobalSign_Root_CA_R2.crt /usr/local/share/ca-certificates/`
+
+3. Update the trusted certificates database
+
+    `sudo update-ca-trust`
+
 
 # 4. How to compile
 

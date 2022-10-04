@@ -687,10 +687,53 @@ func companies(db *sql.DB) ([]CompanyInfo, error) {
 	return list, nil
 }
 
+// TickerInfo contains the ticker name and SpcfctnCd
+type TickerInfo struct {
+	name   		string
+	SpcfctnCd 	string
+}
+
 //
-// setCompany sets the company ID, CNPJ and stock code based on it's name.
+// tickers returns available tickers for a company name in the DB
 //
-func (r *Report) setCompany(company string) error {
+func tickers(db *sql.DB, companyName string) ([]TickerInfo, error) {
+
+	selectTickers := `
+		SELECT trading_code, SpcfctnCd
+		FROM stock_codes
+		WHERE company_name LIKE ?
+		ORDER BY trading_code;`
+
+	rows, err := db.Query(selectTickers, "%"+companyName+"%")
+	if err != nil {
+		err = errors.Wrap(err, "falha ao ler banco de dados")
+		return nil, err
+	}
+	defer rows.Close()
+
+	var info TickerInfo
+	var list []TickerInfo
+	for rows.Next() {
+		err := rows.Scan(&info.name, &info.SpcfctnCd)
+		if err == nil {
+			list = append(list, info)
+		}
+	}
+
+	return list, nil
+}
+
+//
+// setCompany sets the company ID, CNPJ and stock code based on it's name...
+//
+// func (r *Report) setCompany(company string) error {
+// 	return r.setCompanyAndTicker(company,"ON")
+// }
+
+//
+// setCompanyAndTicker sets the company ID, CNPJ and stock code based on it's name.
+//
+func (r *Report) setCompanyAndTicker(company string, spcfctnCd string) error {
 	if company == "" {
 		return errors.New("company name not set")
 	}
@@ -715,7 +758,7 @@ func (r *Report) setCompany(company string) error {
 	r.cnpj = cnpj
 
 	// Stock code
-	r.code, err = r.fetchStock.Code(r.company, "ON")
+	r.code, err = r.fetchStock.Code(r.company, spcfctnCd)
 	if err != nil {
 		fmt.Printf("\n[x] Erro obtendo código negociação: %v\n", err)
 	}

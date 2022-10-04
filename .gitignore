@@ -23,6 +23,7 @@ bin/**
 *.yml
 !.travis.yml
 wiki/**
+.DS_Store
 
 # Test binary, build with `go test -c`
 *.test
