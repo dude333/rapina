@@ -173,7 +173,7 @@ func (fii *FII) dividendReport(code string, ids []id) (*[]rapina.Dividend, error
 				if fieldName == "" {
 					fieldName = v
 				} else {
-					if strings.Contains(fieldName, "Código de negociação da cota") ||
+					if strings.Contains(fieldName, "Código de negociação") ||
 						strings.Contains(fieldName, "Data da informação") {
 						progress.Debug("[%s] %-30s => %s\n", code, fieldName, v)
 					}

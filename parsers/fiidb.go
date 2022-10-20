@@ -164,7 +164,7 @@ func (fii *FIIParser) SaveDividend(stream map[string]string) (*rapina.Dividend, 
 	code := mapFinder("Código de negociação da cota", stream)
 	baseDate := fixDate(mapFinder("Data-base", stream))
 	pymtDate := fixDate(mapFinder("Data do pagamento", stream))
-	val := mapFinder("Valor do provento por cota", stream)
+	val := mapFinder("Valor do provento", stream)
 	fVal := comma2dot(val)
 
 	fii.mu.Lock()
