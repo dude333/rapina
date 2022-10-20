@@ -381,7 +381,7 @@ func (fii *FII) reportIDs(rt repType, code string, n int) ([]id, error) {
 		"l":                    []string{"200"}, // 'n*2' latest reports as other codes may appear (e.g.:ABCD11, ABCD12, ABCD13...)
 		"dataFinal":            []string{time.Now().Format("02/01/2006")},
 		"dataInicial":          []string{nMonthAgo.Format("02/01/2006")},
-        "o[0][dataReferencia]"	[]string{"asc"},
+        "o[0][dataReferencia]":	[]string{"asc"},
 		"_":                    []string{timestamp},
 	}
 
