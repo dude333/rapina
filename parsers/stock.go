@@ -426,7 +426,7 @@ func parseB3Quote(line string) (*stockQuote, error) {
 	}
 
 	codBDI := line[10:12]
-	if codBDI != "02" && codBDI != "12" && codBDI != "13" {
+	if codBDI != "02" && codBDI != "12" && codBDI != "13" && codBDI != "14" {
 		return nil, fmt.Errorf("BDI %s ignorado", codBDI)
 	}
 
