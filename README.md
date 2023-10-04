@@ -14,6 +14,8 @@ Com base nestes dados, são criados os relatórios por empresa, com um comparati
 
 A partir do release v0.11.0, passou-se a usar os dados trimestrais para compor os valores do ano corrente, usando-se para isso os últimos 4 trimestre ([TTM](#ttm-calc)), ou seja, a soma dos dados trimestrais do ano corrente com alguns do ano anterior, mantendo-se assim uma mesma base de comparação com os anos anteriores. 
 
+| :memo:        | **NOTA**: Desenvolvi a [versão 2 do rapina](https://github.com/dude333/rapinav2) com o intuito de criar relatórios trimestrais. Pretendo integrar essa nova funcionalidade a este repositório no futuro.  |
+|---------------|:------------------------|
 
 # 1. Instalação
 
