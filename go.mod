@@ -23,10 +23,8 @@ require (
 	github.com/spf13/viper v1.6.1
 	github.com/stretchr/testify v1.4.0
 	github.com/temoto/robotstxt v1.1.2 // indirect
-	golang.org/x/net v0.0.0-20210410081132-afb366fc7cd1 // indirect
-	golang.org/x/sys v0.0.0-20210514084401-e8d321eab015 // indirect
-	golang.org/x/text v0.3.6
-	golang.org/x/tools v0.1.1 // indirect
+	golang.org/x/text v0.3.8
+	golang.org/x/xerrors v0.0.0-20200804184101-5ec99f83aff1 // indirect
 	google.golang.org/appengine v1.6.7 // indirect
 	gopkg.in/yaml.v2 v2.4.0
 )
