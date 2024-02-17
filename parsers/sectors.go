@@ -9,7 +9,7 @@ import (
 
 	"github.com/PuerkitoBio/goquery"
 	"github.com/dude333/rapina"
-	"github.com/gocolly/colly"
+	"github.com/gocolly/colly/v2"
 	"github.com/pkg/errors"
 	yaml "gopkg.in/yaml.v2"
 )

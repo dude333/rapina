@@ -24,7 +24,7 @@ import (
 	"github.com/dude333/rapina"
 	"github.com/dude333/rapina/parsers"
 	"github.com/dude333/rapina/progress"
-	"github.com/gocolly/colly"
+	"github.com/gocolly/colly/v2"
 	"github.com/pkg/errors"
 )
 
