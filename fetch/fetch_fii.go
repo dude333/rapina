@@ -10,6 +10,7 @@ package fetch
 */
 
 import (
+	"bytes"
 	"crypto/tls"
 	"database/sql"
 	"encoding/base64"
@@ -26,9 +27,10 @@ import (
 	"github.com/dude333/rapina/progress"
 	"github.com/gocolly/colly/v2"
 	"github.com/pkg/errors"
+	"golang.org/x/net/html"
 )
 
-const MAX_N = 200
+const MAX_N = 100
 
 // FII holds the infrastructure data.
 type FII struct {
@@ -62,10 +64,8 @@ type docID struct {
 	Status      string `json:"situacaoDocumento"`
 }
 
-//
 // Dividends gets the report IDs for one company ('cnpj') and then the
 // yeld montlhy report for 'n' months, starting from the latest released.
-//
 func (fii FII) Dividends(code string, n int) (*[]rapina.Dividend, error) {
 	dividends, months, err := fii.dividendsFromDB(code, n)
 	if err == nil {
@@ -74,13 +74,19 @@ func (fii FII) Dividends(code string, n int) (*[]rapina.Dividend, error) {
 		}
 	}
 
-	if _, err := fii.dividendsFromServer(code, n); err != nil {
+	dividends, err = fii.dividendsFromServer(code, n)
+	if err != nil {
 		return nil, err
 	}
+	for _, d := range *dividends {
+		err := fii.storage.SaveDividend(d) // Save dividends to DB
+		if err != nil {
+			progress.ErrorMsg("Erro ao salvar dividendos no banco de dados: %s - %v", err, d)
+		}
+	}
 
-	// Return from DB to get data sorted by date
+	// Load dividends from DB to filter results
 	dividends, _, err = fii.dividendsFromDB(code, n)
-
 	return dividends, err
 }
 
@@ -105,105 +111,151 @@ func (fii FII) dividendsFromDB(code string, n int) (*[]rapina.Dividend, int, err
 	return &dividends, months, nil
 }
 
-//
 // Dividends gets the report IDs for one company ('cnpj') and then the
 // yeld montlhy report for 'n' months, starting from the latest released.
 //
 // If the number of reports does not match n, it'll retry with a bigger n as
 // sometimes reports from follow-on offerings (FPO).
-//
 func (fii *FII) dividendsFromServer(code string, n int) (*[]rapina.Dividend, error) {
+	n = int(float64(n) * 1.25)
 	if n > MAX_N {
 		n = MAX_N
 	}
-	nn := n
-	lastLen := -1
-	dividends := &[]rapina.Dividend{}
 
-	for len(*dividends) < n && nn <= 200 {
-		progress.Status("Relatórios de dividendos: %s", code)
+	ids, err := fii.reportIDs(repDividends, code, n)
+	if err != nil {
+		return nil, err
+	}
+	progress.Debug("Report IDs: %v", ids)
 
-		ids, err := fii.reportIDs(repDividends, code, nn)
-		if err != nil {
-			return nil, err
-		}
-		progress.Debug("Report IDs: %v", ids)
-
-		dividends, err = fii.dividendReport(code, ids)
-		if err != nil {
-			return nil, err
-		}
-		progress.Debug("Dividends (%d): %v", len(*dividends), *dividends)
-
-		if lastLen == len(*dividends) {
-			break
-		}
-		lastLen = len(*dividends)
-		nn += 2 * (n - len(*dividends))
+	progress.Status("Relatórios de dividendos: %s", code)
+	dividends, err := fii.dividendReport(code, ids)
+	if err != nil {
+		return nil, err
 	}
 
 	return dividends, nil
 }
 
-//
-// dividendReport parses the dividend reports and return their dividends.
-//
+// dividendReport parses the dividend reports and returns their dividends.
 func (fii *FII) dividendReport(code string, ids []id) (*[]rapina.Dividend, error) {
-	yeld := make(map[string]string, len(ids))
+	var dividends []rapina.Dividend
 
-	c := colly.NewCollector()
-	c.WithTransport(&http.Transport{
-		TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
-	})
+	// HTTP client setup
+	client := &http.Client{}
 
-	c.OnRequest(func(r *colly.Request) {
-		r.Headers.Set("Accept", "text/html")
-	})
-
-	c.OnError(func(r *colly.Response, err error) {
-		progress.ErrorMsg("Request URL: %v failed with response: %v\nError: %v", r.Request.URL, string(r.Body), err)
-	})
-
-	// Handles the html report
-	c.OnHTML("tr", func(e *colly.HTMLElement) {
-		var fieldName string
-		e.ForEach("td", func(_ int, el *colly.HTMLElement) {
-			v := strings.Trim(el.Text, " \r\n")
-			if v != "" {
-				if fieldName == "" {
-					fieldName = v
-				} else {
-					if strings.Contains(fieldName, "Código de negociação") ||
-						strings.Contains(fieldName, "Data da informação") {
-						progress.Debug("[%s] %-30s => %s\n", code, fieldName, v)
-					}
-					yeld[fieldName] = v
-					fieldName = ""
-				}
-			}
-		})
-	})
-
-	// Get the yeld monthly report given the list of 'report IDs' -- returns HTML
-	dividends := make([]rapina.Dividend, 0, len(ids))
 	for _, id := range ids {
-		u := fmt.Sprintf("https://fnet.bmfbovespa.com.br/fnet/publico/exibirDocumento?id=%d&cvm=true", id)
-		progress.Debug("Relatórios de dividendos: %s", u)
-		if err := c.Visit(u); err != nil {
+		url := fmt.Sprintf("https://fnet.bmfbovespa.com.br/fnet/publico/exibirDocumento?id=%d&cvm=true", id)
+		progress.Debug("GET %s", url)
+
+		// Make HTTP request
+		resp, err := client.Get(url)
+		if err != nil {
 			return nil, err
 		}
-		d, err := fii.storage.SaveDividend(yeld)
-		if err != nil {
-			progress.Error(err)
-			continue
+		defer resp.Body.Close()
+
+		if resp.StatusCode != http.StatusOK {
+			return nil, errors.Wrapf(err, "unexpected status code: %d", resp.StatusCode)
 		}
-		// fmt.Println("from server", d.Code, d.Date, d.Val)
-		if d.Code == code {
-			dividends = append(dividends, *d)
+
+		// Read response body
+		body, err := io.ReadAll(resp.Body)
+		if err != nil {
+			return nil, err
+		}
+
+		// Decode base64 encoded body
+		decodedBody, err := base64.StdEncoding.DecodeString(strings.Trim(string(body), `"`))
+		if err != nil {
+			return nil, err
+		}
+
+		doc, err := html.Parse(bytes.NewReader(decodedBody))
+		if err != nil {
+			return nil, errors.Wrap(err, "error parsing HTML: %s")
+		}
+
+		var data []string
+		var extractData func(*html.Node)
+		extractData = func(n *html.Node) {
+			if n.Type == html.ElementNode && n.Data == "td" {
+				text := getTextContent(n)
+				data = append(data, text)
+			}
+			for c := n.FirstChild; c != nil; c = c.NextSibling {
+				extractData(c)
+			}
+		}
+		extractData(doc)
+
+		// Store dividend
+		if d, ok := parseData(data); ok {
+			dividends = append(dividends, d)
 		}
 	}
 
 	return &dividends, nil
+}
+
+func parseData(data []string) (rapina.Dividend, bool) {
+	dividend := rapina.Dividend{}
+	fieldName := ""
+	count := 0
+	for _, str := range data {
+		if fieldName == "" {
+			if str != "" {
+				fieldName = str
+			}
+			continue
+		}
+		if strings.Contains(fieldName, "Código de negociação") {
+			dividend.Code = str
+			count++
+		} else if strings.Contains(fieldName, "Data-base") {
+			dividend.Date = fixDate(str)
+			count++
+		} else if strings.Contains(fieldName, "Data do pagamento") {
+			dividend.PaymentDate = fixDate(str)
+			count++
+		} else if strings.Contains(fieldName, "Valor do provento") {
+			dividend.Val = comma2dot(str)
+			count++
+		}
+		fieldName = ""
+	}
+
+	return dividend, count == 4 // false if not all fields are filled
+}
+
+func comma2dot(val string) float64 {
+	a := strings.ReplaceAll(val, ".", "")
+	b := strings.ReplaceAll(a, ",", ".")
+	n, _ := strconv.ParseFloat(b, 64)
+	return n
+}
+
+// fixDate converts dates from DD/MM/YYYY to YYYY-MM-DD.
+func fixDate(date string) string {
+	if len(date) != len("26/04/2021") || strings.Count(date, "/") != 2 {
+		return date
+	}
+
+	return date[6:10] + "-" + date[3:5] + "-" + date[0:2]
+}
+
+func getTextContent(n *html.Node) string {
+	textContent := ""
+	if n == nil {
+		return ""
+	}
+	if n.Type == html.TextNode {
+		return n.Data
+	}
+	for c := n.FirstChild; c != nil; c = c.NextSibling {
+		textContent += getTextContent(c)
+	}
+	return strings.TrimSpace(textContent)
 }
 
 func (fii *FII) MonthlyReportIDs(code string, n int) ([]id, error) {
@@ -219,9 +271,7 @@ func (fii *FII) MonthlyReportIDs(code string, n int) ([]id, error) {
 	return ids, nil
 }
 
-//
 // monthlyReport parses the FII monthly reports.
-//
 func (fii *FII) monthlyReport(code string, ids []id) (*[]rapina.Monthly, error) {
 	yeld := make(map[string]string, len(ids))
 
@@ -281,10 +331,8 @@ func (fii *FII) monthlyReport(code string, ids []id) (*[]rapina.Monthly, error) 
 	return &monthly, nil
 }
 
-//
 // Details returns the FII Details from DB. If not found:
 // fetches from server, stores it in the DB and returns the Details.
-//
 func (fii *FII) Details(fiiCode string) (*rapina.FIIDetails, error) {
 	if len(fiiCode) != 4 && len(fiiCode) != 6 {
 		return nil, fmt.Errorf("wrong code '%s'", fiiCode)
@@ -381,7 +429,7 @@ func (fii *FII) reportIDs(rt repType, code string, n int) ([]id, error) {
 		"l":                    []string{"200"}, // 'n*2' latest reports as other codes may appear (e.g.:ABCD11, ABCD12, ABCD13...)
 		"dataFinal":            []string{time.Now().Format("02/01/2006")},
 		"dataInicial":          []string{nMonthAgo.Format("02/01/2006")},
-        "o[0][dataReferencia]":	[]string{"asc"},
+		"o[0][dataReferencia]": []string{"asc"},
 		"_":                    []string{timestamp},
 	}
 

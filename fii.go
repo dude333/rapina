@@ -2,9 +2,10 @@ package rapina
 
 // Dividend contains the stock 'Code', and the 'Date' for the stock dividend 'Val'.
 type Dividend struct {
-	Code string
-	Date string
-	Val  float64
+	Code        string
+	Date        string
+	PaymentDate string
+	Val         float64
 }
 
 // Monthly contains the FII monthly report fields
@@ -56,5 +57,5 @@ type FIIStorage interface {
 	SaveDetails(stream []byte) error
 
 	Dividends(code, monthYear string) (*[]Dividend, error)
-	SaveDividend(stream map[string]string) (*Dividend, error)
+	SaveDividend(dividend Dividend) error
 }

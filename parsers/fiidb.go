@@ -4,7 +4,6 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
-	"strconv"
 	"strings"
 	"sync"
 
@@ -35,11 +34,12 @@ func NewFII(db *sql.DB, log rapina.Logger) (*FIIParser, error) {
 	}, err
 }
 
-//
 // StoreFIIDetails parses the stream data into FIIDetails and returns
 // the *FIIDetails.
-//
 func (fii *FIIParser) SaveDetails(stream []byte) error {
+	fii.mu.Lock()
+	defer fii.mu.Unlock()
+
 	if !hasTable(fii.db, "fii_details") {
 		if err := createTable(fii.db, "fii_details"); err != nil {
 			return err
@@ -58,9 +58,6 @@ func (fii *FIIParser) SaveDetails(stream []byte) error {
 		return errors.New("CNPJ não encontrado")
 	}
 
-	fii.mu.Lock()
-	defer fii.mu.Unlock()
-
 	insert := `INSERT OR IGNORE INTO fii_details 
 		(cnpj, acronym, trading_code, json) 
 		VALUES (?,?,?,?);`
@@ -70,10 +67,8 @@ func (fii *FIIParser) SaveDetails(stream []byte) error {
 	return err
 }
 
-//
 // Details returns the FII Details for the 'code' or
 // an empty string if not found in the db.
-//
 func (fii *FIIParser) Details(code string) (*rapina.FIIDetails, error) {
 	details := rapina.FIIDetails{}
 
@@ -105,10 +100,11 @@ func (fii *FIIParser) Details(code string) (*rapina.FIIDetails, error) {
 	return &details, nil
 }
 
-//
 // Dividends returns the dividend from the db.
-//
 func (fii *FIIParser) Dividends(code, monthYear string) (*[]rapina.Dividend, error) {
+	fii.mu.Lock()
+	defer fii.mu.Unlock()
+
 	const s = `SELECT trading_code, base_date, value
 	FROM fii_dividends 
 	WHERE trading_code=$1 
@@ -150,39 +146,20 @@ func (fii *FIIParser) Dividends(code, monthYear string) (*[]rapina.Dividend, err
 	return &dividends, nil
 }
 
-//
 // SaveDividend parses and stores the map in the db. Returns the parsed stream.
-//
-func (fii *FIIParser) SaveDividend(stream map[string]string) (*rapina.Dividend, error) {
-	// fmt.Println("----------------------------")
-	// fmt.Printf("%+v\n\n", stream)
-
-	if err := createTable(fii.db, "fii_dividends"); err != nil {
-		return nil, err
-	}
-
-	code := mapFinder("Código de negociação da cota", stream)
-	baseDate := fixDate(mapFinder("Data-base", stream))
-	pymtDate := fixDate(mapFinder("Data do pagamento", stream))
-	val := mapFinder("Valor do provento", stream)
-	fVal := comma2dot(val)
-
+func (fii *FIIParser) SaveDividend(dividend rapina.Dividend) error {
 	fii.mu.Lock()
 	defer fii.mu.Unlock()
 
-	const insert = `INSERT OR IGNORE INTO fii_dividends 
-	(trading_code, base_date, payment_date, value) VALUES (?,?,?,?)`
-	_, err := fii.db.Exec(insert, code, baseDate, pymtDate, fVal)
-
-	// fmt.Println("saving: %v %v %v", code, baseDate, fVal)
-
-	d := rapina.Dividend{
-		Code: code,
-		Date: baseDate,
-		Val:  fVal,
+	if err := createTable(fii.db, "fii_dividends"); err != nil {
+		return err
 	}
 
-	return &d, errors.Wrap(err, "inserting data on fii_dividends")
+	const insert = `INSERT OR IGNORE INTO fii_dividends 
+	(trading_code, base_date, payment_date, value) VALUES (?,?,?,?)`
+	_, err := fii.db.Exec(insert, dividend.Code, dividend.Date, dividend.PaymentDate, dividend.Val)
+
+	return errors.Wrap(err, "inserting data on fii_dividends")
 }
 
 func (fii *FIIParser) SelectFIIDetails(code string) (*rapina.FIIDetails, error) {
@@ -222,29 +199,4 @@ func trimFIIDetails(f *rapina.FIIDetails) {
 	tradingCodes := strings.Split(
 		strings.TrimSpace(f.DetailFund.TradingCode), " ")
 	f.DetailFund.TradingCode = tradingCodes[0]
-}
-
-func mapFinder(key string, m map[string]string) string {
-	for k := range m {
-		if strings.Contains(k, key) {
-			return m[k]
-		}
-	}
-	return ""
-}
-
-func comma2dot(val string) float64 {
-	a := strings.ReplaceAll(val, ".", "")
-	b := strings.ReplaceAll(a, ",", ".")
-	n, _ := strconv.ParseFloat(b, 64)
-	return n
-}
-
-// fixDate converts dates from DD/MM/YYYY to YYYY-MM-DD.
-func fixDate(date string) string {
-	if len(date) != len("26/04/2021") || strings.Count(date, "/") != 2 {
-		return date
-	}
-
-	return date[6:10] + "-" + date[3:5] + "-" + date[0:2]
 }

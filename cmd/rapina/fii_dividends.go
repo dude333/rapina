@@ -52,10 +52,8 @@ func init() {
 		"f", "tabela", "formato do relatório: tabela|csv|csvrend")
 }
 
-//
 // FIIDividends prints the dividends from 'code' for 'n' months,
 // starting from latest.
-//
 func FIIDividends(parms map[string]string, codes []string, n int) error {
 	for i := 0; i < len(codes); i++ {
 		codes[i] = strings.ToUpper(codes[i])

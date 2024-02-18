@@ -4,8 +4,8 @@ import (
 	"bufio"
 	"fmt"
 	"os"
-	"strings"
 	"regexp"
+	"strings"
 
 	"github.com/PuerkitoBio/goquery"
 	"github.com/dude333/rapina"
@@ -14,10 +14,8 @@ import (
 	yaml "gopkg.in/yaml.v2"
 )
 
-//
 // SectorsToYaml grab data from B3 website and prints out to a yaml file
 // with all companies grouped by sector, subsector, segment
-//
 func SectorsToYaml(yamlFile string) (err error) {
 	progress := []string{"/", "-", "\\", "|", "-", "\\"}
 	var p int32
@@ -96,9 +94,7 @@ func SectorsToYaml(yamlFile string) (err error) {
 	return
 }
 
-//
 // companies lists all companies in the same sector/subsector/segment
-//
 func companies(w *bufio.Writer, url string) error {
 	c := colly.NewCollector(
 		// Restrict crawling to specific domains
@@ -120,13 +116,11 @@ func companies(w *bufio.Writer, url string) error {
 			}
 			return false // get only the 1st elem
 		})
-
 	})
 
 	return c.Visit(url)
 }
 
-//
 // overwritePrompt prompts to overwrite file if it exists
 func overwritePrompt(filename string) bool {
 	if _, err := os.Stat(filename); err == nil { // check if file exists
@@ -166,11 +160,8 @@ type Segment struct {
 	Companies []string `yaml:"Empresas"`
 }
 
-//
 // FromSector returns all companies from the same sector as the 'company'
-//
 func FromSector(company, yamlFile string) (companies []string, sectorName string, err error) {
-
 	y, err := os.ReadFile(yamlFile)
 	if err != nil {
 		err = errors.Wrapf(err, "ReadFile: %v", err)
@@ -197,10 +188,8 @@ func FromSector(company, yamlFile string) (companies []string, sectorName string
 	return
 }
 
-//
 // removeYamlInvalidChar removes yaml invalid characters
-//
 func removeYamlInvalidChar(text string) string {
 	yaml_invalid_chars := regexp.MustCompile(`[^/\s.A-zÀ-ú0-9&():-]`)
-	return yaml_invalid_chars.ReplaceAllString(text,"")
+	return yaml_invalid_chars.ReplaceAllString(text, "")
 }

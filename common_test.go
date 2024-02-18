@@ -129,9 +129,9 @@ func TestLastBusinessDayOfYear(t *testing.T) {
 		want string
 	}{
 		{
-			name: "2024",
-			args: args{2024},
-			want: "2024-12-27",
+			name: "2022",
+			args: args{2022},
+			want: "2022-12-29",
 		},
 		{
 			name: "2020",

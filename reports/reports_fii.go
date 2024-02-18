@@ -97,36 +97,39 @@ func (t FIITerminal) Dividends(codes []string, n int) error {
 	}
 	codes = c
 
-	dividends := make(map[string]*[]rapina.Dividend, len(codes))
-
+	dividends := sync.Map{}
 	var wg sync.WaitGroup
-	for _, code := range codes {
+	for i, code := range codes {
 		wg.Add(1)
+		i := i
 		go func(code string, n int) {
 			defer wg.Done()
 			div, err := t.fetchFII.Dividends(code, n)
+			progress.Debug("[go routine %d] dividends (%d): %v", i, len(*div), div)
 			if err != nil {
 				progress.ErrorMsg("%s: %v", code, err)
 				return
 			}
-			dividends[code] = div
+			dividends.Store(code, div)
 		}(code, n)
 	}
 	wg.Wait()
 
 	for _, code := range codes {
-		if _, ok := dividends[code]; !ok {
+		div, ok := dividends.Load(code)
+		if !ok {
 			continue
 		}
+		dividendsForCode := div.(*[]rapina.Dividend)
 		var buf *strings.Builder
 		var err error
 		switch t.reportFormat {
 		case Rcsv:
-			buf, err = t.csvDividends(code, dividends[code])
+			buf, err = t.csvDividends(code, dividendsForCode)
 		case Rcsvrend:
-			buf, err = t.csvDividendsOnly(code, n, dividends[code])
+			buf, err = t.csvDividendsOnly(code, n, dividendsForCode)
 		default:
-			buf, err = t.printDividends(code, dividends[code])
+			buf, err = t.printDividends(code, dividendsForCode)
 		}
 		if err != nil {
 			progress.Error(err)
@@ -136,9 +139,9 @@ func (t FIITerminal) Dividends(codes []string, n int) error {
 	}
 
 	// Footer
-	if t.reportFormat == Rtable {
-		fmt.Println(line)
-	}
+	// if t.reportFormat == Rtable {
+	// 	fmt.Println(line)
+	// }
 
 	return nil
 }
@@ -166,6 +169,7 @@ func (t FIITerminal) printDividends(code string, dividends *[]rapina.Dividend) (
 		}
 		buf.WriteByte('\n')
 	}
+	buf.WriteByte('\n')
 
 	return buf, nil
 }
