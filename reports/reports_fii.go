@@ -105,11 +105,11 @@ func (t FIITerminal) Dividends(codes []string, n int) error {
 		go func(code string, n int) {
 			defer wg.Done()
 			div, err := t.fetchFII.Dividends(code, n)
-			progress.Debug("[go routine %d] dividends (%d): %v", i, len(*div), div)
 			if err != nil {
 				progress.ErrorMsg("%s: %v", code, err)
 				return
 			}
+			progress.Debug("[go routine %d] dividends (%d): %v", i, len(*div), div)
 			dividends.Store(code, div)
 		}(code, n)
 	}
