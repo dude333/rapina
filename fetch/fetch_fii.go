@@ -142,25 +142,39 @@ func (fii *FII) dividendReport(code string, ids []id) (*[]rapina.Dividend, error
 	var dividends []rapina.Dividend
 
 	// HTTP client setup
-	client := &http.Client{}
+	client := &http.Client{
+		Transport: &http.Transport{
+			TLSClientConfig: &tls.Config{
+				InsecureSkipVerify: true,
+			},
+			MaxIdleConnsPerHost: 10,
+		},
+	}
 
 	for _, id := range ids {
 		url := fmt.Sprintf("https://fnet.bmfbovespa.com.br/fnet/publico/exibirDocumento?id=%d&cvm=true", id)
 		progress.Debug("GET %s", url)
 
 		// Make HTTP request
-		resp, err := client.Get(url)
+		req, err := http.NewRequest("GET", url, nil)
 		if err != nil {
 			return nil, err
 		}
-		defer resp.Body.Close()
+
+		// Reuse the same client for subsequent requests
+		resp, err := client.Do(req)
+		if err != nil {
+			return nil, err
+		}
 
 		if resp.StatusCode != http.StatusOK {
+			resp.Body.Close()
 			return nil, errors.Wrapf(err, "unexpected status code: %d", resp.StatusCode)
 		}
 
 		// Read response body
 		body, err := io.ReadAll(resp.Body)
+		resp.Body.Close()
 		if err != nil {
 			return nil, err
 		}
