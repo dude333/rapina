@@ -19,6 +19,7 @@ type fiiMonthlyFlags struct {
 
 // fiiMonthlyCmd represents the rendimentos command
 var fiiMonthlyCmd = &cobra.Command{
+	Hidden:  true,
 	Use:     "mensal",
 	Aliases: []string{"monthly"},
 	Args:    cobra.MinimumNArgs(1),
@@ -49,10 +50,8 @@ func init() {
 		"f", "tabela", "formato do relatório: tabela|csv|csvrend")
 }
 
-//
 // FIIMonthly prints the monthly reports from 'code' for 'n' months,
 // starting from latest.
-//
 func FIIMonthly(parms map[string]string, codes []string, n int) error {
 	for i := 0; i < len(codes); i++ {
 		codes[i] = strings.ToUpper(codes[i])

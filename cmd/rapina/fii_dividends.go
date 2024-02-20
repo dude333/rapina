@@ -5,7 +5,10 @@ Distributed under the MIT License.
 package main
 
 import (
+	"fmt"
 	"log"
+	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/dude333/rapina/reports"
@@ -44,6 +47,9 @@ var fiiDividendsCmd = &cobra.Command{
 		}
 
 	},
+	Example: func() string {
+		return fmt.Sprintf("%s fii rendimentos KNIP11 KNCR11 HGLG11 -n 4", filepath.Base(os.Args[0]))
+	}(),
 }
 
 func init() {

@@ -82,8 +82,8 @@ func init() {
 Aliases:
   {{.NameAndAliases}}{{end}}{{if .HasExample}}
 
-Exemples:
-{{.Example}}{{end}}{{if .HasAvailableSubCommands}}
+Exemplos:
+  {{.Example}}{{end}}{{if .HasAvailableSubCommands}}
 
 Comandos Disponíveis:{{range .Commands}}{{if (or .IsAvailableCommand (eq .Name "help"))}}
   {{rpad .Name .NamePadding }} {{.Short}}{{end}}{{end}}{{end}}{{if .HasAvailableLocalFlags}}
